@@ -1,0 +1,51 @@
+From 993056a3a0e0b8fc8722fcd0dc94ab5981794ce8 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Tue, 21 Mar 2023 23:28:07 +0200
+Subject: [PATCH] RFC: Fix boot from one mmc dev while android present on
+ another mmc dev.
+
+TODO: Send a bug report to Google.
+
+The 'device_handler_->HandleUevent(uevent);' function may not process
+the uevent (e.g. different path in androidboot.boot_devices cmdline
+argumment is specified).
+
+Current code logic will remove the partition names from devices list
+and stop processing uevents even if no symlink is created.
+
+Current patch workarounds an issue, but proper fix is required.
+
+Change-Id: I516c3697b96eaddac920104c0f56d95df5c9c649
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ init/block_dev_initializer.cpp | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/init/block_dev_initializer.cpp b/init/block_dev_initializer.cpp
+index 05e00edfd..e03a2a663 100644
+--- a/init/block_dev_initializer.cpp
++++ b/init/block_dev_initializer.cpp
+@@ -91,16 +91,15 @@ ListenerAction BlockDevInitializer::HandleUevent(const Uevent& uevent,
+         if (!partition_name.empty()) {
+             iter = devices->find(partition_name);
+         }
+-        if (iter == devices->end()) {
+-            return ListenerAction::kContinue;
+-        }
++    }
++    if (iter != devices->end()) {
++        devices->erase(iter);
+     }
+ 
+     LOG(VERBOSE) << __PRETTY_FUNCTION__ << ": found partition: " << name;
+ 
+-    devices->erase(iter);
+     device_handler_->HandleUevent(uevent);
+-    return devices->empty() ? ListenerAction::kStop : ListenerAction::kContinue;
++    return ListenerAction::kContinue;
+ }
+ 
+ bool BlockDevInitializer::InitDevices(std::set<std::string> devices) {
+-- 
+2.34.1
+

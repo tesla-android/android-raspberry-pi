@@ -1,0 +1,44 @@
+From 76cdaae518d04555768c65b0198b6997dc259871 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Fri, 6 Nov 2020 20:20:12 +0200
+Subject: [PATCH 2/7] Revert "find dtb in android boot image with header
+ version 2 during bootm"
+
+GloDroid bootscript isn't ready yet for this change.
+
+This reverts commit 6e31458435ac499611a205c67a83be25098135b3.
+---
+ boot/image-fdt.c | 16 +++-------------
+ 1 file changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/boot/image-fdt.c b/boot/image-fdt.c
+index 714d05d1a5..08a0bfb694 100644
+--- a/boot/image-fdt.c
++++ b/boot/image-fdt.c
+@@ -530,20 +530,10 @@ int boot_get_fdt(int flag, int argc, char *const argv[], uint8_t arch,
+ #ifdef CONFIG_ANDROID_BOOT_IMAGE
+ 	} else if (genimg_get_format(buf) == IMAGE_FORMAT_ANDROID) {
+ 		struct andr_img_hdr *hdr = buf;
+-		ulong		fdt_data, fdt_len;
+-		u32			fdt_size, dtb_idx;
+-		/*
+-		 * Firstly check if this android boot image has dtb field.
+-		 */
+-		dtb_idx = (u32)env_get_ulong("adtb_idx", 10, 0);
+-		if (android_image_get_dtb_by_index((ulong)hdr, dtb_idx, &fdt_addr, &fdt_size)) {
+-			fdt_blob = (char *)map_sysmem(fdt_addr, 0);
+-			if (fdt_check_header(fdt_blob))
+-				goto no_fdt;
++		ulong fdt_data, fdt_len;
+ 
+-			debug("## Using FDT in Android image dtb area with idx %u\n", dtb_idx);
+-		} else if (!android_image_get_second(hdr, &fdt_data, &fdt_len) &&
+-			!fdt_check_header((char *)fdt_data)) {
++		if (!android_image_get_second(hdr, &fdt_data, &fdt_len) &&
++		    !fdt_check_header((char *)fdt_data)) {
+ 			fdt_blob = (char *)fdt_data;
+ 			if (fdt_totalsize(fdt_blob) != fdt_len)
+ 				goto error;
+-- 
+2.34.1
+

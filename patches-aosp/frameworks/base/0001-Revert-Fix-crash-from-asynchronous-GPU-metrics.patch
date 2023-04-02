@@ -1,0 +1,82 @@
+From cadc9a7ccb98d6ec38b605ea7088087541de54fb Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Wed, 29 Mar 2023 20:49:55 +0300
+Subject: [PATCH] Revert "Fix crash from asynchronous GPU metrics"
+
+This reverts commit 5d28aee1b1ac76e73db174535802bd2cc6069909.
+
+This commit causes race-condition in the following case:
+
+1. DrawFrame is out of free buffers and waiting for a new buffer to appear with
+   mFrameMetricsReporterMutex locked.
+2. Binder can't finalize transaction staying in onSurfaceStatsAvailable,
+   waiting for the mutex to be released, blocking SF transactions, and
+   after 4s, the following logcat message appears:
+
+4866 V Surface : dequeueBuffer: IGraphicBufferProducer::dequeueBuffer(0, 0, 1, 0x200) failed: -110
+4866 W OpenGLRenderer: dequeueBuffer failed, error = -110; switching to fallback
+4847 I Choreographer: Skipped 240 frames!  The application may be doing too much work on its main thread.
+
+Change-Id: I12fa6824b75f8f108110b9336d5d2ea2da93814e
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ libs/hwui/FrameInfoVisualizer.cpp        |  2 +-
+ libs/hwui/renderthread/CanvasContext.cpp | 18 ++++--------------
+ 2 files changed, 5 insertions(+), 15 deletions(-)
+
+diff --git a/libs/hwui/FrameInfoVisualizer.cpp b/libs/hwui/FrameInfoVisualizer.cpp
+index 687e4dd324d3..3a8e559f6d7e 100644
+--- a/libs/hwui/FrameInfoVisualizer.cpp
++++ b/libs/hwui/FrameInfoVisualizer.cpp
+@@ -179,7 +179,7 @@ void FrameInfoVisualizer::initializeRects(const int baseline, const int width) {
+ void FrameInfoVisualizer::nextBarSegment(FrameInfoIndex start, FrameInfoIndex end) {
+     int fast_i = (mNumFastRects - 1) * 4;
+     int janky_i = (mNumJankyRects - 1) * 4;
+-
++    ;
+     for (size_t fi = 0; fi < mFrameSource.size(); fi++) {
+         if (mFrameSource[fi][FrameInfoIndex::Flags] & FrameInfoFlags::SkippedFrame) {
+             continue;
+diff --git a/libs/hwui/renderthread/CanvasContext.cpp b/libs/hwui/renderthread/CanvasContext.cpp
+index 75d3ff7753cb..976117b9bbd4 100644
+--- a/libs/hwui/renderthread/CanvasContext.cpp
++++ b/libs/hwui/renderthread/CanvasContext.cpp
+@@ -512,19 +512,9 @@ nsecs_t CanvasContext::draw() {
+ 
+     ATRACE_FORMAT("Drawing " RECT_STRING, SK_RECT_ARGS(dirty));
+ 
+-    IRenderPipeline::DrawResult drawResult;
+-    {
+-        // FrameInfoVisualizer accesses the frame events, which cannot be mutated mid-draw
+-        // or it can lead to memory corruption.
+-        // This lock is overly broad, but it's the quickest fix since this mutex is otherwise
+-        // not visible to IRenderPipeline much less FrameInfoVisualizer. And since this is
+-        // the thread we're primarily concerned about being responsive, this being too broad
+-        // shouldn't pose a performance issue.
+-        std::scoped_lock lock(mFrameMetricsReporterMutex);
+-        drawResult = mRenderPipeline->draw(frame, windowDirty, dirty, mLightGeometry,
+-                                           &mLayerUpdateQueue, mContentDrawBounds, mOpaque,
+-                                           mLightInfo, mRenderNodes, &(profiler()));
+-    }
++    const auto drawResult = mRenderPipeline->draw(frame, windowDirty, dirty, mLightGeometry,
++                                                  &mLayerUpdateQueue, mContentDrawBounds, mOpaque,
++                                                  mLightInfo, mRenderNodes, &(profiler()));
+ 
+     uint64_t frameCompleteNr = getFrameNumber();
+ 
+@@ -764,11 +754,11 @@ void CanvasContext::onSurfaceStatsAvailable(void* context, int32_t surfaceContro
+     FrameInfo* frameInfo = instance->getFrameInfoFromLast4(frameNumber, surfaceControlId);
+ 
+     if (frameInfo != nullptr) {
+-        std::scoped_lock lock(instance->mFrameMetricsReporterMutex);
+         frameInfo->set(FrameInfoIndex::FrameCompleted) = std::max(gpuCompleteTime,
+                 frameInfo->get(FrameInfoIndex::SwapBuffersCompleted));
+         frameInfo->set(FrameInfoIndex::GpuCompleted) = std::max(
+                 gpuCompleteTime, frameInfo->get(FrameInfoIndex::CommandSubmissionCompleted));
++        std::scoped_lock lock(instance->mFrameMetricsReporterMutex);
+         instance->mJankTracker.finishFrame(*frameInfo, instance->mFrameMetricsReporter, frameNumber,
+                                            surfaceControlId);
+     }
+-- 
+2.34.1
+

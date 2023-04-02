@@ -1,0 +1,46 @@
+From 75fa40fca7138955f72fb1c55611f05ba2cc3b0f Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Mon, 9 May 2022 20:56:05 +0300
+Subject: [PATCH 4/7] avb: Fix support for unlocked state
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ cmd/avb.c | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/cmd/avb.c b/cmd/avb.c
+index 783f51b816..e95e36657f 100644
+--- a/cmd/avb.c
++++ b/cmd/avb.c
+@@ -265,22 +265,21 @@ int do_avb_verify_part(struct cmd_tbl *cmdtp, int flag,
+ 		avb_slot_verify(avb_ops,
+ 				requested_partitions,
+ 				slot_suffix,
+-				unlocked,
++				unlocked ? AVB_SLOT_VERIFY_FLAGS_ALLOW_VERIFICATION_ERROR : 0,
+ 				AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,
+ 				&out_data);
+ 
++	if (unlocked && slot_result == AVB_SLOT_VERIFY_RESULT_ERROR_VERIFICATION) {
++		slot_result = AVB_SLOT_VERIFY_RESULT_OK;
++	}
++
+ 	switch (slot_result) {
+ 	case AVB_SLOT_VERIFY_RESULT_OK:
+-		/* Until we don't have support of changing unlock states, we
+-		 * assume that we are by default in locked state.
+-		 * So in this case we can boot only when verification is
+-		 * successful; we also supply in cmdline GREEN boot state
+-		 */
+ 		printf("Verification passed successfully\n");
+ 
+ 		/* export additional bootargs to AVB_BOOTARGS env var */
+ 
+-		extra_args = avb_set_state(avb_ops, AVB_GREEN);
++		extra_args = avb_set_state(avb_ops, unlocked ? AVB_ORANGE : AVB_GREEN);
+ 		if (extra_args)
+ 			cmdline = append_cmd_line(out_data->cmdline,
+ 						  extra_args);
+-- 
+2.34.1
+

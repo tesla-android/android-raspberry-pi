@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+
+  <include name="lineage.xml" />
+
+  <project path="vendor/partner_gms" name="lineageos4microg/android_vendor_partner_gms" remote="github" revision="27c8ca1881471c99c9f14c2be3443b3996c08d86" />
+
+  <include name="glodroid.xml" />
+
+</manifest>

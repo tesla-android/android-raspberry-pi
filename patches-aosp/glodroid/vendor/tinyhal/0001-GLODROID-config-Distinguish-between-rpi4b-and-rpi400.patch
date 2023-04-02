@@ -1,0 +1,60 @@
+From 908728c07755c65c99acfae3d5c15de530d8aaf9 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Sun, 2 Apr 2023 01:51:49 +0300
+Subject: [PATCH] GLODROID: config: Distinguish between rpi4b and rpi400 board
+ variants.
+
+Patch is temporary solution for raspberry-pi 400 to bypass audio.
+
+Change-Id: I13cd26048d8a33ddc2d4b862a27fa10fd59cd676
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ audio/audio_hw.c | 32 ++++++++++++++++++++++++++++++--
+ 1 file changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/audio/audio_hw.c b/audio/audio_hw.c
+index 3aa24b0..e1e94c5 100644
+--- a/audio/audio_hw.c
++++ b/audio/audio_hw.c
+@@ -2471,8 +2471,36 @@ static int adev_open(const hw_module_t *module, const char *name,
+     adev->hw_device.close_input_stream = adev_close_input_stream;
+     adev->hw_device.dump = adev_dump;
+ 
+-    property_get("ro.product.device", property, "generic");
+-    snprintf(file_name, sizeof(file_name), "%s/audio.%s.xml", ETC_PATH, property);
++    int f = open("/sys/firmware/devicetree/base/compatible", O_RDONLY);
++    if (f < 0) {
++        ret = -errno;
++        ALOGE("Failed to open /sys/firmware/devicetree/base/compatible");
++        goto fail;
++    }
++
++    char buf[256];
++    memset(buf, 0, sizeof(buf));
++    int len = read(f, buf, sizeof(buf));
++    if (len < 0) {
++        ret = -errno;
++        ALOGE("Failed to read /sys/firmware/devicetree/base/compatible");
++        goto fail;
++    }
++
++    close(f);
++
++    char *config_name;
++    const char RPI400_COMPAT[] = "raspberrypi,400";
++    if (strncmp(buf, RPI400_COMPAT, sizeof(RPI400_COMPAT) - 1) == 0) {
++        config_name = "rpi400";
++    } else {
++        config_name = "rpi4";
++    }
++
++    ALOGI("Compatible is '%s', using config '%s'", buf, config_name);
++
++//    property_get("ro.product.device", property, "generic");
++    snprintf(file_name, sizeof(file_name), "%s/audio.%s.xml", ETC_PATH, config_name);
+ 
+     ALOGV("Reading configuration from %s\n", file_name);
+     adev->cm = init_audio_config(file_name);
+-- 
+2.34.1
+

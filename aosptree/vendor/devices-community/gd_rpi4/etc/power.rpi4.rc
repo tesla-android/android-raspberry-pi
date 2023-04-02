@@ -1,0 +1,3 @@
+on early-init
+    # Value was found experimentally using bouncing ball test
+    write /sys/devices/system/cpu/cpufreq/schedutil/rate_limit_us 2000

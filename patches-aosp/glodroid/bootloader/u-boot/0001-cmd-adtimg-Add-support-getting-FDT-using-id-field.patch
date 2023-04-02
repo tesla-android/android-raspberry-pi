@@ -1,0 +1,203 @@
+From b21e840a72f8864d146d340239afcd4ee687ad38 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Mon, 17 Aug 2020 00:02:12 +0300
+Subject: [PATCH 1/7] cmd: adtimg: Add support getting FDT using 'id' field.
+
+Idea is based on:
+https://patchwork.ozlabs.org/cover/1202575/
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ boot/image-android-dt.c    | 43 +++++++++++++++++++
+ cmd/adtimg.c               | 86 ++++++++++++++++++++++++++++++++++++++
+ include/image-android-dt.h |  2 +
+ 3 files changed, 131 insertions(+)
+
+diff --git a/boot/image-android-dt.c b/boot/image-android-dt.c
+index fb014190d4..9c5bfe96c7 100644
+--- a/boot/image-android-dt.c
++++ b/boot/image-android-dt.c
+@@ -73,6 +73,49 @@ bool android_dt_get_fdt_by_index(ulong hdr_addr, u32 index, ulong *addr,
+ 	return true;
+ }
+ 
++bool android_dt_get_fdt_by_id(ulong hdr_addr, u32 id, ulong *addr,
++			      u32 *size, u32 *index)
++{
++	const struct dt_table_header *hdr;
++	const struct dt_table_entry *e;
++	u32 entry_count, entries_offset, entry_size;
++	ulong e_addr;
++	u32 dt_offset, dt_size, dt_index;
++	bool found = false;
++
++	hdr = map_sysmem(hdr_addr, sizeof(*hdr));
++	entry_count = fdt32_to_cpu(hdr->dt_entry_count);
++	entries_offset = fdt32_to_cpu(hdr->dt_entries_offset);
++	entry_size = fdt32_to_cpu(hdr->dt_entry_size);
++	unmap_sysmem(hdr);
++
++	for (int index = 0; index < entry_count; index++) {
++		e_addr = hdr_addr + entries_offset + index * entry_size;
++		e = map_sysmem(e_addr, sizeof(*e));
++		if (fdt32_to_cpu(e->id) == id) {
++			dt_index = index;
++			dt_offset = fdt32_to_cpu(e->dt_offset);
++			dt_size = fdt32_to_cpu(e->dt_size);
++			found = true;
++		}
++		unmap_sysmem(e);
++	}
++
++	if (!found) {
++		printf("Error: FDT with id==0x%x not found\n", id);
++		return false;
++	}
++
++	if (addr)
++		*addr = hdr_addr + dt_offset;
++	if (size)
++		*size = dt_size;
++	if (index)
++		*index = dt_index;
++
++	return true;
++}
++
+ #if !defined(CONFIG_SPL_BUILD)
+ static void android_dt_print_fdt_info(const struct fdt_header *fdt)
+ {
+diff --git a/cmd/adtimg.c b/cmd/adtimg.c
+index f4b5cbf35b..279d94ebb2 100644
+--- a/cmd/adtimg.c
++++ b/cmd/adtimg.c
+@@ -11,6 +11,7 @@
+ #include <common.h>
+ 
+ #define OPT_INDEX	"--index"
++#define OPT_ID		"--id"
+ 
+ /*
+  * Current/working DTB/DTBO Android image address.
+@@ -125,6 +126,33 @@ static int adtimg_getopt_index(int argc, char *const argv[], u32 *index,
+ 	return CMD_RET_SUCCESS;
+ }
+ 
++static int adtimg_getopt_id(int argc, char *const argv[], u32 *id,
++			    char **avar, char **svar, char **ivar)
++{
++	int ret;
++
++	if (!argv || !avar || !svar || !ivar)
++		return CMD_RET_FAILURE;
++
++	if (argc > 4) {
++		printf("Error: Unexpected argument '%s'\n", argv[4]);
++		return CMD_RET_FAILURE;
++	}
++
++	ret = adtimg_getopt_u32(argv[0], OPT_ID, id);
++	if (ret != CMD_RET_SUCCESS)
++		return ret;
++
++	if (argc > 1)
++		*avar = argv[1];
++	if (argc > 2)
++		*svar = argv[2];
++	if (argc > 3)
++		*ivar = argv[3];
++
++	return CMD_RET_SUCCESS;
++}
++
+ static int adtimg_get_dt_by_index(int argc, char *const argv[])
+ {
+ 	ulong addr;
+@@ -164,6 +192,61 @@ static int adtimg_get_dt_by_index(int argc, char *const argv[])
+ 	return CMD_RET_SUCCESS;
+ }
+ 
++static int adtimg_get_dt_by_id(int argc, char *const argv[])
++{
++	ulong addr;
++	u32 id, index, size;
++	int ret;
++	char *avar = NULL, *svar = NULL, *ivar = NULL;
++
++	ret = adtimg_getopt_id(argc, argv, &id, &avar, &svar, &ivar);
++	if (ret != CMD_RET_SUCCESS)
++		return ret;
++
++	if (!android_dt_get_fdt_by_id(working_img, id, &addr, &size, &index))
++		return CMD_RET_FAILURE;
++
++	if (avar && svar && ivar) {
++		ret = env_set_hex(avar, addr);
++		if (ret) {
++			printf("Error: Can't set '%s' to 0x%lx\n", avar, addr);
++			return CMD_RET_FAILURE;
++		}
++		ret = env_set_hex(svar, size);
++		if (ret) {
++			printf("Error: Can't set '%s' to 0x%x\n", svar, size);
++			return CMD_RET_FAILURE;
++		}
++		ret = env_set_hex(ivar, index);
++		if (ret) {
++			printf("Error: Can't set '%s' to 0x%x\n", ivar, index);
++			return CMD_RET_FAILURE;
++		}
++	} else if (avar && svar) {
++		ret = env_set_hex(avar, addr);
++		if (ret) {
++			printf("Error: Can't set '%s' to 0x%lx\n", avar, addr);
++			return CMD_RET_FAILURE;
++		}
++		ret = env_set_hex(svar, size);
++		if (ret) {
++			printf("Error: Can't set '%s' to 0x%x\n", svar, size);
++			return CMD_RET_FAILURE;
++		}
++	} else if (avar) {
++		ret = env_set_hex(avar, addr);
++		if (ret) {
++			printf("Error: Can't set '%s' to 0x%lx\n", avar, addr);
++			return CMD_RET_FAILURE;
++		}
++		printf("0x%x (%d)\n", size, size);
++	} else {
++		printf("0x%lx, 0x%x (%d)\n", addr, size, size);
++	}
++
++	return CMD_RET_SUCCESS;
++}
++
+ static int adtimg_get_dt(int argc, char *const argv[])
+ {
+ 	if (argc < 2) {
+@@ -178,6 +261,9 @@ static int adtimg_get_dt(int argc, char *const argv[])
+ 	if (!strncmp(argv[0], OPT_INDEX, sizeof(OPT_INDEX) - 1))
+ 		return adtimg_get_dt_by_index(argc, argv);
+ 
++	if (!strncmp(argv[0], OPT_ID, sizeof(OPT_ID) - 1))
++		return adtimg_get_dt_by_id(argc, argv);
++
+ 	printf("Error: Option '%s' not supported\n", argv[0]);
+ 	return CMD_RET_FAILURE;
+ }
+diff --git a/include/image-android-dt.h b/include/image-android-dt.h
+index 9a3aa8fa30..69f28ddf9e 100644
+--- a/include/image-android-dt.h
++++ b/include/image-android-dt.h
+@@ -12,6 +12,8 @@
+ bool android_dt_check_header(ulong hdr_addr);
+ bool android_dt_get_fdt_by_index(ulong hdr_addr, u32 index, ulong *addr,
+ 				 u32 *size);
++bool android_dt_get_fdt_by_id(ulong hdr_addr, u32 id, ulong *addr,
++				 u32 *size, u32 *index);
+ 
+ #if !defined(CONFIG_SPL_BUILD)
+ void android_dt_print_contents(ulong hdr_addr);
+-- 
+2.34.1
+

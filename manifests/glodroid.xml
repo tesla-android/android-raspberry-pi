@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+
+  <remote  name="glodroid" fetch="https://github.com/glodroid/" />
+  <remote  name="gnome"    fetch="https://github.com/GNOME/" />
+  <remote  name="mbroadband" fetch="https://gitlab.freedesktop.org/mobile-broadband" />
+  <remote  name="dbus"       fetch="https://gitlab.freedesktop.org/dbus" />
+  <remote  name="libcamera"  fetch="https://git.libcamera.org/libcamera" />
+
+  <remove-project name="platform/external/mesa3d" />
+  <remove-project name="platform/external/drm_hwcomposer" />
+
+  <project path="glodroid"                        remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="refs/tags/basedir-v0.9.0" />
+  <project path="glodroid/configuration"          remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="refs/tags/v0.9.0-rc3" />
+
+  <project path="glodroid/apks"                   remote="glodroid" name="glodroid_external_apks.git" groups="glodroid" revision="refs/tags/apps-v0.8.2" />
+
+  <!-- gpu+display components (vendor) -->
+  <project path="glodroid/vendor/minigbm"         remote="aosp" name="platform/external/minigbm"        groups="glodroid" revision="dd9c86425b040a6f0795e4a27f788985d34ece66" />
+  <project path="glodroid/vendor/drm_hwcomposer"  remote="aosp" name="platform/external/drm_hwcomposer" groups="glodroid" revision="2bf68c374976d0a7a0e71c1843cbeae2a3210b74" />
+  <project path="glodroid/vendor/mesa3d"          remote="aosp" name="platform/external/mesa3d"         groups="glodroid" revision="66b438dca11f79a8e54e558a97dc2d10c6b185d2" />
+
+  <!-- camera components (vendor) -->
+  <project path="glodroid/vendor/libcamera"                     remote="libcamera" name="libcamera.git"      groups="glodroid" revision="ea8ae5afff226f9373c82c1a3185e532d5d6eda0" />
+  <project path="glodroid/vendor/libcamera/subprojects/libyuv"  remote="glodroid"  name="glodroid_forks.git" groups="glodroid" revision="refs/tags/libyuv-v0.8.2" />
+  <project path="glodroid/vendor/libcamera/subprojects/libyaml" remote="github"    name="yaml/libyaml.git"   groups="glodroid" revision="refs/tags/0.2.5" />
+
+  <!-- modem components (vendor) -->
+  <project path="glodroid/vendor/mm-radio"        remote="glodroid"    name="mm-radio.git"     groups="glodroid" revision="90f9f9a8b20ce2e153d39c9fc250ab2733a7fbb9" />
+  <project path="glodroid/vendor/mm-radio/vendor" remote="glodroid"    name="mm-radio.git"     groups="glodroid" revision="refs/tags/cargo-deps-2023w07" clone-depth="1" />
+  <project path="glodroid/vendor/dbus"            remote="dbus"        name="dbus.git"         groups="glodroid" revision="refs/tags/dbus-1.15.2" />
+  <project path="glodroid/vendor/libqmi"          remote="mbroadband"  name="libqmi.git"       groups="glodroid" revision="refs/tags/1.33.4-dev" />
+  <project path="glodroid/vendor/modem_manager"   remote="mbroadband"  name="ModemManager.git" groups="glodroid" revision="652a562aebcd22e16962ec57c0176acdbf41876a" />
+  <project path="glodroid/vendor/libgudev"        remote="gnome"       name="libgudev.git"     groups="glodroid" revision="refs/tags/237" />
+  <project path="glodroid/vendor/glib"            remote="gnome"       name="glib.git"         groups="glodroid" revision="refs/tags/2.75.2" />
+  <project path="glodroid/vendor/glib/subprojects/gvdb" remote="gnome" name="gvdb.git"         groups="glodroid" revision="0854af0fdb6d527a8d1999835ac2c5059976c210" />
+  <project path="glodroid/vendor/glib/subprojects/proxy-libintl" remote="github"  name="frida/proxy-libintl.git" groups="glodroid" revision="refs/tags/0.4" />
+
+  <!-- other components (vendor) -->
+  <project path="glodroid/vendor/aospext"         remote="glodroid" name="aospext.git"        groups="glodroid" revision="03961ccc1e3be2734966225ef4b0db7166e19a26" />
+  <project path="glodroid/vendor/iio-sensors-hal" remote="glodroid" name="glodroid_forks.git" groups="glodroid" revision="refs/tags/iio-sensors-hal-v0.9.0" />
+  <project path="glodroid/vendor/tinyhal"         remote="github"   name="CirrusLogic/tinyhal.git" groups="glodroid" revision="9c5df120b33ca51f05d4f997da659111ab63498e" />
+  <project path="glodroid/vendor/libudev-zero"    remote="glodroid" name="glodroid_forks.git" groups="glodroid" revision="refs/tags/libudev_zero-v0.8.2" />
+
+  <!-- bootloader components (platform) -->
+  <project path="glodroid/bootloader/u-boot"      remote="github" name="u-boot/u-boot.git"    groups="glodroid" revision="refs/tags/v2023.01" />
+  <project path="glodroid/bootloader/atf"         name="platform/external/arm-trusted-firmware" groups="glodroid" revision="a127b99d5a063c798d1c6d2e1d4791a630f78355" />
+  <project path="glodroid/bootloader/raspberry-fw"  remote="github"  name="raspberrypi/firmware.git" groups="glodroid" revision="0d3395d1e065f5e9f9b081c90bc3b73100ea8698" clone-depth="1" />
+
+  <!-- kernel/firmware components (platform) -->
+  <project path="glodroid/kernel/broadcom"        remote="glodroid" name="glodroid_forks.git" groups="glodroid" revision="refs/tags/kernel-broadcom-v0.9.0" />
+
+  <!-- compilers for platform components -->
+  <project path="prebuilts/gcc/linux-x86/aarch64/gcc-linaro-aarch64-linux-gnu"
+                                           remote="glodroid" name="linaro_gcc_prebuilts.git" groups="glodroid" revision="refs/tags/gcc-linaro-7.4.1-2019.02-x86_64_aarch64-linux-gnu" />
+  <project path="prebuilts/gcc/linux-x86/arm/gcc-linaro-arm-eabi"
+                                           remote="glodroid" name="linaro_gcc_prebuilts.git" groups="glodroid" revision="refs/tags/gcc-linaro-7.5.0-2019.12-x86_64_arm-eabi" />
+  <project path="glodroid/compilers/rust/1.65.0"
+                                           remote="glodroid" name="linaro_gcc_prebuilts.git" groups="glodroid" revision="refs/tags/rust-v1.65.0-linux-x86" />
+
+</manifest>

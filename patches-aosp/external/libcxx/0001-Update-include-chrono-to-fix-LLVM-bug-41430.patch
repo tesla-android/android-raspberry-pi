@@ -1,0 +1,34 @@
+From 5c73e39898788a341a7fc198ba8aa9ed8e1e98d2 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Sun, 13 Nov 2022 15:43:39 +0200
+Subject: [PATCH] Update include/chrono to fix LLVM bug 41430
+
+https://bugs.llvm.org/show_bug.cgi?id=41130
+
+Change-Id: I174b0f42d5fdb70e0a4426de8ee980cb5cd5e618
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ include/chrono | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/include/chrono b/include/chrono
+index 96759f9860ee..f18dffb5255e 100644
+--- a/include/chrono
++++ b/include/chrono
+@@ -1290,7 +1290,12 @@ struct __duration_divide_result<duration<_Rep1, _Period>, _Rep2, false>
+ template <class _Rep1, class _Period, class _Rep2>
+ inline _LIBCPP_INLINE_VISIBILITY
+ _LIBCPP_CONSTEXPR
+-typename __duration_divide_result<duration<_Rep1, _Period>, _Rep2>::type
++typename enable_if
++<
++    !__is_duration<_Rep2>::value &&
++    is_convertible<_Rep2, typename common_type<_Rep1, _Rep2>::type>::value,
++    duration<typename common_type<_Rep1, _Rep2>::type, _Period>
++>::type
+ operator/(const duration<_Rep1, _Period>& __d, const _Rep2& __s)
+ {
+     typedef typename common_type<_Rep1, _Rep2>::type _Cr;
+-- 
+2.34.1
+

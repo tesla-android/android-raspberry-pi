@@ -1,0 +1,21 @@
+dtparam=audio=on
+dtparam=krnbt=on
+dtparam=uart1=on
+
+[all]
+start_x=1
+enable_uart=1
+uart_2ndstage=1
+arm_64bit=1
+enable_gic=1
+kernel=u-boot.bin
+armstub=bl31.bin
+camera_auto_detect=1
+
+dtoverlay=dwc2
+dtoverlay=vc4-kms-v3d
+
+max_framebuffers=2
+
+# Automatically load overlays for detected DSI displays
+display_auto_detect=1

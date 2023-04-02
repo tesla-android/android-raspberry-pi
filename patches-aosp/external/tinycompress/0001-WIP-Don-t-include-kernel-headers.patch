@@ -1,0 +1,33 @@
+From 02e87d93f41f897a8b683f4d6e57e0ce85b14be9 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Mon, 20 Mar 2023 19:39:45 +0200
+Subject: [PATCH] LineageOS: Don't include kernel headers
+
+Some issue in kernel headers makes compile error.
+
+This change is relevant for LineageOS only but shouldn't make any
+issues with AOSP, so use it in both for consistency.
+
+Change-Id: I559090f1a893f4b7bc13ccebda633020f34a8ff1
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ Android.bp | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/Android.bp b/Android.bp
+index 98fbd16..26c9c55 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -42,9 +42,6 @@ cc_library_shared {
+         "libcutils",
+         "libutils",
+     ],
+-    header_libs: [
+-        "device_kernel_headers",
+-    ],
+ }
+ 
+ cc_binary {
+-- 
+2.34.1
+
