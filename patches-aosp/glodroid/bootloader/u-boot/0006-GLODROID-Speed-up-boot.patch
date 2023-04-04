@@ -1,0 +1,22 @@
+From 9b853aa8421d1c5e452d9eb6982fd36fc7dec8c9 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Tue, 4 Apr 2023 21:48:18 +0300
+Subject: [PATCH] GLODROID: Speed-up boot
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ configs/rpi_4_defconfig | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/configs/rpi_4_defconfig b/configs/rpi_4_defconfig
+index a6fe2feab2..c8968e24e6 100644
+--- a/configs/rpi_4_defconfig
++++ b/configs/rpi_4_defconfig
+@@ -65,3 +65,4 @@ CONFIG_VIDEO_BCM2835=y
+ CONFIG_CONSOLE_SCROLL_LINES=10
+ CONFIG_PHYS_TO_BUS=y
+ CONFIG_OF_LIBFDT_OVERLAY=y
++CONFIG_BOOTDELAY=0
+-- 
+2.37.2
+
