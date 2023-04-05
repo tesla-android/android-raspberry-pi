@@ -1,0 +1,30 @@
+From 7761affb89a208505bbb38af0e38d9155f2b7f9f Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Wed, 5 Apr 2023 23:44:45 +0300
+Subject: [PATCH 6/7] common: Add OTA-related packages
+
+This commit enables OTA and sideload functionality.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ common/base/device.mk | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/common/base/device.mk b/common/base/device.mk
+index 98b9788..e93702b 100644
+--- a/common/base/device.mk
++++ b/common/base/device.mk
+@@ -65,3 +65,10 @@ PRODUCT_BUILD_SUPER_PARTITION := true
+ PRODUCT_PACKAGES += \
+     glodroid_overlay_frameworks_base_core \
+     glodroid_overlay_settings_provider \
++
++# A/B
++PRODUCT_PACKAGES += \
++    update_engine \
++    update_engine_client \
++    update_verifier \
++    update_engine_sideload \
+-- 
+2.37.2
+
