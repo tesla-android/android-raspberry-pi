@@ -1,0 +1,116 @@
+From e02c44e6997c78c7138a31fcd8bfcbde77004d8f Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Wed, 5 Apr 2023 10:00:49 +0300
+Subject: [PATCH] ab_select: Add ab_test command
+
+We don't want to update BCB when for example, booting into the recovery
+or fastbootd.
+
+ab_test does the same things as ab_select, but does not update BCB
+record.
+
+Change-Id: Ic0e08f4d30410ed5801ee864c49717615eed77b6
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ boot/android_ab.c    |  4 ++--
+ cmd/ab_select.c      | 25 +++++++++++++++++++++----
+ include/android_ab.h |  3 ++-
+ 3 files changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/boot/android_ab.c b/boot/android_ab.c
+index 2d7b392666..92886a7137 100644
+--- a/boot/android_ab.c
++++ b/boot/android_ab.c
+@@ -181,7 +181,7 @@ static int ab_compare_slots(const struct slot_metadata *a,
+ 	return 0;
+ }
+ 
+-int ab_select_slot(struct blk_desc *dev_desc, struct disk_partition *part_info)
++int ab_select_slot(struct blk_desc *dev_desc, struct disk_partition *part_info, bool test_only)
+ {
+ 	struct bootloader_control *abc = NULL;
+ 	u32 crc32_le;
+@@ -292,7 +292,7 @@ int ab_select_slot(struct blk_desc *dev_desc, struct disk_partition *part_info)
+ 		}
+ 	}
+ 
+-	if (store_needed) {
++	if (store_needed && !test_only) {
+ 		abc->crc32_le = ab_control_compute_crc(abc);
+ 		ab_control_store(dev_desc, part_info, abc);
+ 	}
+diff --git a/cmd/ab_select.c b/cmd/ab_select.c
+index 3e46663d6e..26acf84d6d 100644
+--- a/cmd/ab_select.c
++++ b/cmd/ab_select.c
+@@ -9,8 +9,7 @@
+ #include <env.h>
+ #include <part.h>
+ 
+-static int do_ab_select(struct cmd_tbl *cmdtp, int flag, int argc,
+-			char *const argv[])
++static int ab_internal(bool test_only, int argc, char *const argv[])
+ {
+ 	int ret;
+ 	struct blk_desc *dev_desc;
+@@ -27,7 +26,7 @@ static int do_ab_select(struct cmd_tbl *cmdtp, int flag, int argc,
+ 		return CMD_RET_FAILURE;
+ 	}
+ 
+-	ret = ab_select_slot(dev_desc, &part_info);
++	ret = ab_select_slot(dev_desc, &part_info, test_only);
+ 	if (ret < 0) {
+ 		printf("Android boot failed, error %d.\n", ret);
+ 		return CMD_RET_FAILURE;
+@@ -37,10 +36,24 @@ static int do_ab_select(struct cmd_tbl *cmdtp, int flag, int argc,
+ 	slot[0] = BOOT_SLOT_NAME(ret);
+ 	slot[1] = '\0';
+ 	env_set(argv[1], slot);
+-	printf("ANDROID: Booting slot: %s\n", slot);
++	if (!test_only)
++		printf("ANDROID: Booting slot: %s\n", slot);
++
+ 	return CMD_RET_SUCCESS;
+ }
+ 
++static int do_ab_select(struct cmd_tbl *cmdtp, int flag, int argc,
++			char *const argv[])
++{
++	return ab_internal(false, argc, argv);
++}
++
++static int do_ab_test(struct cmd_tbl *cmdtp, int flag, int argc,
++		      char *const argv[])
++{
++	return ab_internal(true, argc, argv);
++}
++
+ U_BOOT_CMD(ab_select, 4, 0, do_ab_select,
+ 	   "Select the slot used to boot from and register the boot attempt.",
+ 	   "<slot_var_name> <interface> <dev[:part|#part_name]>\n"
+@@ -54,3 +67,7 @@ U_BOOT_CMD(ab_select, 4, 0, do_ab_select,
+ 	   "      partition name whose label is 'part_name' will be looked up in\n"
+ 	   "      the partition table. This is commonly the \"misc\" partition.\n"
+ );
++U_BOOT_CMD(ab_test, 4, 0, do_ab_test,
++	   "Test the slot used to boot from and register the boot attempt.",
++	   "Same as ab_select, but does not update the BCB.\n"
++);
+diff --git a/include/android_ab.h b/include/android_ab.h
+index 3eb61125c6..67a67b54c2 100644
+--- a/include/android_ab.h
++++ b/include/android_ab.h
+@@ -28,8 +28,9 @@ struct disk_partition;
+  *
+  * @param[in] dev_desc Place to store the device description pointer
+  * @param[in] part_info Place to store the partition information
++ * @param[in] test_only If true, don't modify the BCB and just return the slot
+  * Return: The slot number (>= 0) on success, or a negative on error
+  */
+-int ab_select_slot(struct blk_desc *dev_desc, struct disk_partition *part_info);
++int ab_select_slot(struct blk_desc *dev_desc, struct disk_partition *part_info, bool test_only);
+ 
+ #endif /* __ANDROID_AB_H */
+-- 
+2.34.1
+

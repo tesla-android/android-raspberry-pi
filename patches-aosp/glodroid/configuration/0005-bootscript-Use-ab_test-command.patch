@@ -1,0 +1,47 @@
+From 82790eafab38ac7d01810bef6c0aec074c59ce69 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Wed, 5 Apr 2023 10:08:14 +0300
+Subject: [PATCH] bootscript: Use ab_test command
+
+We don't want to update BCB when booting into the recovery or fastbootd.
+Use the bcb_test command instead for these cases.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ platform/uboot/bootscript.cpp | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/platform/uboot/bootscript.cpp b/platform/uboot/bootscript.cpp
+index 204ba39..0c04f52 100644
+--- a/platform/uboot/bootscript.cpp
++++ b/platform/uboot/bootscript.cpp
+@@ -69,10 +69,7 @@ FUNC_BEGIN(enter_fastboot)
+ FUNC_END()
+ 
+ FUNC_BEGIN(bootcmd_bcb)
+- /* ab_select is used as counter of failed boot attempts. After 14 failed boot attempt fallback to fastboot. */
+- ab_select slot_name mmc \${mmc_bootdev}#misc || run enter_fastboot ;
+-
+- FEXTENV(bootargs, " androidboot.slot_suffix=_\$slot_name") ;
++ ab_test slot_name mmc \${mmc_bootdev}#misc || run enter_fastboot ;
+ 
+  bcb load $mmc_bootdev misc ;
+  /* Handle $ adb reboot bootloader */
+@@ -81,6 +78,14 @@ FUNC_BEGIN(bootcmd_bcb)
+  bcb test command = boot-fastboot && setenv androidrecovery true ;
+  /* Handle $ adb reboot recovery (Android 11+) */
+  bcb test command = boot-recovery && setenv androidrecovery true ;
++
++ if test STRESC(\${androidrecovery}) != STRESC(true);
++ then
++  /* ab_select is used as counter of failed boot attempts. After 14 failed boot attempt fallback to fastboot. */
++  ab_select slot_name mmc \${mmc_bootdev}#misc || run enter_fastboot ;
++ fi;
++
++ FEXTENV(bootargs, " androidboot.slot_suffix=_\$slot_name") ;
+ FUNC_END()
+ 
+ FUNC_BEGIN(avb_verify)
+-- 
+2.34.1
+
