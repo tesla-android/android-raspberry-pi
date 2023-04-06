@@ -1,7 +1,7 @@
-From b21e840a72f8864d146d340239afcd4ee687ad38 Mon Sep 17 00:00:00 2001
+From 77397412515e47fcfe918f313cde740448f4b7a1 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Mon, 17 Aug 2020 00:02:12 +0300
-Subject: [PATCH 1/7] cmd: adtimg: Add support getting FDT using 'id' field.
+Subject: [PATCH 1/6] cmd: adtimg: Add support getting FDT using 'id' field.
 
 Idea is based on:
 https://patchwork.ozlabs.org/cover/1202575/
@@ -199,5 +199,5 @@ index 9a3aa8fa30..69f28ddf9e 100644
  #if !defined(CONFIG_SPL_BUILD)
  void android_dt_print_contents(ulong hdr_addr);
 -- 
-2.34.1
+2.37.2
 

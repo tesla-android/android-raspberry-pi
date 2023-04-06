@@ -1,7 +1,7 @@
-From e02c44e6997c78c7138a31fcd8bfcbde77004d8f Mon Sep 17 00:00:00 2001
+From 475228f5e67ee0100c0343e40824e14b2f7d2125 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Wed, 5 Apr 2023 10:00:49 +0300
-Subject: [PATCH] ab_select: Add ab_test command
+Subject: [PATCH 5/6] ab_select: Add ab_test command
 
 We don't want to update BCB when for example, booting into the recovery
 or fastbootd.
@@ -112,5 +112,5 @@ index 3eb61125c6..67a67b54c2 100644
  
  #endif /* __ANDROID_AB_H */
 -- 
-2.34.1
+2.37.2
 
