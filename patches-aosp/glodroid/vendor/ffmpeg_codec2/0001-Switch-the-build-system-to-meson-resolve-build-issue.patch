@@ -1,0 +1,405 @@
+From 17d742c163146aac8e46bc5c2dc35c243dd357cd Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Sun, 9 Apr 2023 23:53:42 +0300
+Subject: [PATCH] Switch the build system to meson + resolve build issues.
+
+More details:
+- Remove installing the minijail handlers (it doesn't make much sense
+  for 100% opensource software)
+- Rework code that used ffmpeg internal API, which is not exposed when
+  installing ffmpeg properly.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ Android.mk                       | 83 --------------------------------
+ C2FFMPEGAudioDecodeComponent.cpp | 26 +++++++---
+ C2FFMPEGAudioDecodeComponent.h   | 12 +++++
+ C2FFMPEGVideoDecodeComponent.cpp |  4 ++
+ ffmpeg_utils/Android.mk          | 43 -----------------
+ ffmpeg_utils/ffmpeg_utils.cpp    |  2 +
+ ffmpeg_utils/ffmpeg_utils.h      |  3 --
+ ffmpeg_utils/meson.build         |  6 +++
+ meson.build                      | 58 ++++++++++++++++++++++
+ service.cpp                      | 16 ------
+ 10 files changed, 100 insertions(+), 153 deletions(-)
+ delete mode 100644 Android.mk
+ delete mode 100644 ffmpeg_utils/Android.mk
+ create mode 100644 ffmpeg_utils/meson.build
+ create mode 100644 meson.build
+
+diff --git a/Android.mk b/Android.mk
+deleted file mode 100644
+index 10f748258799..000000000000
+--- a/Android.mk
++++ /dev/null
+@@ -1,83 +0,0 @@
+-#
+-# Copyright (C) 2022 Michael Goffioul <michael.goffioul@gmail.com>
+-# Copyright (C) 2023 KonstaKANG
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#      http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-
+-LOCAL_PATH := $(call my-dir)
+-
+-include $(CLEAR_VARS)
+-
+-LOCAL_MODULE := android.hardware.media.c2@1.2-service-ffmpeg
+-LOCAL_MODULE_TAGS := optional
+-LOCAL_PROPRIETARY_MODULE := true
+-LOCAL_MODULE_RELATIVE_PATH := hw
+-LOCAL_VINTF_FRAGMENTS := android.hardware.media.c2@1.2-service-ffmpeg.xml
+-LOCAL_INIT_RC := android.hardware.media.c2@1.2-service-ffmpeg.rc
+-
+-LOCAL_REQUIRED_MODULES := \
+-    android.hardware.media.c2@1.2-ffmpeg.policy \
+-    media_codecs_ffmpeg_c2.xml
+-
+-LOCAL_SRC_FILES := \
+-    C2FFMPEGAudioDecodeComponent.cpp \
+-    C2FFMPEGAudioDecodeInterface.cpp \
+-    C2FFMPEGVideoDecodeComponent.cpp \
+-    C2FFMPEGVideoDecodeInterface.cpp \
+-    service.cpp
+-
+-LOCAL_SHARED_LIBRARIES := \
+-    android.hardware.media.c2@1.2 \
+-    libavcodec \
+-    libavutil \
+-    libavservices_minijail \
+-    libbase \
+-    libbinder \
+-    libcodec2_hidl@1.2 \
+-    libcodec2_soft_common \
+-    libcodec2_vndk \
+-    libffmpeg_utils \
+-    libhidlbase \
+-    liblog \
+-    libstagefright_foundation \
+-    libswresample \
+-    libswscale \
+-    libutils
+-
+-LOCAL_CFLAGS := \
+-    -DTARGET_CONFIG=\"config-$(TARGET_ARCH_VARIANT).h\"
+-
+-include $(BUILD_EXECUTABLE)
+-
+-include $(CLEAR_VARS)
+-LOCAL_MODULE := android.hardware.media.c2@1.2-ffmpeg.policy
+-LOCAL_MODULE_TAGS := optional
+-LOCAL_MODULE_CLASS := ETC
+-LOCAL_PROPRIETARY_MODULE := true
+-LOCAL_MODULE_RELATIVE_PATH := seccomp_policy
+-LOCAL_SRC_FILES_x86 := seccomp_policy/android.hardware.media.c2@1.2-ffmpeg-x86.policy
+-LOCAL_SRC_FILES_x86_64 := seccomp_policy/android.hardware.media.c2@1.2-ffmpeg-x86_64.policy
+-LOCAL_SRC_FILES_arm := seccomp_policy/android.hardware.media.c2@1.2-ffmpeg-arm.policy
+-LOCAL_SRC_FILES_arm64 := seccomp_policy/android.hardware.media.c2@1.2-ffmpeg-arm64.policy
+-include $(BUILD_PREBUILT)
+-
+-include $(CLEAR_VARS)
+-LOCAL_MODULE := media_codecs_ffmpeg_c2.xml
+-LOCAL_MODULE_TAGS := optional
+-LOCAL_MODULE_CLASS := ETC
+-LOCAL_PROPRIETARY_MODULE := true
+-LOCAL_SRC_FILES := media_codecs_ffmpeg_c2.xml
+-include $(BUILD_PREBUILT)
+-
+-include $(call all-makefiles-under,$(LOCAL_PATH))
+diff --git a/C2FFMPEGAudioDecodeComponent.cpp b/C2FFMPEGAudioDecodeComponent.cpp
+index 02bfc34a9596..0400170de44a 100644
+--- a/C2FFMPEGAudioDecodeComponent.cpp
++++ b/C2FFMPEGAudioDecodeComponent.cpp
+@@ -18,9 +18,14 @@
+ #include <android-base/stringprintf.h>
+ #include <log/log.h>
+ 
++extern "C" {
++#include <libswscale/swscale.h>
++#include <libswresample/swresample.h>
++#include <libavutil/channel_layout.h>
++}
++
+ #include <SimpleC2Interface.h>
+ #include "C2FFMPEGAudioDecodeComponent.h"
+-#include <libswresample/swresample_internal.h>
+ 
+ #define DEBUG_FRAMES 0
+ #define DEBUG_EXTRADATA 0
+@@ -398,18 +403,23 @@ c2_status_t C2FFMPEGAudioDecodeComponent::receiveFrame(bool* hasFrame) {
+ }
+ 
+ c2_status_t C2FFMPEGAudioDecodeComponent::getOutputBuffer(C2WriteView* outBuffer) {
+-    if (! mSwrCtx ||
+-        mSwrCtx->in_sample_fmt != mFrame->format ||
+-        mSwrCtx->in_sample_rate != mFrame->sample_rate ||
+-        av_channel_layout_compare(&mSwrCtx->in_ch_layout, &mFrame->ch_layout) != 0 ||
+-        mSwrCtx->out_sample_fmt != mTargetSampleFormat ||
+-        mSwrCtx->out_sample_rate != mTargetSampleRate ||
+-        mSwrCtx->out_ch_layout.nb_channels != mTargetChannels) {
++    if (! mSwrCtx || mInSampleFmt != mFrame->format ||
++        mInSampleRate != mFrame->sample_rate ||
++        av_channel_layout_compare(&mInChLayout, &mFrame->ch_layout) != 0 ||
++        mOutSampleFmt != mTargetSampleFormat ||
++        mOutSampleRate != mTargetSampleRate ||
++        mOutChannels != mTargetChannels) {
+         if (mSwrCtx) {
+             swr_free(&mSwrCtx);
+         }
+ 
+         AVChannelLayout newLayout;
++        mInSampleFmt = (enum AVSampleFormat)mFrame->format;
++        mInSampleRate = mFrame->sample_rate;
++        mInChLayout = mFrame->ch_layout;
++        mOutSampleFmt = mTargetSampleFormat;
++        mOutSampleRate = mTargetSampleRate;
++        mOutChannels = mTargetChannels;
+ 
+         av_channel_layout_default(&newLayout, mTargetChannels);
+         swr_alloc_set_opts2(&mSwrCtx,
+diff --git a/C2FFMPEGAudioDecodeComponent.h b/C2FFMPEGAudioDecodeComponent.h
+index a737209651bb..e02817693cc9 100644
+--- a/C2FFMPEGAudioDecodeComponent.h
++++ b/C2FFMPEGAudioDecodeComponent.h
+@@ -17,6 +17,10 @@
+ #ifndef C2_FFMPEG_AUDIO_DECODE_COMPONENT_H
+ #define C2_FFMPEG_AUDIO_DECODE_COMPONENT_H
+ 
++extern "C" {
++#include <libswresample/swresample.h>
++}
++
+ #include <SimpleC2Component.h>
+ #include "C2FFMPEGCommon.h"
+ #include "C2FFMPEGAudioDecodeInterface.h"
+@@ -72,6 +76,14 @@ private:
+     int mTargetChannels;
+     // Misc
+     CodecHelper* mCodecHelper;
++
++    // Store configuration to track changes
++    enum AVSampleFormat mOutSampleFmt;
++    int mOutSampleRate;
++    struct AVChannelLayout mInChLayout;
++    enum AVSampleFormat mInSampleFmt;
++    int mInSampleRate;
++    int mOutChannels;
+ };
+ 
+ } // namespace android
+diff --git a/C2FFMPEGVideoDecodeComponent.cpp b/C2FFMPEGVideoDecodeComponent.cpp
+index e212d3f5ba67..a983b9b052e3 100644
+--- a/C2FFMPEGVideoDecodeComponent.cpp
++++ b/C2FFMPEGVideoDecodeComponent.cpp
+@@ -19,6 +19,10 @@
+ #include <log/log.h>
+ #include <algorithm>
+ 
++extern "C" {
++#include <libswscale/swscale.h>
++}
++
+ #include <SimpleC2Interface.h>
+ #include "C2FFMPEGVideoDecodeComponent.h"
+ #include "ffmpeg_hwaccel.h"
+diff --git a/ffmpeg_utils/Android.mk b/ffmpeg_utils/Android.mk
+deleted file mode 100644
+index 471aee6b8fbd..000000000000
+--- a/ffmpeg_utils/Android.mk
++++ /dev/null
+@@ -1,43 +0,0 @@
+-#
+-# Copyright (C) 2017 The Android-x86 Open Source Project
+-# Copyright (C) 2023 KonstaKANG
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#      http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-
+-LOCAL_PATH := $(call my-dir)
+-
+-include $(CLEAR_VARS)
+-
+-LOCAL_MODULE := libffmpeg_utils
+-LOCAL_PROPRIETARY_MODULE := true
+-LOCAL_MODULE_TAGS := optional
+-
+-LOCAL_SRC_FILES := \
+-    ffmpeg_hwaccel.c \
+-    ffmpeg_utils.cpp
+-
+-LOCAL_SHARED_LIBRARIES += \
+-    libavcodec \
+-    libavformat \
+-    libavutil \
+-    libcutils \
+-    liblog \
+-    libstagefright_foundation \
+-    libswresample \
+-    libswscale \
+-    libutils
+-
+-LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)
+-
+-include $(BUILD_SHARED_LIBRARY)
+diff --git a/ffmpeg_utils/ffmpeg_utils.cpp b/ffmpeg_utils/ffmpeg_utils.cpp
+index d4b745fce476..4ee299b11789 100644
+--- a/ffmpeg_utils/ffmpeg_utils.cpp
++++ b/ffmpeg_utils/ffmpeg_utils.cpp
+@@ -22,6 +22,8 @@
+ 
+ extern "C" {
+ 
++#include <libavformat/avformat.h>
++
+ #include <unistd.h>
+ #include <stdlib.h>
+ #include <inttypes.h>
+diff --git a/ffmpeg_utils/ffmpeg_utils.h b/ffmpeg_utils/ffmpeg_utils.h
+index 75620e8bac92..160f10be011b 100644
+--- a/ffmpeg_utils/ffmpeg_utils.h
++++ b/ffmpeg_utils/ffmpeg_utils.h
+@@ -28,11 +28,8 @@
+ 
+ extern "C" {
+ 
+-#include "libavformat/avformat.h"
+ #include "libavcodec/avcodec.h"
+ #include "libavcodec/bsf.h"
+-#include "libswscale/swscale.h"
+-#include "libswresample/swresample.h"
+ #include "libavutil/opt.h"
+ #include "libavutil/pixdesc.h"
+ 
+diff --git a/ffmpeg_utils/meson.build b/ffmpeg_utils/meson.build
+new file mode 100644
+index 000000000000..ceb969a35695
+--- /dev/null
++++ b/ffmpeg_utils/meson.build
+@@ -0,0 +1,6 @@
++src+=files(
++    'ffmpeg_hwaccel.c',
++    'ffmpeg_utils.cpp',
++)
++
++inc_dir += [include_directories('.')]
+diff --git a/meson.build b/meson.build
+new file mode 100644
+index 000000000000..d0decd76b96b
+--- /dev/null
++++ b/meson.build
+@@ -0,0 +1,58 @@
++project(
++    'ffmpeg_codec2',
++    ['c', 'cpp'],
++    version : '2',
++    license : 'APACHE-2.0',
++    meson_version : '>= 0.56',
++    default_options : ['buildtype=debugoptimized', 'b_ndebug=if-release', 'c_std=c11', 'cpp_std=c++17', 'cpp_rtti=false']
++)
++
++inc_dir = [include_directories('.')]
++
++src = files(
++    'C2FFMPEGAudioDecodeComponent.cpp',
++    'C2FFMPEGAudioDecodeInterface.cpp',
++    'C2FFMPEGVideoDecodeComponent.cpp',
++    'C2FFMPEGVideoDecodeInterface.cpp',
++    'service.cpp',
++)
++
++deps = [
++]
++
++cpp_args = [
++    '-Wno-inconsistent-missing-override',
++]
++
++subdir('ffmpeg_utils')
++
++executable(
++    'android.hardware.media.c2@1.2-service-ffmpeg',
++    src,
++    cpp_args : cpp_args,
++    dependencies : deps,
++    install : true,
++    install_dir : get_option('bindir') / 'hw',
++    include_directories: inc_dir,
++)
++
++configure_file(
++    input: 'android.hardware.media.c2@1.2-service-ffmpeg.rc',
++    output: '@PLAINNAME@',
++    copy: true,
++    install_dir: get_option('sysconfdir') / 'init',
++)
++
++configure_file(
++    input: 'android.hardware.media.c2@1.2-service-ffmpeg.xml',
++    output: '@PLAINNAME@',
++    copy: true,
++    install_dir: get_option('sysconfdir') / 'vintf' / 'manifest',
++)
++
++configure_file(
++    input: 'media_codecs_ffmpeg_c2.xml',
++    output: '@PLAINNAME@',
++    copy: true,
++    install_dir: get_option('sysconfdir'),
++)
+diff --git a/service.cpp b/service.cpp
+index 2168eaf1f416..6a2c6e2d80b4 100644
+--- a/service.cpp
++++ b/service.cpp
+@@ -36,18 +36,6 @@
+ 
+ namespace android {
+ 
+-// This is the absolute on-device path of the prebuild_etc module
+-// "android.hardware.media.c2@1.1-ffmpeg-seccomp_policy" in Android.bp.
+-static constexpr char kBaseSeccompPolicyPath[] =
+-        "/vendor/etc/seccomp_policy/"
+-        "android.hardware.media.c2@1.2-ffmpeg.policy";
+-
+-// Additional seccomp permissions can be added in this file.
+-// This file does not exist by default.
+-static constexpr char kExtSeccompPolicyPath[] =
+-        "/vendor/etc/seccomp_policy/"
+-        "android.hardware.media.c2@1.2-ffmpeg-extended.policy";
+-
+ static const C2FFMPEGComponentInfo kFFMPEGVideoComponents[] = {
+     { "c2.ffmpeg.av1.decoder"   , MEDIA_MIMETYPE_VIDEO_AV1   , AV_CODEC_ID_AV1        },
+     { "c2.ffmpeg.h263.decoder"  , MEDIA_MIMETYPE_VIDEO_H263  , AV_CODEC_ID_H263       },
+@@ -279,10 +267,6 @@ int main(int /* argc */, char** /* argv */) {
+     using namespace ::android;
+     LOG(DEBUG) << "android.hardware.media.c2@1.2-service-ffmpeg starting...";
+ 
+-    // Set up minijail to limit system calls.
+-    signal(SIGPIPE, SIG_IGN);
+-    SetUpMinijail(kBaseSeccompPolicyPath, kExtSeccompPolicyPath);
+-
+     ProcessState::self()->startThreadPool();
+     // Extra threads may be needed to handle a stacked IPC sequence that
+     // contains alternating binder and hwbinder calls. (See b/35283480.)
+-- 
+2.37.2
+

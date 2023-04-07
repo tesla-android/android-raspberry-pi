@@ -1,0 +1,91 @@
+From 295dc3a529d4536273429238d0006235f179cb07 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Sun, 9 Apr 2023 23:51:36 +0300
+Subject: [PATCH 3/3] Add support for building ffmpeg_codec2 using meson
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ Android.mk            |  1 +
+ meson_ffmpegcodec2.mk | 60 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+)
+ create mode 100644 meson_ffmpegcodec2.mk
+
+diff --git a/Android.mk b/Android.mk
+index af613fe..4e6d7a9 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -18,4 +18,5 @@ include $(LOCAL_PATH)/meson_libqmi.mk
+ include $(LOCAL_PATH)/meson_minigbm.mk
+ include $(LOCAL_PATH)/meson_modemmanager.mk
+ include $(LOCAL_PATH)/meson_drmhwcomposer.mk
++include $(LOCAL_PATH)/meson_ffmpegcodec2.mk
+ include $(LOCAL_PATH)/ffmpeg.mk
+diff --git a/meson_ffmpegcodec2.mk b/meson_ffmpegcodec2.mk
+new file mode 100644
+index 0000000..e6d6312
+--- /dev/null
++++ b/meson_ffmpegcodec2.mk
+@@ -0,0 +1,60 @@
++# SPDX-License-Identifier: Apache-2.0
++#
++# AOSPEXT project (https://github.com/GloDroid/aospext)
++#
++# Copyright (C) 2021 GlobalLogic Ukraine
++# Copyright (C) 2021-2022 Roman Stratiienko (r.stratiienko@gmail.com)
++
++AOSPEXT_PROJECT_NAME := FFMPEGCODEC2
++
++ifneq ($(filter true, $(BOARD_BUILD_AOSPEXT_FFMPEGCODEC2)),)
++
++LOCAL_PATH := $(call my-dir)
++
++include $(CLEAR_VARS)
++
++LOCAL_SHARED_LIBRARIES := \
++    android.hardware.media.c2@1.2 \
++    libavcodec \
++    libavutil \
++    libavformat \
++    libavservices_minijail \
++    libbase \
++    libbinder \
++    libcodec2_hidl@1.2 \
++    libcodec2_soft_common \
++    libcodec2_vndk \
++    libhidlbase \
++    liblog \
++    libstagefright_foundation \
++    libswresample \
++    libswscale \
++    libutils \
++    libcutils \
++
++MESON_GEN_PKGCONFIGS := cutils drm hardware hidlbase log sync ui utils
++
++MESON_BUILD_ARGUMENTS := \
++
++# Format: TYPE:REL_PATH_TO_INSTALL_ARTIFACT:VENDOR_SUBDIR:MODULE_NAME:SYMLINK_SUFFIX
++# TYPE one of: lib, bin, etc
++AOSPEXT_GEN_TARGETS := \
++    bin:hw/android.hardware.media.c2@1.2-service-ffmpeg:hw:android.hardware.media.c2@1.2-service-ffmpeg: \
++    etc:init/android.hardware.media.c2@1.2-service-ffmpeg.rc:init:android.hardware.media.c2@1.2-service-ffmpeg.rc: \
++    etc:vintf/manifest/android.hardware.media.c2@1.2-service-ffmpeg.xml:vintf/manifest:android.hardware.media.c2@1.2-service-ffmpeg.xml: \
++    etc:media_codecs_ffmpeg_c2.xml::media_codecs_ffmpeg_c2.xml: \
++    $(BOARD_FFMPEGCODEC2_EXTRA_TARGETS)
++
++# HWC3
++
++# Build first ARCH only
++LOCAL_MULTILIB := first
++include $(LOCAL_PATH)/meson_cross.mk
++AOSPEXT_TARGETS_DEP:=$(MESON_GEN_FILES_TARGET)
++AOSPEXT_PROJECT_INSTALL_DIR:=$(dir $(AOSPEXT_TARGETS_DEP))/install
++AOSPEXT_PROJECT_OUT_INCLUDE_DIR:=
++include $(LOCAL_PATH)/aospext_gen_targets.mk
++
++#-------------------------------------------------------------------------------
++
++endif # BOARD_BUILD_AOSPEXT_FFMPEGCODEC2
+-- 
+2.37.2
+

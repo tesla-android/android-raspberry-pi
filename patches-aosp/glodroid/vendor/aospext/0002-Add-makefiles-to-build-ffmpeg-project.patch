@@ -1,0 +1,216 @@
+From aacc2b76f10ff5fcff091b964b65be5bcaa8c4d3 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Sun, 13 Nov 2022 20:01:16 +0200
+Subject: [PATCH 2/3] Add makefiles to build ffmpeg project
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ Android.mk               |  1 +
+ ffmpeg.mk                | 56 +++++++++++++++++++++++++++++++++
+ ffmpeg_cross.mk          | 67 ++++++++++++++++++++++++++++++++++++++++
+ tools/makefile_ffmpeg.mk | 47 ++++++++++++++++++++++++++++
+ 4 files changed, 171 insertions(+)
+ create mode 100644 ffmpeg.mk
+ create mode 100644 ffmpeg_cross.mk
+ create mode 100644 tools/makefile_ffmpeg.mk
+
+diff --git a/Android.mk b/Android.mk
+index 3761b82..af613fe 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -18,3 +18,4 @@ include $(LOCAL_PATH)/meson_libqmi.mk
+ include $(LOCAL_PATH)/meson_minigbm.mk
+ include $(LOCAL_PATH)/meson_modemmanager.mk
+ include $(LOCAL_PATH)/meson_drmhwcomposer.mk
++include $(LOCAL_PATH)/ffmpeg.mk
+diff --git a/ffmpeg.mk b/ffmpeg.mk
+new file mode 100644
+index 0000000..9086afd
+--- /dev/null
++++ b/ffmpeg.mk
+@@ -0,0 +1,56 @@
++# SPDX-License-Identifier: Apache-2.0
++#
++# AOSPEXT project (https://github.com/GloDroid/aospext)
++#
++# Copyright (C) 2021-2022 Roman Stratiienko (r.stratiienko@gmail.com)
++
++AOSPEXT_PROJECT_NAME := FFMPEG
++
++ifneq ($(filter true, $(BOARD_BUILD_AOSPEXT_FFMPEG)),)
++
++LOCAL_PATH := $(call my-dir)
++
++LIBDRM_VERSION = $(shell cat external/libdrm/meson.build | grep -o "\<version\>\s*:\s*'\w*\.\w*\.\w*'" | grep -o "\w*\.\w*\.\w*" | head -1)
++
++FFMPEG_DEFINITIONS := \
++    --disable-static \
++    --enable-shared \
++    --disable-avdevice \
++    --disable-postproc \
++    --disable-avfilter \
++    $(FFMPEG_EXTRA_CONFIGURE_OPTIONS)
++
++# Format: TYPE:REL_PATH_TO_INSTALL_ARTIFACT:VENDOR_SUBDIR:MODULE_NAME:SYMLINK_SUFFIX
++# TYPE one of: lib, bin, etc
++AOSPEXT_GEN_TARGETS := \
++    lib:libavcodec.so::libavcodec:               \
++    lib:libavformat.so::libavformat:             \
++    lib:libavutil.so::libavutil:                 \
++    lib:libswresample.so::libswresample:         \
++    lib:libswscale.so::libswscale:               \
++
++include $(CLEAR_VARS)
++
++LOCAL_SHARED_LIBRARIES := libc
++FFMPEG_GEN_PKGCONFIGS :=
++
++ifneq ($(filter true, $(BOARD_BUILD_AOSPEXT_DAV1D)),)
++DAV1D_VERSION = $(shell cat $(BOARD_DAV1D_SRC_DIR)/meson.build | grep -o "\<version\>\s*:\s*'\w*\.\w*\.\w*'" | grep -o "\w*\.\w*\.\w*" | head -1)
++LOCAL_SHARED_LIBRARIES += libdav1d
++FFMPEG_GEN_PKGCONFIGS += dav1d:$(DAV1D_VERSION)
++FFMPEG_DEFINITIONS += --enable-libdav1d
++endif
++
++#-------------------------------------------------------------------------------
++
++LOCAL_MULTILIB := first
++include $(LOCAL_PATH)/ffmpeg_cross.mk
++FIRSTARCH_FFMPEG_TARGET:=$(FFMPEG_GEN_FILES_TARGET)
++
++LOCAL_MULTILIB := first
++AOSPEXT_TARGETS_DEP:=$(FIRSTARCH_FFMPEG_TARGET)
++AOSPEXT_PROJECT_INSTALL_DIR:=$(dir $(FIRSTARCH_FFMPEG_TARGET))/install
++AOSPEXT_PROJECT_OUT_INCLUDE_DIR:=$(AOSPEXT_PROJECT_INSTALL_DIR)/vendor/include
++include $(LOCAL_PATH)/aospext_gen_targets.mk
++
++endif # BOARD_BUILD_FFMPEG
+diff --git a/ffmpeg_cross.mk b/ffmpeg_cross.mk
+new file mode 100644
+index 0000000..7d46954
+--- /dev/null
++++ b/ffmpeg_cross.mk
+@@ -0,0 +1,67 @@
++# SPDX-License-Identifier: Apache-2.0
++#
++# AOSPEXT project (https://github.com/GloDroid/aospext)
++#
++# Copyright (C) 2023 The GloDroid project
++
++MY_PATH := $(call my-dir)
++
++include $(LOCAL_PATH)/aospext_get_buildflags.mk
++
++FFMPEG_SRC_PATH                           := $(BOARD_$(AOSPEXT_PROJECT_NAME)_SRC_DIR)
++FFMPEG_PATCHES_DIRS                       := $(BOARD_$(AOSPEXT_PROJECT_NAME)_PATCHES_DIRS)
++FFMPEG_GEN_FILES_TARGET                   := $(AOSPEXT_OUT_DIR)/.timestamp
++
++$(FFMPEG_GEN_FILES_TARGET): FFMPEG_CPU_FAMILY   := $(subst arm64,aarch64,$(TARGET_$(AOSPEXT_ARCH_PREFIX)ARCH))
++$(FFMPEG_GEN_FILES_TARGET): FFMPEG_DEFINITIONS  := $(FFMPEG_DEFINITIONS)
++$(FFMPEG_GEN_FILES_TARGET): AOSP_FLAGS_DIR_OUT  := $(call relative-to-absolute,$(AOSP_FLAGS_DIR_OUT))
++$(FFMPEG_GEN_FILES_TARGET): AOSPEXT_ABS_OUT_DIR := $(call relative-to-absolute,$(AOSPEXT_OUT_DIR))
++$(FFMPEG_GEN_FILES_TARGET): FFMPEG_OUT_SRC_DIR  := $(call relative-to-absolute,$(AOSPEXT_OUT_DIR)/out_src)
++$(FFMPEG_GEN_FILES_TARGET): FFMPEG_BUILD_DIR    := $(call relative-to-absolute,$(AOSPEXT_OUT_DIR)/build)
++$(FFMPEG_GEN_FILES_TARGET): FFMPEG_GEN_DIR      := $(call relative-to-absolute,$(AOSPEXT_OUT_DIR)/gen)
++$(FFMPEG_GEN_FILES_TARGET): FFMPEG_INSTALL_DIR  := $(call relative-to-absolute,$(AOSPEXT_OUT_DIR)/install)
++
++$(FFMPEG_GEN_FILES_TARGET): MY_PATH:=$(MY_PATH)
++$(FFMPEG_GEN_FILES_TARGET): FFMPEG_SRC_PATH:=$(FFMPEG_SRC_PATH)
++$(FFMPEG_GEN_FILES_TARGET): LIBDIR:=lib$(if $(TARGET_IS_64_BIT),$(if $(filter 64 first,$(LOCAL_MULTILIB)),64))
++
++$(FFMPEG_GEN_FILES_TARGET): FFMPEG_GEN_PKGCONFIGS:=$(FFMPEG_GEN_PKGCONFIGS)
++$(FFMPEG_GEN_FILES_TARGET): MY_OUT_ABS_PATH:=$(if $(patsubst /%,,$(OUT_DIR)),$(AOSP_ABSOLUTE_PATH)/$(OUT_DIR),$(OUT_DIR))
++$(FFMPEG_GEN_FILES_TARGET): MY_ABS_PATH:=$(AOSP_ABSOLUTE_PATH)/$(MY_PATH)
++$(FFMPEG_GEN_FILES_TARGET): LLVM_PREBUILTS_PATH:=$(LLVM_PREBUILTS_PATH)
++
++AOSPEXT_TOOLS := $(sort $(shell find -L $(MY_PATH)/tools -not -path '*/\.*'))
++FFMPEG_SRCS := $(sort $(shell find -L $(FFMPEG_SRC_PATH) -not -path '*/\.*'))
++FFMPEG_PATCHES := $(if $(FFMPEG_PATCHES_DIRS),$(sort $(shell find -L $(FFMPEG_PATCHES_DIRS) -not -path '*/\.*')))
++
++$(FFMPEG_GEN_FILES_TARGET): $(FFMPEG_SRCS) $(FFMPEG_PATCHES) $(AOSPEXT_TOOLS)
++$(FFMPEG_GEN_FILES_TARGET): FFMPEG_PATCHES_DIRS:=$(FFMPEG_PATCHES_DIRS)
++$(FFMPEG_GEN_FILES_TARGET): $(AOSP_FLAGS_DIR_OUT)/.exec.timestamp
++$(FFMPEG_GEN_FILES_TARGET): $(AOSP_FLAGS_DIR_OUT)/.sharedlib.timestamp
++	cp $(MY_ABS_PATH)/tools/wrapper.sh $(AOSP_FLAGS_DIR_OUT)/wrapper.sh
++	ln -sf ./wrapper.sh $(AOSP_FLAGS_DIR_OUT)/wrap_c
++	cp $(MY_ABS_PATH)/tools/gen_aospless_dir.py $(AOSPEXT_ABS_OUT_DIR)/gen_aospless_dir.py
++
++	cp $(MY_ABS_PATH)/tools/makefile_base.mk $(AOSPEXT_ABS_OUT_DIR)/Makefile
++	cp $(MY_ABS_PATH)/tools/makefile_ffmpeg.mk $(AOSPEXT_ABS_OUT_DIR)/project_specific.mk
++	sed -i \
++		-e 's#\[PLACE_FOR_LLVM_DIR\]#$(LLVM_PREBUILTS_PATH)#g' \
++		-e 's#\[PLACE_FOR_AOSP_ROOT\]#$(AOSP_ABSOLUTE_PATH)#g' \
++		-e 's#\[PLACE_FOR_AOSP_OUT_DIR\]#$(MY_OUT_ABS_PATH)#g' \
++		-e 's#\[PLACE_FOR_SRC_DIR\]#$(FFMPEG_SRC_PATH)#g' \
++		-e 's#\[PLACE_FOR_PATCHES_DIRS\]#$(FFMPEG_PATCHES_DIRS)#g' \
++		-e 's#\[PLACE_FOR_OUT_BASE_DIR\]#$(AOSPEXT_ABS_OUT_DIR)#g' \
++		$(AOSPEXT_ABS_OUT_DIR)/Makefile
++
++	sed -i \
++		-e 's#\[PLACE_FOR_FFMPEG_DEFINITIONS\]#--libdir=/vendor/$(LIBDIR) $(FFMPEG_DEFINITIONS)#g' \
++		-e 's#\[PLACE_FOR_FFMPEG_CPU_FAMILY\]#$(FFMPEG_CPU_FAMILY)#g' \
++		$(AOSPEXT_ABS_OUT_DIR)/project_specific.mk
++
++	mkdir -p $(FFMPEG_GEN_DIR)
++	$(foreach pkg, $(FFMPEG_GEN_PKGCONFIGS), $(call create-pkgconfig,$(FFMPEG_GEN_DIR),$(word 1, $(subst :, ,$(pkg))),$(word 2, $(subst :, ,$(pkg)))))
++
++	# Build FFMPEG project
++	export $$(cat /etc/environment):$(RUST_BIN_DIR_ABS):$(AOSP_ABSOLUTE_PATH)/$(LLVM_PREBUILTS_PATH) && make -C $(AOSPEXT_ABS_OUT_DIR) install
++
++	touch $@
+diff --git a/tools/makefile_ffmpeg.mk b/tools/makefile_ffmpeg.mk
+new file mode 100644
+index 0000000..7e4510f
+--- /dev/null
++++ b/tools/makefile_ffmpeg.mk
+@@ -0,0 +1,47 @@
++#!/usr/bin/make
++
++FFMPEG_DEFINITIONS := [PLACE_FOR_FFMPEG_DEFINITIONS]
++FFMPEG_CPU_FAMILY := [PLACE_FOR_FFMPEG_CPU_FAMILY]
++
++CONFIGURE_TARGET:=./logs/3.configure.log
++BUILD_TARGET:=./logs/4.build.log
++INSTALL_TARGET:=./logs/5.install.log
++
++NPROCS:=$(shell grep -c ^processor /proc/cpuinfo)
++
++CONFIGURE_CMD:=configure \
++    --prefix=/vendor \
++    --cc=$(OUT_BASE_DIR)/toolchain_wrapper/wrap_c \
++    --arch=$(FFMPEG_CPU_FAMILY) --target-os=android \
++    --extra-cflags=[C_ARGS] \
++    --extra-ldflags=[C_LINK_ARGS] \
++    --enable-cross-compile \
++    --strip=$(LLVM_DIR)/llvm-strip \
++    $(FFMPEG_DEFINITIONS)
++
++configure: ## Configure the project
++configure: $(CONFIGURE_TARGET)
++$(CONFIGURE_TARGET): $(PATCH_TARGET)
++	@echo Configuring...
++	@mkdir -p $(OUT_BUILD_DIR)
++	@bash -c 'export PKG_CONFIG_PATH=$(OUT_BASE_DIR)/gen && cd $(OUT_BUILD_DIR) && $(OUT_SRC_DIR)/$(CONFIGURE_CMD)' &> $@.tmp || (cat $@.tmp && exit 1)
++	@mv $@.tmp $@ -f
++
++build: ## Build the project
++build: $(BUILD_TARGET)
++$(BUILD_TARGET): $(CONFIGURE_TARGET)
++	@echo Building...
++	@bash -c 'cd $(OUT_BUILD_DIR) && make -j$(NPROCS)' &> $@.tmp || (cat $@.tmp && exit 1)
++	@mv $@.tmp $@ -f
++
++install: ## Install the project (will execute copy, patch, configure and build prior to install)
++install: $(INSTALL_TARGET)
++$(INSTALL_TARGET): $(BUILD_TARGET)
++	@echo Installing...
++	@mkdir -p $(OUT_INSTALL_DIR)
++	@bash -c 'cd $(OUT_BUILD_DIR) && DESTDIR=$(OUT_INSTALL_DIR) make install' &> $@.tmp || (cat $@.tmp && exit 1)
++	@mv $@.tmp $@ -f
++
++gen_aospless: ## Generate tree for building without AOSP or NDK
++	L_AOSP_ROOT=$(AOSP_ROOT) L_AOSP_OUT_DIR=$(AOSP_OUT_DIR) python3 $(OUT_BASE_DIR)/gen_aospless_dir.py
++	tar -czf aospless.tar.gz aospless
+-- 
+2.37.2
+
