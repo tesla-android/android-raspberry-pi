@@ -1,0 +1,13 @@
+type hal_drm_widevine, domain;
+type hal_drm_widevine_exec, exec_type, vendor_file_type, file_type;
+
+init_daemon_domain(hal_drm_widevine)
+
+hal_server_domain(hal_drm_widevine, hal_drm)
+
+vndbinder_use(hal_drm_widevine);
+
+allow hal_drm_widevine hal_allocator_server:fd use;
+allow hal_drm mediacodec:fd use;
+
+hal_client_domain(hal_drm_widevine, hal_graphics_composer);

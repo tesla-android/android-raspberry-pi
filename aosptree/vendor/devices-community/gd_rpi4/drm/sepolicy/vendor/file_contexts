@@ -1,0 +1,4 @@
+/vendor/bin/hw/android\.hardware\.drm-service\.widevine          u:object_r:hal_drm_widevine_exec:s0
+/vendor/bin/hw/android\.hardware\.drm-service\.clearkey          u:object_r:hal_drm_clearkey_exec:s0
+# Data
+/data/vendor/mediadrm(/.*)?                                      u:object_r:mediadrm_vendor_data_file:s0

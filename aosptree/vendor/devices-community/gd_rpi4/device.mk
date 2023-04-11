@@ -3,6 +3,7 @@
 # Copyright (C) 2020-2023 Roman Stratiienko (r.stratiienko@gmail.com)
 
 $(call inherit-product, glodroid/configuration/common/device-common.mk)
+$(call inherit-product, glodroid/devices-community/gd_rpi4/drm/device.mk)
 
 # Firmware
 PRODUCT_COPY_FILES += \

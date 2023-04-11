@@ -2,6 +2,7 @@
 <manifest>
 
   <remote  name="glodroid" fetch="https://github.com/glodroid/" />
+  <remote  name="github" fetch="https://github.com/" />
   <remote  name="gnome"    fetch="https://github.com/GNOME/" />
   <remote  name="mbroadband" fetch="https://gitlab.freedesktop.org/mobile-broadband" />
   <remote  name="dbus"       fetch="https://gitlab.freedesktop.org/dbus" />
@@ -55,6 +56,9 @@
 
   <!-- kernel/firmware components (platform) -->
   <project path="glodroid/kernel/broadcom"        remote="glodroid" name="glodroid_forks.git" groups="glodroid" revision="refs/tags/kernel-broadcom-v0.9.0" />
+
+  <!-- drm -->
+  <project path="vendor/brcm/rpi4" remote="github" name="tesla-android/android-vendor-brcm-rpi4.git" revision="74c1e0cef599c83ef4549b2560e16e93f7dd6714" /> 
 
   <!-- compilers for platform components -->
   <project path="prebuilts/gcc/linux-x86/aarch64/gcc-linaro-aarch64-linux-gnu"

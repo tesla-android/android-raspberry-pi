@@ -5,6 +5,7 @@
 BC_PATH := $(patsubst $(CURDIR)/%,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 include glodroid/configuration/common/board-common.mk
+include glodroid/devices-community/gd_rpi4/drm/board.mk
 
 BOARD_MESA3D_GALLIUM_DRIVERS := vc4 v3d
 BOARD_MESA3D_VULKAN_DRIVERS := broadcom
