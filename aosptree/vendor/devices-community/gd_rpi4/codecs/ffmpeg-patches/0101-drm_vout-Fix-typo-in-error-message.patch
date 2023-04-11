@@ -1,0 +1,25 @@
+From 4534e6981c1718eaeec4c5f58cdf5592ee7f0329 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Mon, 12 Dec 2022 17:52:58 +0000
+Subject: [PATCH 101/122] drm_vout: Fix typo in error message
+
+---
+ libavdevice/drm_vout.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libavdevice/drm_vout.c b/libavdevice/drm_vout.c
+index a56adea866..351abf1d60 100644
+--- a/libavdevice/drm_vout.c
++++ b/libavdevice/drm_vout.c
+@@ -596,7 +596,7 @@ static int drm_vout_init(struct AVFormatContext * s)
+     sem_init(&de->q_sem_out, 0, 0);
+     if (pthread_create(&de->q_thread, NULL, display_thread, s)) {
+         rv = AVERROR(errno);
+-        av_log(s, AV_LOG_ERROR, "Failed to creatye display thread: %s\n", av_err2str(rv));
++        av_log(s, AV_LOG_ERROR, "Failed to create display thread: %s\n", av_err2str(rv));
+         goto fail_close;
+     }
+ 
+-- 
+2.37.2
+

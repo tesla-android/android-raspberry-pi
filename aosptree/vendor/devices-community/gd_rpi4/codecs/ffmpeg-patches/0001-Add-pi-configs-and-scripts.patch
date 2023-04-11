@@ -1,0 +1,1683 @@
+From 504df93cfe5416b394755e79b7b81ee0119cf09c Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Mon, 26 Apr 2021 12:34:50 +0100
+Subject: [PATCH 001/122] Add pi configs and scripts
+
+---
+ pi-util/BUILD.txt                  |  59 ++++++++
+ pi-util/NOTES.txt                  |  69 +++++++++
+ pi-util/TESTMESA.txt               |  82 +++++++++++
+ pi-util/clean_usr_libs.sh          |  26 ++++
+ pi-util/conf_arm64_native.sh       |  45 ++++++
+ pi-util/conf_h265.2016.csv         | 195 ++++++++++++++++++++++++++
+ pi-util/conf_h265.2016_HEVC_v1.csv | 147 ++++++++++++++++++++
+ pi-util/conf_h265.csv              | 144 +++++++++++++++++++
+ pi-util/conf_native.sh             | 108 +++++++++++++++
+ pi-util/ffconf.py                  | 215 +++++++++++++++++++++++++++++
+ pi-util/ffperf.py                  | 128 +++++++++++++++++
+ pi-util/genpatch.sh                |  35 +++++
+ pi-util/make_array.py              |  23 +++
+ pi-util/mkinst.sh                  |   5 +
+ pi-util/patkodi.sh                 |   9 ++
+ pi-util/perfcmp.py                 | 101 ++++++++++++++
+ pi-util/qem.sh                     |   9 ++
+ pi-util/v3dusage.py                | 128 +++++++++++++++++
+ 18 files changed, 1528 insertions(+)
+ create mode 100644 pi-util/BUILD.txt
+ create mode 100644 pi-util/NOTES.txt
+ create mode 100644 pi-util/TESTMESA.txt
+ create mode 100755 pi-util/clean_usr_libs.sh
+ create mode 100644 pi-util/conf_arm64_native.sh
+ create mode 100644 pi-util/conf_h265.2016.csv
+ create mode 100644 pi-util/conf_h265.2016_HEVC_v1.csv
+ create mode 100644 pi-util/conf_h265.csv
+ create mode 100755 pi-util/conf_native.sh
+ create mode 100755 pi-util/ffconf.py
+ create mode 100755 pi-util/ffperf.py
+ create mode 100755 pi-util/genpatch.sh
+ create mode 100755 pi-util/make_array.py
+ create mode 100755 pi-util/mkinst.sh
+ create mode 100644 pi-util/patkodi.sh
+ create mode 100755 pi-util/perfcmp.py
+ create mode 100755 pi-util/qem.sh
+ create mode 100755 pi-util/v3dusage.py
+
+diff --git a/pi-util/BUILD.txt b/pi-util/BUILD.txt
+new file mode 100644
+index 0000000000..b050971f63
+--- /dev/null
++++ b/pi-util/BUILD.txt
+@@ -0,0 +1,59 @@
++Building Pi FFmpeg
++==================
++
++Current only building on a Pi is supported.
++This builds ffmpeg the way I've tested it
++
++Get all dependencies - the current package dependencies are good enough
++
++$ sudo apt-get build-dep ffmpeg
++
++Configure using the pi-util/conf_native.sh script
++-------------------------------------------------
++
++This sets the normal release options and creates an ouutput dir to build into
++The directory name will depend on system and options but will be under out/
++
++There are a few choices here
++ --mmal  build including the legacy mmal-based decoders and zero-copy code
++         this requires appropriate libraries which currently will exist for
++         armv7 but not arm64
++ --noshared
++         Build a static image rather than a shared library one.  Static is
++         easier for testing as there is no need to worry about library
++         paths being confused and therefore running the wrong code,  Shared
++         is what is needed, in most cases, when building for use by other
++         programs.
++
++So for a static build
++---------------------
++
++$ pi-util/conf_native.sh --noshared
++
++$ make -j8 -C out/<wherever the script said it was building to>
++
++You can now run ffmpeg directly from where it was built
++
++For a shared build
++------------------
++
++$ pi-util/conf_native.sh
++
++You will normally want an install target if shared. Note that the script has
++set this up to be generated in out/<builddir>/install, you don't have to worry
++about overwriting your system libs.
++
++$ make -j8 -C out/<builddir> install
++
++You can now set LD_LIBRARY_PATH appropriately and run ffmpeg from where it was
++built or install the image on the system - you have to be careful to get rid
++of all other ffmpeg libs or confusion may result.  There is a little script
++that wipes all other versions - obviously use with care!
++
++$ sudo pi-util/clean_usr_libs.sh
++
++Then simply copying from the install to /usr works
++
++$ sudo cp -r out/<builddir>/install/* /usr
++
++
+diff --git a/pi-util/NOTES.txt b/pi-util/NOTES.txt
+new file mode 100644
+index 0000000000..fcce72226a
+--- /dev/null
++++ b/pi-util/NOTES.txt
+@@ -0,0 +1,69 @@
++Notes on the hevc_rpi decoder & associated support code
++-------------------------------------------------------
++
++There are 3 main parts to the existing code:
++
++1) The decoder - this is all in libavcodec as rpi_hevc*.
++
++2) A few filters to deal with Sand frames and a small patch to
++automatically select the sand->i420 converter when required.
++
++3) A kludge in ffmpeg.c to display the decoded video. This could & should
++be converted into a proper ffmpeg display module.
++
++
++Decoder
++-------
++
++The decoder is a modified version of the existing ffmpeg hevc decoder.
++Generally it is ~100% faster than the existing ffmpeg hevc s/w decoder.
++More complex bitstreams can be up to ~200% faster but particularly easy
++streams can cut its advantage down to ~50%.  This means that a Pi3+ can
++display nearly all 8-bit 1080p30 streams and with some overclocking it can
++display most lower bitrate 10-bit 1080p30 streams - this latter case is
++not helped by the requirement to downsample to 8-bit before display on a
++Pi.
++
++It has had co-processor offload added for inter-pred and large block
++residual transform.  Various parts have had optimized ARM NEON assembler
++added and the existing ARM asm sections have been profiled and
++re-optimized for A53. The main C code has been substantially reworked at
++its lower levels in an attempt to optimize it and minimize memory
++bandwidth. To some extent code paths that deal with frame types that it
++doesn't support have been pruned.
++
++It outputs frames in Broadcom Sand format. This is a somewhat annoying
++layout that doesn't fit into ffmpegs standard frame descriptions. It has
++vertical stripes of 128 horizontal pixels (64 in 10 bit forms) with Y for
++the stripe followed by interleaved U & V, that is then followed by the Y
++for the next stripe, etc. The final stripe is always padded to
++stripe-width. This is used in an attempt to help with cache locality and
++cut down on the number of dram bank switches. It is annoying to use for
++inter-pred with conventional processing but the way the Pi QPU (which is
++used for inter-pred) works means that it has negligible downsides here and
++the improved memory performance exceeds the overhead of the increased
++complexity in the rest of the code.
++
++Frames must be allocated out of GPU memory (as otherwise they can't be
++accessed by the co-processors). Utility functions (in rpi_zc.c) have been
++written to make this easier. As the frames are already in GPU memory they
++can be displayed by the Pi h/w without any further copying.
++
++
++Known non-features
++------------------
++
++Frame allocation should probably be done in some other way in order to fit
++into the standard framework better.
++
++Sand frames are currently declared as software frames, there is an
++argument that they should be hardware frames but they aren't really.
++
++There must be a better way of auto-selecting the hevc_rpi decoder over the
++normal s/w hevc decoder, but I became confused by the existing h/w
++acceleration framework and what I wanted to do didn't seem to fit in
++neatly.
++
++Display should be a proper device rather than a kludge in ffmpeg.c
++
++
+diff --git a/pi-util/TESTMESA.txt b/pi-util/TESTMESA.txt
+new file mode 100644
+index 0000000000..92bc13a3df
+--- /dev/null
++++ b/pi-util/TESTMESA.txt
+@@ -0,0 +1,82 @@
++# Setup & Build instructions for testing Argon30 mesa support (on Pi4)
++
++# These assume that the drm_mmal test for Sand8 has been built on this Pi
++# as build relies on many of the same files
++
++# 1st get everything required to build ffmpeg
++# If sources aren't already enabled on your Pi then enable them
++sudo su
++sed "s/#deb-src/deb-src/" /etc/apt/sources.list > /tmp/sources.list
++sed "s/#deb-src/deb-src/" /etc/apt/sources.list.d/raspi.list > /tmp/raspi.list
++mv /tmp/sources.list /etc/apt/
++mv /tmp/raspi.list /etc/apt/sources.list.d/
++apt update
++
++# Get dependancies
++sudo apt build-dep ffmpeg
++
++sudo apt install meson libepoxy-dev libxcb-dri3-dev libxcb1-dev libx11-dev libx11-xcb-dev libdrm-dev
++
++# Enable H265 V4L2 request decoder
++sudo su
++echo dtoverlay=rpivid-v4l2 >> /boot/config.txt
++# You may also want to add more CMA if you are going to try 4k videos
++# Change the dtoverlay=vc4-fkms-v3d line in config.txt to read
++# dtoverlay=vc4-fkms-v3d,cma-512
++reboot
++# Check it has turned up
++ls -la /dev/video*
++# This should include video19
++# crw-rw----+ 1 root video 81, 7 Aug  4 17:25 /dev/video19
++
++# Currently on the Pi the linux headers from the debian distro don't match
++# the kernel that we ship and we need to update them - hopefully this step
++# will be unneeded in the future
++sudo apt install git bc bison flex libssl-dev make
++git clone --depth=1 https://github.com/raspberrypi/linux --branch rpi-5.10.y
++cd linux
++KERNEL=kernel7l
++make bcm2711_defconfig
++make headers_install
++sudo cp -r usr/include/linux /usr/include
++cd ..
++
++# Config - this builds a staticly linked ffmpeg which is easier for testing
++pi-util/conf_native.sh --noshared
++
++# Build (this is a bit dull)
++# If you want to poke the source the libavdevice/egl_vout.c contains the
++# output code -
++cd out/armv7-static-rel
++
++# Check that you have actually configured V4L2 request
++grep HEVC_V4L2REQUEST config.h
++# You are hoping for
++# #define CONFIG_HEVC_V4L2REQUEST_HWACCEL 1
++# if you get 0 then the config has failed
++
++make -j6
++
++# Grab test streams
++wget http://www.jell.yfish.us/media/jellyfish-3-mbps-hd-h264.mkv
++wget http://www.jell.yfish.us/media/jellyfish-3-mbps-hd-hevc.mkv
++wget http://www.jell.yfish.us/media/jellyfish-3-mbps-hd-hevc-10bit.mkv
++
++# Test i420 output (works currently)
++./ffmpeg -no_cvt_hw -vcodec h264_v4l2m2m -i jellyfish-3-mbps-hd-h264.mkv -f vout_egl -
++
++# Test Sand8 output - doesn't currently work but should once you have
++# Sand8 working in drm_mmal. I can't guarantee that this will work as
++# I can't test this path with a known working format, but the debug looks
++# good.  If this doesn't work & drm_mmal does with sand8 then come back to me
++# The "show_all 1" forces vout to display every frame otherwise it drops any
++# frame that would cause it to block
++./ffmpeg -no_cvt_hw -hwaccel drm -vcodec hevc -i jellyfish-3-mbps-hd-hevc.mkv -show_all 1 -f vout_egl -
++
++# Test Sand30 - doesn't currently work
++# (Beware that when FFmpeg errors out it often leaves your teminal window
++# in a state where you need to reset it)
++./ffmpeg -no_cvt_hw -hwaccel drm -vcodec hevc -i jellyfish-3-mbps-hd-hevc-10bit.mkv -f vout_egl -
++
++
++
+diff --git a/pi-util/clean_usr_libs.sh b/pi-util/clean_usr_libs.sh
+new file mode 100755
+index 0000000000..b3b2d5509d
+--- /dev/null
++++ b/pi-util/clean_usr_libs.sh
+@@ -0,0 +1,26 @@
++set -e
++U=/usr/lib/arm-linux-gnueabihf
++rm -f $U/libavcodec.*
++rm -f $U/libavdevice.*
++rm -f $U/libavfilter.*
++rm -f $U/libavformat.*
++rm -f $U/libavutil.*
++rm -f $U/libswresample.*
++rm -f $U/libswscale.*
++U=/usr/lib/arm-linux-gnueabihf/neon/vfp
++rm -f $U/libavcodec.*
++rm -f $U/libavdevice.*
++rm -f $U/libavfilter.*
++rm -f $U/libavformat.*
++rm -f $U/libavutil.*
++rm -f $U/libswresample.*
++rm -f $U/libswscale.*
++U=/usr/lib/aarch64-linux-gnu
++rm -f $U/libavcodec.*
++rm -f $U/libavdevice.*
++rm -f $U/libavfilter.*
++rm -f $U/libavformat.*
++rm -f $U/libavutil.*
++rm -f $U/libswresample.*
++rm -f $U/libswscale.*
++
+diff --git a/pi-util/conf_arm64_native.sh b/pi-util/conf_arm64_native.sh
+new file mode 100644
+index 0000000000..9e3bbfa190
+--- /dev/null
++++ b/pi-util/conf_arm64_native.sh
+@@ -0,0 +1,45 @@
++echo "Configure for ARM64 native build"
++
++#RPI_KEEPS="-save-temps=obj"
++
++SHARED_LIBS="--enable-shared"
++if [ "$1" == "--noshared" ]; then
++  SHARED_LIBS="--disable-shared"
++  echo Static libs
++  OUT=out/arm64-static-rel
++else
++  echo Shared libs
++  OUT=out/arm64-shared-rel
++fi
++
++mkdir -p $OUT
++cd $OUT
++
++A=aarch64-linux-gnu
++USR_PREFIX=`pwd`/install
++LIB_PREFIX=$USR_PREFIX/lib/$A
++INC_PREFIX=$USR_PREFIX/include/$A
++
++../../configure \
++ --prefix=$USR_PREFIX\
++ --libdir=$LIB_PREFIX\
++ --incdir=$INC_PREFIX\
++ --disable-stripping\
++ --disable-thumb\
++ --disable-mmal\
++ --enable-sand\
++ --enable-v4l2-request\
++ --enable-libdrm\
++ --enable-epoxy\
++ --enable-libudev\
++ --enable-vout-drm\
++ --enable-vout-egl\
++ $SHARED_LIBS\
++ --extra-cflags="-ggdb"
++
++# --enable-decoder=hevc_rpi\
++# --enable-extra-warnings\
++# --arch=armv71\
++
++# gcc option for getting asm listing
++# -Wa,-ahls
+diff --git a/pi-util/conf_h265.2016.csv b/pi-util/conf_h265.2016.csv
+new file mode 100644
+index 0000000000..4efd5d1c67
+--- /dev/null
++++ b/pi-util/conf_h265.2016.csv
+@@ -0,0 +1,195 @@
++1,HEVC_v1/AMP_A_Samsung_7,AMP_A_Samsung_7.bin,AMP_A_Samsung_7.md5,8
++1,HEVC_v1/AMP_B_Samsung_7,AMP_B_Samsung_7.bin,AMP_B_Samsung_7.md5,8
++1,HEVC_v1/AMP_D_Hisilicon_3,AMP_D_Hisilicon.bit,AMP_D_Hisilicon_3.yuv.md5,8
++1,HEVC_v1/AMP_E_Hisilicon_3,AMP_E_Hisilicon.bit,AMP_E_Hisilicon_3.yuv.md5,8
++1,HEVC_v1/AMP_F_Hisilicon_3,AMP_F_Hisilicon_3.bit,AMP_F_Hisilicon_3.yuv.md5,8
++1,HEVC_v1/AMVP_A_MTK_4,AMVP_A_MTK_4.bit,AMVP_A_MTK_4.md5,8
++1,HEVC_v1/AMVP_B_MTK_4,AMVP_B_MTK_4.bit,AMVP_B_MTK_4.md5,8
++1,HEVC_v1/AMVP_C_Samsung_7,AMVP_C_Samsung_7.bin,AMVP_C_Samsung_7.md5,8
++1,HEVC_v1/BUMPING_A_ericsson_1,BUMPING_A_ericsson_1.bit,BUMPING_A_ericsson_1.md5,8
++1,HEVC_v1/CAINIT_A_SHARP_4,CAINIT_A_SHARP_4.bit,CAINIT_A_SHARP_4.md5,8
++1,HEVC_v1/CAINIT_B_SHARP_4,CAINIT_B_SHARP_4.bit,CAINIT_B_SHARP_4.md5,8
++1,HEVC_v1/CAINIT_C_SHARP_3,CAINIT_C_SHARP_3.bit,CAINIT_C_SHARP_3.md5,8
++1,HEVC_v1/CAINIT_D_SHARP_3,CAINIT_D_SHARP_3.bit,CAINIT_D_SHARP_3.md5,8
++1,HEVC_v1/CAINIT_E_SHARP_3,CAINIT_E_SHARP_3.bit,CAINIT_E_SHARP_3.md5,8
++1,HEVC_v1/CAINIT_F_SHARP_3,CAINIT_F_SHARP_3.bit,CAINIT_F_SHARP_3.md5,8
++1,HEVC_v1/CAINIT_G_SHARP_3,CAINIT_G_SHARP_3.bit,CAINIT_G_SHARP_3.md5,8
++1,HEVC_v1/CAINIT_H_SHARP_3,CAINIT_H_SHARP_3.bit,CAINIT_H_SHARP_3.md5,8
++1,HEVC_v1/CIP_A_Panasonic_3,CIP_A_Panasonic_3.bit,CIP_A_Panasonic_3_yuv.md5,8
++1,HEVC_v1/cip_B_NEC_3,cip_B_NEC_3.bit,cip_B_NEC_3.md5,8
++1,HEVC_v1/CIP_C_Panasonic_2,CIP_C_Panasonic_2.bit,CIP_C_Panasonic_2_yuv.md5,8
++1,HEVC_v1/CONFWIN_A_Sony_1,CONFWIN_A_Sony_1.bit,CONFWIN_A_Sony_1.md5,8
++1,HEVC_v1/DBLK_A_MAIN10_VIXS_4,DBLK_A_MAIN10_VIXS_4.bit,DBLK_A_MAIN10_VIXS_4.md5,10
++1,HEVC_v1/DBLK_A_SONY_3,DBLK_A_SONY_3.bit,DBLK_A_SONY_3.bit.yuv.md5,8
++1,HEVC_v1/DBLK_B_SONY_3,DBLK_B_SONY_3.bit,DBLK_B_SONY_3.bit.yuv.md5,8
++1,HEVC_v1/DBLK_C_SONY_3,DBLK_C_SONY_3.bit,DBLK_C_SONY_3.bit.yuv.md5,8
++1,HEVC_v1/DBLK_D_VIXS_2,DBLK_D_VIXS_2.bit,DBLK_D_VIXS_2_yuv.md5,8
++1,HEVC_v1/DBLK_E_VIXS_2,DBLK_E_VIXS_2.bit,DBLK_E_VIXS_2_yuv.md5,8
++1,HEVC_v1/DBLK_F_VIXS_2,DBLK_F_VIXS_2.bit,DBLK_F_VIXS_2_yuv.md5,8
++1,HEVC_v1/DBLK_G_VIXS_2,DBLK_G_VIXS_2.bit,DBLK_G_VIXS_2_yuv.md5,8
++1,HEVC_v1/DELTAQP_A_BRCM_4,DELTAQP_A_BRCM_4.bit,DELTAQP_A_BRCM_4_yuv.md5,8
++1,HEVC_v1/DELTAQP_B_SONY_3,DELTAQP_B_SONY_3.bit,DELTAQP_B_SONY_3.bit.yuv.md5,8
++1,HEVC_v1/DELTAQP_C_SONY_3,DELTAQP_C_SONY_3.bit,DELTAQP_C_SONY_3.bit.yuv.md5,8
++1,HEVC_v1/DSLICE_A_HHI_5,DSLICE_A_HHI_5.bin,DSLICE_A_HHI_5.md5,8
++1,HEVC_v1/DSLICE_B_HHI_5,DSLICE_B_HHI_5.bin,DSLICE_B_HHI_5.md5,8
++1,HEVC_v1/DSLICE_C_HHI_5,DSLICE_C_HHI_5.bin,DSLICE_C_HHI_5.md5,8
++1,HEVC_v1/ENTP_A_QUALCOMM_1,ENTP_A_Qualcomm_1.bit,ENTP_A_Qualcomm_1.md5,8
++1,HEVC_v1/ENTP_B_Qualcomm_1,ENTP_B_Qualcomm_1.bit,ENTP_B_Qualcomm_1.md5,8
++1,HEVC_v1/ENTP_C_Qualcomm_1,ENTP_C_Qualcomm_1.bit,ENTP_C_Qualcomm_1.md5,8
++1,HEVC_v1/EXT_A_ericsson_4,EXT_A_ericsson_4.bit,EXT_A_ericsson_4.md5,8
++1,HEVC_v1/FILLER_A_Sony_1,FILLER_A_Sony_1.bit,FILLER_A_Sony_1.md5,8
++1,HEVC_v1/HRD_A_Fujitsu_3,HRD_A_Fujitsu_3.bin,HRD_A_Fujitsu_3.md5,8
++1,HEVC_v1/INITQP_A_Sony_1,INITQP_A_Sony_1.bit,INITQP_A_Sony_1.md5,8
++1,HEVC_v1/INITQP_B_Main10_Sony_1,INITQP_B_Main10_Sony_1.bit,INITQP_B_Main10_Sony_1.md5,10
++1,HEVC_v1/ipcm_A_NEC_3,ipcm_A_NEC_3.bit,ipcm_A_NEC_3.md5,8
++1,HEVC_v1/ipcm_B_NEC_3,ipcm_B_NEC_3.bit,ipcm_B_NEC_3.md5,8
++1,HEVC_v1/ipcm_C_NEC_3,ipcm_C_NEC_3.bit,ipcm_C_NEC_3.md5,8
++1,HEVC_v1/ipcm_D_NEC_3,ipcm_D_NEC_3.bit,ipcm_D_NEC_3.md5,8
++1,HEVC_v1/ipcm_E_NEC_2,ipcm_E_NEC_2.bit,ipcm_E_NEC_2.md5,8
++1,HEVC_v1/IPRED_A_docomo_2,IPRED_A_docomo_2.bit,IPRED_A_docomo_2.md5,8
++1,HEVC_v1/IPRED_B_Nokia_3,IPRED_B_Nokia_3.bit,IPRED_B_Nokia_3_yuv.md5,8
++1,HEVC_v1/IPRED_C_Mitsubishi_3,IPRED_C_Mitsubishi_3.bit,IPRED_C_Mitsubishi_3_yuv.md5,8
++1,HEVC_v1/LS_A_Orange_2,LS_A_Orange_2.bit,LS_A_Orange_2_yuv.md5,8
++1,HEVC_v1/LS_B_Orange_4,LS_B_Orange_4.bit,LS_B_Orange_4_yuv.md5,8
++1,HEVC_v1/LTRPSPS_A_Qualcomm_1,LTRPSPS_A_Qualcomm_1.bit,LTRPSPS_A_Qualcomm_1.md5,8
++1,HEVC_v1/MAXBINS_A_TI_5,MAXBINS_A_TI_5.bit,MAXBINS_A_TI_5_yuv.md5,8
++1,HEVC_v1/MAXBINS_B_TI_5,MAXBINS_B_TI_5.bit,MAXBINS_B_TI_5_yuv.md5,8
++1,HEVC_v1/MAXBINS_C_TI_5,MAXBINS_C_TI_5.bit,MAXBINS_C_TI_5_yuv.md5,8
++1,HEVC_v1/MERGE_A_TI_3,MERGE_A_TI_3.bit,MERGE_A_TI_3.md5,8
++1,HEVC_v1/MERGE_B_TI_3,MERGE_B_TI_3.bit,MERGE_B_TI_3.md5,8
++1,HEVC_v1/MERGE_C_TI_3,MERGE_C_TI_3.bit,MERGE_C_TI_3.md5,8
++1,HEVC_v1/MERGE_D_TI_3,MERGE_D_TI_3.bit,MERGE_D_TI_3.md5,8
++1,HEVC_v1/MERGE_E_TI_3,MERGE_E_TI_3.bit,MERGE_E_TI_3.md5,8
++1,HEVC_v1/MERGE_F_MTK_4,MERGE_F_MTK_4.bit,MERGE_F_MTK_4.md5,8
++1,HEVC_v1/MERGE_G_HHI_4,MERGE_G_HHI_4.bit,MERGE_G_HHI_4.md5,8
++1,HEVC_v1/MVCLIP_A_qualcomm_3,MVCLIP_A_qualcomm_3.bit,MVCLIP_A_qualcomm_3.yuv.md5,8
++1,HEVC_v1/MVDL1ZERO_A_docomo_4,MVDL1ZERO_A_docomo_4.bit,MVDL1ZERO_A_docomo_4.md5,8
++1,HEVC_v1/MVEDGE_A_qualcomm_3,MVEDGE_A_qualcomm_3.bit,MVEDGE_A_qualcomm_3.yuv.md5,8
++1,HEVC_v1/NoOutPrior_A_Qualcomm_1,NoOutPrior_A_Qualcomm_1.bit,NoOutPrior_A_Qualcomm_1.md5,8
++1,HEVC_v1/NoOutPrior_B_Qualcomm_1,NoOutPrior_B_Qualcomm_1.bit,NoOutPrior_B_Qualcomm_1.md5,8
++1,HEVC_v1/NUT_A_ericsson_5,NUT_A_ericsson_5.bit,NUT_A_ericsson_5.md5,8
++1,HEVC_v1/OPFLAG_A_Qualcomm_1,OPFLAG_A_Qualcomm_1.bit,OPFLAG_A_Qualcomm_1.md5,8
++1,HEVC_v1/OPFLAG_B_Qualcomm_1,OPFLAG_B_Qualcomm_1.bit,OPFLAG_B_Qualcomm_1.md5,8
++1,HEVC_v1/OPFLAG_C_Qualcomm_1,OPFLAG_C_Qualcomm_1.bit,OPFLAG_C_Qualcomm_1.md5,8
++1,HEVC_v1/PICSIZE_A_Bossen_1,PICSIZE_A_Bossen_1.bin,PICSIZE_A_Bossen_1.md5,8
++1,HEVC_v1/PICSIZE_B_Bossen_1,PICSIZE_B_Bossen_1.bin,PICSIZE_B_Bossen_1.md5,8
++1,HEVC_v1/PICSIZE_C_Bossen_1,PICSIZE_C_Bossen_1.bin,PICSIZE_C_Bossen_1.md5,8
++1,HEVC_v1/PICSIZE_D_Bossen_1,PICSIZE_D_Bossen_1.bin,PICSIZE_D_Bossen_1.md5,8
++1,HEVC_v1/PMERGE_A_TI_3,PMERGE_A_TI_3.bit,PMERGE_A_TI_3.md5,8
++1,HEVC_v1/PMERGE_B_TI_3,PMERGE_B_TI_3.bit,PMERGE_B_TI_3.md5,8
++1,HEVC_v1/PMERGE_C_TI_3,PMERGE_C_TI_3.bit,PMERGE_C_TI_3.md5,8
++1,HEVC_v1/PMERGE_D_TI_3,PMERGE_D_TI_3.bit,PMERGE_D_TI_3.md5,8
++1,HEVC_v1/PMERGE_E_TI_3,PMERGE_E_TI_3.bit,PMERGE_E_TI_3.md5,8
++1,HEVC_v1/POC_A_Bossen_3,POC_A_Bossen_3.bin,POC_A_Bossen_3.md5,8
++1,HEVC_v1/PPS_A_qualcomm_7,PPS_A_qualcomm_7.bit,PPS_A_qualcomm_7.yuv.md5,8
++1,HEVC_v1/PS_B_VIDYO_3,PS_B_VIDYO_3.bit,PS_B_VIDYO_3_yuv.md5,8
++1,HEVC_v1/RAP_A_docomo_6,RAP_A_docomo_6.bit,RAP_A_docomo_6.md5,8
++1,HEVC_v1/RAP_B_Bossen_2,RAP_B_Bossen_2.bit,RAP_B_Bossen_2.md5,8
++1,HEVC_v1/RPLM_A_qualcomm_4,RPLM_A_qualcomm_4.bit,RPLM_A_qualcomm_4.yuv.md5,8
++1,HEVC_v1/RPLM_B_qualcomm_4,RPLM_B_qualcomm_4.bit,RPLM_B_qualcomm_4.yuv.md5,8
++1,HEVC_v1/RPS_A_docomo_5,RPS_A_docomo_5.bit,RPS_A_docomo_5.md5,8
++1,HEVC_v1/RPS_B_qualcomm_5,RPS_B_qualcomm_5.bit,RPS_B_qualcomm_5.yuv.md5,8
++1,HEVC_v1/RPS_C_ericsson_5,RPS_C_ericsson_5.bit,RPS_C_ericsson_5.md5,8
++1,HEVC_v1/RPS_D_ericsson_6,RPS_D_ericsson_6.bit,RPS_D_ericsson_6.md5,8
++1,HEVC_v1/RPS_E_qualcomm_5,RPS_E_qualcomm_5.bit,RPS_E_qualcomm_5.yuv.md5,8
++1,HEVC_v1/RPS_F_docomo_2,RPS_F_docomo_2.bit,RPS_F_docomo_2.md5,8
++1,HEVC_v1/RQT_A_HHI_4,RQT_A_HHI_4.bit,RQT_A_HHI_4.md5,8
++1,HEVC_v1/RQT_B_HHI_4,RQT_B_HHI_4.bit,RQT_B_HHI_4.md5,8
++1,HEVC_v1/RQT_C_HHI_4,RQT_C_HHI_4.bit,RQT_C_HHI_4.md5,8
++1,HEVC_v1/RQT_D_HHI_4,RQT_D_HHI_4.bit,RQT_D_HHI_4.md5,8
++1,HEVC_v1/RQT_E_HHI_4,RQT_E_HHI_4.bit,RQT_E_HHI_4.md5,8
++1,HEVC_v1/RQT_F_HHI_4,RQT_F_HHI_4.bit,RQT_F_HHI_4.md5,8
++1,HEVC_v1/RQT_G_HHI_4,RQT_G_HHI_4.bit,RQT_G_HHI_4.md5,8
++1,HEVC_v1/SAO_A_MediaTek_4,SAO_A_MediaTek_4.bit,SAO_A_MediaTek_4.md5,8
++1,HEVC_v1/SAO_B_MediaTek_5,SAO_B_MediaTek_5.bit,SAO_B_MediaTek_5.md5,8
++1,HEVC_v1/SAO_C_Samsung_5,SAO_C_Samsung_5.bin,SAO_C_Samsung_5.md5,8
++1,HEVC_v1/SAO_D_Samsung_5,SAO_D_Samsung_5.bin,SAO_D_Samsung_5.md5,8
++1,HEVC_v1/SAO_E_Canon_4,SAO_E_Canon_4.bit,SAO_E_Canon_4.md5,8
++1,HEVC_v1/SAO_F_Canon_3,SAO_F_Canon_3.bit,SAO_F_Canon_3.md5,8
++1,HEVC_v1/SAO_G_Canon_3,SAO_G_Canon_3.bit,SAO_G_Canon_3.md5,8
++1,HEVC_v1/SAO_H_Parabola_1,SAO_H_Parabola_1.bit,SAO_H_Parabola_1.md5,8
++1,HEVC_v1/SAODBLK_A_MainConcept_4,SAODBLK_A_MainConcept_4.bin,SAODBLK_A_MainConcept_4_md5.txt,8
++1,HEVC_v1/SAODBLK_B_MainConcept_4,SAODBLK_B_MainConcept_4.bin,SAODBLK_B_MainConcept_4_md5.txt,8
++1,HEVC_v1/SDH_A_Orange_4,SDH_A_Orange_4.bit,SDH_A_Orange_4_yuv.md5,8
++1,HEVC_v1/SLICES_A_Rovi_3,SLICES_A_Rovi_3.bin,SLICES_A_Rovi_3.md5,8
++1,HEVC_v1/SLIST_A_Sony_5,SLIST_A_Sony_5.bin,SLIST_A_Sony_5_yuv.md5,8
++1,HEVC_v1/SLIST_B_Sony_9,SLIST_B_Sony_9.bin,SLIST_B_Sony_9_yuv.md5,8
++1,HEVC_v1/SLIST_C_Sony_4,SLIST_C_Sony_4.bin,SLIST_C_Sony_4_yuv.md5,8
++1,HEVC_v1/SLIST_D_Sony_9,str.bin,SLIST_D_Sony_9_yuv.md5,8
++1,HEVC_v1/SLPPLP_A_VIDYO_2,SLPPLP_A_VIDYO_2.bit,SLPPLP_A_VIDYO_2_yuv.md5,8
++1,HEVC_v1/STRUCT_A_Samsung_7,STRUCT_A_Samsung_7.bin,STRUCT_A_Samsung_7.md5,8
++1,HEVC_v1/STRUCT_B_Samsung_7,STRUCT_B_Samsung_7.bin,STRUCT_B_Samsung_7.md5,8
++1,HEVC_v1/TILES_A_Cisco_2,TILES_A_Cisco_2.bin,TILES_A_Cisco_2_yuv.md5,8
++1,HEVC_v1/TILES_B_Cisco_1,TILES_B_Cisco_1.bin,TILES_B_Cisco_1_yuv.md5,8
++1,HEVC_v1/TMVP_A_MS_3,TMVP_A_MS_3.bit,TMVP_A_MS_3.yuv.md5,8
++1,HEVC_v1/TSCL_A_VIDYO_5,TSCL_A_VIDYO_5.bit,TSCL_A_VIDYO_5_yuv.md5,8
++1,HEVC_v1/TSCL_B_VIDYO_4,TSCL_B_VIDYO_4.bit,TSCL_B_VIDYO_4_yuv.md5,8
++1,HEVC_v1/TSKIP_A_MS_3,TSKIP_A_MS_3.bit,TSKIP_A_MS_3.yuv.md5,8
++3,HEVC_v1/TSUNEQBD_A_MAIN10_Technicolor_2,TSUNEQBD_A_MAIN10_Technicolor_2.bit,TSUNEQBD_A_MAIN10_Technicolor_2_yuv.md5, # unequal bit depth,10
++1,HEVC_v1/TUSIZE_A_Samsung_1,TUSIZE_A_Samsung_1.bin,TUSIZE_A_Samsung_1.md5,8
++1,HEVC_v1/VPSID_A_VIDYO_2,VPSID_A_VIDYO_2.bit,VPSID_A_VIDYO_2_yuv.md5,8
++3,HEVC_v1/VPSSPSPPS_A_MainConcept_1,VPSSPSPPS_A_MainConcept_1.bin,VPSSPSPPS_A_MainConcept_1_md5.txt, # ???,8
++1,HEVC_v1/WP_A_MAIN10_Toshiba_3,WP_A_MAIN10_Toshiba_3.bit,WP_A_MAIN10_Toshiba_3_yuv.md5,10
++1,HEVC_v1/WP_A_Toshiba_3,WP_A_Toshiba_3.bit,WP_A_Toshiba_3_yuv.md5,8
++1,HEVC_v1/WP_B_Toshiba_3,WP_B_Toshiba_3.bit,WP_B_Toshiba_3_yuv.md5,8
++1,HEVC_v1/WP_MAIN10_B_Toshiba_3,WP_MAIN10_B_Toshiba_3.bit,WP_MAIN10_B_Toshiba_3_yuv.md5,10
++1,HEVC_v1/WPP_A_ericsson_MAIN10_2,WPP_A_ericsson_MAIN10_2.bit,WPP_A_ericsson_MAIN10_yuv.md5,10
++1,HEVC_v1/WPP_A_ericsson_MAIN_2,WPP_A_ericsson_MAIN_2.bit,WPP_A_ericsson_MAIN_2_yuv.md5,8
++1,HEVC_v1/WPP_B_ericsson_MAIN10_2,WPP_B_ericsson_MAIN10_2.bit,WPP_B_ericsson_MAIN10_yuv.md5,10
++1,HEVC_v1/WPP_B_ericsson_MAIN_2,WPP_B_ericsson_MAIN_2.bit,WPP_B_ericsson_MAIN_2_yuv.md5,8
++1,HEVC_v1/WPP_C_ericsson_MAIN10_2,WPP_C_ericsson_MAIN10_2.bit,WPP_C_ericsson_MAIN10_yuv.md5,10
++1,HEVC_v1/WPP_C_ericsson_MAIN_2,WPP_C_ericsson_MAIN_2.bit,WPP_C_ericsson_MAIN_2_yuv.md5,8
++1,HEVC_v1/WPP_D_ericsson_MAIN10_2,WPP_D_ericsson_MAIN10_2.bit,WPP_D_ericsson_MAIN10_yuv.md5,10
++1,HEVC_v1/WPP_D_ericsson_MAIN_2,WPP_D_ericsson_MAIN_2.bit,WPP_D_ericsson_MAIN_2_yuv.md5,8
++1,HEVC_v1/WPP_E_ericsson_MAIN10_2,WPP_E_ericsson_MAIN10_2.bit,WPP_E_ericsson_MAIN10_yuv.md5,10
++1,HEVC_v1/WPP_E_ericsson_MAIN_2,WPP_E_ericsson_MAIN_2.bit,WPP_E_ericsson_MAIN_2_yuv.md5,8
++1,HEVC_v1/WPP_F_ericsson_MAIN10_2,WPP_F_ericsson_MAIN10_2.bit,WPP_F_ericsson_MAIN10_yuv.md5,10
++1,HEVC_v1/WPP_F_ericsson_MAIN_2,WPP_F_ericsson_MAIN_2.bit,WPP_F_ericsson_MAIN_2_yuv.md5,8
++1,RExt/ADJUST_IPRED_ANGLE_A_RExt_Mitsubishi_2,ADJUST_IPRED_ANGLE_A_RExt_Mitsubishi_2.bit,ADJUST_IPRED_ANGLE_A_RExt_Mitsubishi_yuv_2.md5,0
++0,RExt/Bitdepth_A_RExt_Sony_1,Bitdepth_A_RExt_Sony_1.bin,md5sum.txt,8
++0,RExt/Bitdepth_B_RExt_Sony_1,Bitdepth_B_RExt_Sony_1.bin,md5sum.txt,8
++0,RExt/CCP_10bit_RExt_QCOM,CCP_10bit_RExt_QCOM.bin,CCP_10bit_RExt_QCOM_md5sum.txt,10
++0,RExt/CCP_12bit_RExt_QCOM,CCP_12bit_RExt_QCOM.bin,CCP_12bit_RExt_QCOM_md5sum.txt,8
++0,RExt/CCP_8bit_RExt_QCOM,CCP_8bit_RExt_QCOM.bin,CCP_8bit_RExt_QCOM_md5sum.txt,8
++1,RExt/ExplicitRdpcm_A_BBC_1,ExplicitRdpcm_A_BBC_1.bit,md5sum.txt,0
++0,RExt/ExplicitRdpcm_B_BBC_2,ExplicitRdpcm_B_BBC_1.bit,md5sum.txt,8
++0,RExt/EXTPREC_HIGHTHROUGHPUT_444_16_INTRA_10BIT_RExt_Sony_1,EXTPREC_HIGHTHROUGHPUT_444_16_INTRA_10BIT_RExt_Sony_1.bit,EXTPREC_HIGHTHROUGHPUT_444_16_INTRA_10BIT_RExt_Sony_1.md5,10
++0,RExt/EXTPREC_HIGHTHROUGHPUT_444_16_INTRA_12BIT_RExt_Sony_1,EXTPREC_HIGHTHROUGHPUT_444_16_INTRA_12BIT_RExt_Sony_1.bit,EXTPREC_HIGHTHROUGHPUT_444_16_INTRA_12BIT_RExt_Sony_1.md5,8
++0,RExt/EXTPREC_HIGHTHROUGHPUT_444_16_INTRA_16BIT_RExt_Sony_1,EXTPREC_HIGHTHROUGHPUT_444_16_INTRA_16BIT_RExt_Sony_1.bit,EXTPREC_HIGHTHROUGHPUT_444_16_INTRA_16BIT_RExt_Sony_1.md5,8
++0,RExt/EXTPREC_HIGHTHROUGHPUT_444_16_INTRA_8BIT_RExt_Sony_1,EXTPREC_HIGHTHROUGHPUT_444_16_INTRA_8BIT_RExt_Sony_1.bit,EXTPREC_HIGHTHROUGHPUT_444_16_INTRA_8BIT_RExt_Sony_1.md5,8
++0,RExt/EXTPREC_MAIN_444_16_INTRA_10BIT_RExt_Sony_1,EXTPREC_MAIN_444_16_INTRA_10BIT_RExt_Sony_1.bit,EXTPREC_MAIN_444_16_INTRA_10BIT_RExt_Sony_1.md5,10
++0,RExt/EXTPREC_MAIN_444_16_INTRA_12BIT_RExt_Sony_1,EXTPREC_MAIN_444_16_INTRA_12BIT_RExt_Sony_1.bit,EXTPREC_MAIN_444_16_INTRA_12BIT_RExt_Sony_1.md5,8
++0,RExt/EXTPREC_MAIN_444_16_INTRA_16BIT_RExt_Sony_1,EXTPREC_MAIN_444_16_INTRA_16BIT_RExt_Sony_1.bit,EXTPREC_MAIN_444_16_INTRA_16BIT_RExt_Sony_1.md5,8
++0,RExt/EXTPREC_MAIN_444_16_INTRA_8BIT_RExt_Sony_1,EXTPREC_MAIN_444_16_INTRA_8BIT_RExt_Sony_1.bit,EXTPREC_MAIN_444_16_INTRA_8BIT_RExt_Sony_1.md5,8
++1,RExt/GENERAL_10b_420_RExt_Sony_1,GENERAL_10b_420_RExt_Sony_1.bit,GENERAL_10b_420_RExt_Sony_1.md5,10
++1,RExt/GENERAL_10b_422_RExt_Sony_1,GENERAL_10b_422_RExt_Sony_1.bit,GENERAL_10b_422_RExt_Sony_1.md5,0
++1,RExt/GENERAL_10b_444_RExt_Sony_2,GENERAL_10b_444_RExt_Sony_2.bit,GENERAL_10b_444_RExt_Sony_2.md5,0
++1,RExt/GENERAL_12b_400_RExt_Sony_1,GENERAL_12b_400_RExt_Sony_1.bit,GENERAL_12b_400_RExt_Sony_1.md5,0
++1,RExt/GENERAL_12b_420_RExt_Sony_1,GENERAL_12b_420_RExt_Sony_1.bit,GENERAL_12b_420_RExt_Sony_1.md5,0
++1,RExt/GENERAL_12b_422_RExt_Sony_1,GENERAL_12b_422_RExt_Sony_1.bit,GENERAL_12b_422_RExt_Sony_1.md5,0
++1,RExt/GENERAL_12b_444_RExt_Sony_2,GENERAL_12b_444_RExt_Sony_2.bit,GENERAL_12b_444_RExt_Sony_2.md5,0
++0,RExt/GENERAL_16b_400_RExt_Sony_1,GENERAL_16b_400_RExt_Sony_1.bit,GENERAL_16b_400_RExt_Sony_1.md5,0
++0,RExt/GENERAL_16b_444_highThroughput_RExt_Sony_2,GENERAL_16b_444_highThroughput_RExt_Sony_2.bit,GENERAL_16b_444_highThroughput_RExt_Sony_2.md5,8
++0,RExt/GENERAL_16b_444_RExt_Sony_2,GENERAL_16b_444_RExt_Sony_2.bit,GENERAL_16b_444_RExt_Sony_2.md5,8
++1,RExt/GENERAL_8b_400_RExt_Sony_1,GENERAL_8b_400_RExt_Sony_1.bit,GENERAL_8b_400_RExt_Sony_1.md5,0
++1,RExt/GENERAL_8b_420_RExt_Sony_1,GENERAL_8b_420_RExt_Sony_1.bit,GENERAL_8b_420_RExt_Sony_1.md5,8
++1,RExt/GENERAL_8b_444_RExt_Sony_2,GENERAL_8b_444_RExt_Sony_2.bit,GENERAL_8b_444_RExt_Sony_2.md5,0
++1,RExt/IPCM_A_RExt_NEC_2,IPCM_A_RExt_NEC_2.bit,IPCM_A_RExt_NEC_2_yuv.md5,0
++1,RExt/IPCM_B_RExt_NEC,IPCM_B_RExt_NEC.bit,IPCM_B_RExt_NEC_yuv.md5,0
++1,RExt/Main_422_10_A_RExt_Sony_2,Main_422_10_A_RExt_Sony_2.bin,md5sum.txt,0
++1,RExt/Main_422_10_B_RExt_Sony_2,Main_422_10_B_RExt_Sony_2.bin,md5sum.txt,0
++1,RExt/PERSIST_RPARAM_A_RExt_Sony_3,PERSIST_RPARAM_A_RExt_Sony_3.bit,PERSIST_RPARAM_A_RExt_Sony_3.md5,0
++1,RExt/QMATRIX_A_RExt_Sony_1,QMATRIX_A_RExt_Sony_1.bit,QMATRIX_A_RExt_Sony_1.md5,0
++0,RExt/SAO_A_RExt_MediaTek_1,SAO_A_RExt_MediaTek_1.bit,SAO_A_RExt_MediaTek_1.md5, # Runs out of memory - could be fixed,8
++0,RExt/TSCTX_10bit_I_RExt_SHARP_1,TSCTX_10bit_I_RExt_SHARP_1.bin,TSCTX_10bit_I_RExt_SHARP_1.md5,10
++0,RExt/TSCTX_10bit_RExt_SHARP_1,TSCTX_10bit_RExt_SHARP_1.bin,TSCTX_10bit_RExt_SHARP_1.md5,10
++0,RExt/TSCTX_12bit_I_RExt_SHARP_1,TSCTX_12bit_I_RExt_SHARP_1.bin,TSCTX_12bit_I_RExt_SHARP_1.md5,8
++0,RExt/TSCTX_12bit_RExt_SHARP_1,TSCTX_12bit_RExt_SHARP_1.bin,TSCTX_12bit_RExt_SHARP_1.md5,8
++0,RExt/TSCTX_8bit_I_RExt_SHARP_1,TSCTX_8bit_I_RExt_SHARP_1.bin,TSCTX_8bit_I_RExt_SHARP_1.md5,8
++0,RExt/TSCTX_8bit_RExt_SHARP_1,TSCTX_8bit_RExt_SHARP_1.bin,TSCTX_8bit_RExt_SHARP_1.md5,8
++0,RExt/WAVETILES_RExt_Sony_2,WAVETILES_RExt_Sony_2.bit,WAVETILES_RExt_Sony_2.md5,8
++1,local/sao_cu16_mobile_344x280,sao_cu16_mobile_344x280.265,sao_cu16_mobile_344x280.md5,8
++1,local/dblk_cu16_mobile_344x280,dblk_cu16_mobile_344x280.265,dblk_cu16_mobile_344x280.md5,8
++1,local/dblksao_cu16_mobile_344x280,dblksao_cu16_mobile_344x280.265,dblksao_cu16_mobile_344x280.md5,8
++1,local/dblk_pu32_horses_832x448,dblk_pu32_horses_832x448.265,dblk_pu32_horses_832x448.md5,8
++1,local/intra_pred_21_laps,intra_pred_21_laps.265,intra_pred_21_laps.md5,8
+diff --git a/pi-util/conf_h265.2016_HEVC_v1.csv b/pi-util/conf_h265.2016_HEVC_v1.csv
+new file mode 100644
+index 0000000000..6082641271
+--- /dev/null
++++ b/pi-util/conf_h265.2016_HEVC_v1.csv
+@@ -0,0 +1,147 @@
++1,AMP_A_Samsung_7,AMP_A_Samsung_7.bin,AMP_A_Samsung_7.md5
++1,AMP_B_Samsung_7,AMP_B_Samsung_7.bin,AMP_B_Samsung_7.md5
++1,AMP_D_Hisilicon_3,AMP_D_Hisilicon.bit,AMP_D_Hisilicon_3.yuv.md5
++1,AMP_E_Hisilicon_3,AMP_E_Hisilicon.bit,AMP_E_Hisilicon_3.yuv.md5
++1,AMP_F_Hisilicon_3,AMP_F_Hisilicon_3.bit,AMP_F_Hisilicon_3.yuv.md5
++1,AMVP_A_MTK_4,AMVP_A_MTK_4.bit,AMVP_A_MTK_4.md5
++1,AMVP_B_MTK_4,AMVP_B_MTK_4.bit,AMVP_B_MTK_4.md5
++1,AMVP_C_Samsung_7,AMVP_C_Samsung_7.bin,AMVP_C_Samsung_7.md5
++1,BUMPING_A_ericsson_1,BUMPING_A_ericsson_1.bit,BUMPING_A_ericsson_1.md5
++1,CAINIT_A_SHARP_4,CAINIT_A_SHARP_4.bit,CAINIT_A_SHARP_4.md5
++1,CAINIT_B_SHARP_4,CAINIT_B_SHARP_4.bit,CAINIT_B_SHARP_4.md5
++1,CAINIT_C_SHARP_3,CAINIT_C_SHARP_3.bit,CAINIT_C_SHARP_3.md5
++1,CAINIT_D_SHARP_3,CAINIT_D_SHARP_3.bit,CAINIT_D_SHARP_3.md5
++1,CAINIT_E_SHARP_3,CAINIT_E_SHARP_3.bit,CAINIT_E_SHARP_3.md5
++1,CAINIT_F_SHARP_3,CAINIT_F_SHARP_3.bit,CAINIT_F_SHARP_3.md5
++1,CAINIT_G_SHARP_3,CAINIT_G_SHARP_3.bit,CAINIT_G_SHARP_3.md5
++1,CAINIT_H_SHARP_3,CAINIT_H_SHARP_3.bit,CAINIT_H_SHARP_3.md5
++1,CIP_A_Panasonic_3,CIP_A_Panasonic_3.bit,CIP_A_Panasonic_3_yuv.md5
++1,cip_B_NEC_3,cip_B_NEC_3.bit,cip_B_NEC_3.md5
++1,CIP_C_Panasonic_2,CIP_C_Panasonic_2.bit,CIP_C_Panasonic_2_yuv.md5
++1,CONFWIN_A_Sony_1,CONFWIN_A_Sony_1.bit,CONFWIN_A_Sony_1.md5
++1,DBLK_A_MAIN10_VIXS_4,DBLK_A_MAIN10_VIXS_4.bit,DBLK_A_MAIN10_VIXS_4.md5
++1,DBLK_A_SONY_3,DBLK_A_SONY_3.bit,DBLK_A_SONY_3.bit.yuv.md5
++1,DBLK_B_SONY_3,DBLK_B_SONY_3.bit,DBLK_B_SONY_3.bit.yuv.md5
++1,DBLK_C_SONY_3,DBLK_C_SONY_3.bit,DBLK_C_SONY_3.bit.yuv.md5
++1,DBLK_D_VIXS_2,DBLK_D_VIXS_2.bit,DBLK_D_VIXS_2_yuv.md5
++1,DBLK_E_VIXS_2,DBLK_E_VIXS_2.bit,DBLK_E_VIXS_2_yuv.md5
++1,DBLK_F_VIXS_2,DBLK_F_VIXS_2.bit,DBLK_F_VIXS_2_yuv.md5
++1,DBLK_G_VIXS_2,DBLK_G_VIXS_2.bit,DBLK_G_VIXS_2_yuv.md5
++1,DELTAQP_A_BRCM_4,DELTAQP_A_BRCM_4.bit,DELTAQP_A_BRCM_4_yuv.md5
++1,DELTAQP_B_SONY_3,DELTAQP_B_SONY_3.bit,DELTAQP_B_SONY_3.bit.yuv.md5
++1,DELTAQP_C_SONY_3,DELTAQP_C_SONY_3.bit,DELTAQP_C_SONY_3.bit.yuv.md5
++1,DSLICE_A_HHI_5,DSLICE_A_HHI_5.bin,DSLICE_A_HHI_5.md5
++1,DSLICE_B_HHI_5,DSLICE_B_HHI_5.bin,DSLICE_B_HHI_5.md5
++1,DSLICE_C_HHI_5,DSLICE_C_HHI_5.bin,DSLICE_C_HHI_5.md5
++1,ENTP_A_QUALCOMM_1,ENTP_A_Qualcomm_1.bit,ENTP_A_Qualcomm_1.md5
++1,ENTP_B_Qualcomm_1,ENTP_B_Qualcomm_1.bit,ENTP_B_Qualcomm_1.md5
++1,ENTP_C_Qualcomm_1,ENTP_C_Qualcomm_1.bit,ENTP_C_Qualcomm_1.md5
++1,EXT_A_ericsson_4,EXT_A_ericsson_4.bit,EXT_A_ericsson_4.md5
++1,FILLER_A_Sony_1,FILLER_A_Sony_1.bit,FILLER_A_Sony_1.md5
++1,HRD_A_Fujitsu_3,HRD_A_Fujitsu_3.bin,HRD_A_Fujitsu_3.md5
++1,INITQP_A_Sony_1,INITQP_A_Sony_1.bit,INITQP_A_Sony_1.md5
++1,INITQP_B_Main10_Sony_1,INITQP_B_Main10_Sony_1.bit,INITQP_B_Main10_Sony_1.md5
++1,ipcm_A_NEC_3,ipcm_A_NEC_3.bit,ipcm_A_NEC_3.md5
++1,ipcm_B_NEC_3,ipcm_B_NEC_3.bit,ipcm_B_NEC_3.md5
++1,ipcm_C_NEC_3,ipcm_C_NEC_3.bit,ipcm_C_NEC_3.md5
++1,ipcm_D_NEC_3,ipcm_D_NEC_3.bit,ipcm_D_NEC_3.md5
++1,ipcm_E_NEC_2,ipcm_E_NEC_2.bit,ipcm_E_NEC_2.md5
++1,IPRED_A_docomo_2,IPRED_A_docomo_2.bit,IPRED_A_docomo_2.md5
++1,IPRED_B_Nokia_3,IPRED_B_Nokia_3.bit,IPRED_B_Nokia_3_yuv.md5
++1,IPRED_C_Mitsubishi_3,IPRED_C_Mitsubishi_3.bit,IPRED_C_Mitsubishi_3_yuv.md5
++1,LS_A_Orange_2,LS_A_Orange_2.bit,LS_A_Orange_2_yuv.md5
++1,LS_B_Orange_4,LS_B_Orange_4.bit,LS_B_Orange_4_yuv.md5
++1,LTRPSPS_A_Qualcomm_1,LTRPSPS_A_Qualcomm_1.bit,LTRPSPS_A_Qualcomm_1.md5
++1,MAXBINS_A_TI_5,MAXBINS_A_TI_5.bit,MAXBINS_A_TI_5_yuv.md5
++1,MAXBINS_B_TI_5,MAXBINS_B_TI_5.bit,MAXBINS_B_TI_5_yuv.md5
++1,MAXBINS_C_TI_5,MAXBINS_C_TI_5.bit,MAXBINS_C_TI_5_yuv.md5
++1,MERGE_A_TI_3,MERGE_A_TI_3.bit,MERGE_A_TI_3.md5
++1,MERGE_B_TI_3,MERGE_B_TI_3.bit,MERGE_B_TI_3.md5
++1,MERGE_C_TI_3,MERGE_C_TI_3.bit,MERGE_C_TI_3.md5
++1,MERGE_D_TI_3,MERGE_D_TI_3.bit,MERGE_D_TI_3.md5
++1,MERGE_E_TI_3,MERGE_E_TI_3.bit,MERGE_E_TI_3.md5
++1,MERGE_F_MTK_4,MERGE_F_MTK_4.bit,MERGE_F_MTK_4.md5
++1,MERGE_G_HHI_4,MERGE_G_HHI_4.bit,MERGE_G_HHI_4.md5
++1,MVCLIP_A_qualcomm_3,MVCLIP_A_qualcomm_3.bit,MVCLIP_A_qualcomm_3.yuv.md5
++1,MVDL1ZERO_A_docomo_4,MVDL1ZERO_A_docomo_4.bit,MVDL1ZERO_A_docomo_4.md5
++1,MVEDGE_A_qualcomm_3,MVEDGE_A_qualcomm_3.bit,MVEDGE_A_qualcomm_3.yuv.md5
++1,NoOutPrior_A_Qualcomm_1,NoOutPrior_A_Qualcomm_1.bit,NoOutPrior_A_Qualcomm_1.md5
++1,NoOutPrior_B_Qualcomm_1,NoOutPrior_B_Qualcomm_1.bit,NoOutPrior_B_Qualcomm_1.md5
++1,NUT_A_ericsson_5,NUT_A_ericsson_5.bit,NUT_A_ericsson_5.md5
++1,OPFLAG_A_Qualcomm_1,OPFLAG_A_Qualcomm_1.bit,OPFLAG_A_Qualcomm_1.md5
++1,OPFLAG_B_Qualcomm_1,OPFLAG_B_Qualcomm_1.bit,OPFLAG_B_Qualcomm_1.md5
++1,OPFLAG_C_Qualcomm_1,OPFLAG_C_Qualcomm_1.bit,OPFLAG_C_Qualcomm_1.md5
++1,PICSIZE_A_Bossen_1,PICSIZE_A_Bossen_1.bin,PICSIZE_A_Bossen_1.md5
++1,PICSIZE_B_Bossen_1,PICSIZE_B_Bossen_1.bin,PICSIZE_B_Bossen_1.md5
++1,PICSIZE_C_Bossen_1,PICSIZE_C_Bossen_1.bin,PICSIZE_C_Bossen_1.md5
++1,PICSIZE_D_Bossen_1,PICSIZE_D_Bossen_1.bin,PICSIZE_D_Bossen_1.md5
++1,PMERGE_A_TI_3,PMERGE_A_TI_3.bit,PMERGE_A_TI_3.md5
++1,PMERGE_B_TI_3,PMERGE_B_TI_3.bit,PMERGE_B_TI_3.md5
++1,PMERGE_C_TI_3,PMERGE_C_TI_3.bit,PMERGE_C_TI_3.md5
++1,PMERGE_D_TI_3,PMERGE_D_TI_3.bit,PMERGE_D_TI_3.md5
++1,PMERGE_E_TI_3,PMERGE_E_TI_3.bit,PMERGE_E_TI_3.md5
++1,POC_A_Bossen_3,POC_A_Bossen_3.bin,POC_A_Bossen_3.md5
++1,PPS_A_qualcomm_7,PPS_A_qualcomm_7.bit,PPS_A_qualcomm_7.yuv.md5
++1,PS_B_VIDYO_3,PS_B_VIDYO_3.bit,PS_B_VIDYO_3_yuv.md5
++1,RAP_A_docomo_6,RAP_A_docomo_6.bit,RAP_A_docomo_6.md5
++1,RAP_B_Bossen_2,RAP_B_Bossen_2.bit,RAP_B_Bossen_2.md5
++1,RPLM_A_qualcomm_4,RPLM_A_qualcomm_4.bit,RPLM_A_qualcomm_4.yuv.md5
++1,RPLM_B_qualcomm_4,RPLM_B_qualcomm_4.bit,RPLM_B_qualcomm_4.yuv.md5
++1,RPS_A_docomo_5,RPS_A_docomo_5.bit,RPS_A_docomo_5.md5
++1,RPS_B_qualcomm_5,RPS_B_qualcomm_5.bit,RPS_B_qualcomm_5.yuv.md5
++1,RPS_C_ericsson_5,RPS_C_ericsson_5.bit,RPS_C_ericsson_5.md5
++1,RPS_D_ericsson_6,RPS_D_ericsson_6.bit,RPS_D_ericsson_6.md5
++1,RPS_E_qualcomm_5,RPS_E_qualcomm_5.bit,RPS_E_qualcomm_5.yuv.md5
++1,RPS_F_docomo_2,RPS_F_docomo_2.bit,RPS_F_docomo_2.md5
++1,RQT_A_HHI_4,RQT_A_HHI_4.bit,RQT_A_HHI_4.md5
++1,RQT_B_HHI_4,RQT_B_HHI_4.bit,RQT_B_HHI_4.md5
++1,RQT_C_HHI_4,RQT_C_HHI_4.bit,RQT_C_HHI_4.md5
++1,RQT_D_HHI_4,RQT_D_HHI_4.bit,RQT_D_HHI_4.md5
++1,RQT_E_HHI_4,RQT_E_HHI_4.bit,RQT_E_HHI_4.md5
++1,RQT_F_HHI_4,RQT_F_HHI_4.bit,RQT_F_HHI_4.md5
++1,RQT_G_HHI_4,RQT_G_HHI_4.bit,RQT_G_HHI_4.md5
++1,SAO_A_MediaTek_4,SAO_A_MediaTek_4.bit,SAO_A_MediaTek_4.md5
++1,SAO_B_MediaTek_5,SAO_B_MediaTek_5.bit,SAO_B_MediaTek_5.md5
++1,SAO_C_Samsung_5,SAO_C_Samsung_5.bin,SAO_C_Samsung_5.md5
++1,SAO_D_Samsung_5,SAO_D_Samsung_5.bin,SAO_D_Samsung_5.md5
++1,SAO_E_Canon_4,SAO_E_Canon_4.bit,SAO_E_Canon_4.md5
++1,SAO_F_Canon_3,SAO_F_Canon_3.bit,SAO_F_Canon_3.md5
++1,SAO_G_Canon_3,SAO_G_Canon_3.bit,SAO_G_Canon_3.md5
++1,SAO_H_Parabola_1,SAO_H_Parabola_1.bit,SAO_H_Parabola_1.md5
++2,SAODBLK_A_MainConcept_4,SAODBLK_A_MainConcept_4.bin,SAODBLK_A_MainConcept_4_md5.txt
++2,SAODBLK_B_MainConcept_4,SAODBLK_B_MainConcept_4.bin,SAODBLK_B_MainConcept_4_md5.txt
++1,SDH_A_Orange_4,SDH_A_Orange_4.bit,SDH_A_Orange_4_yuv.md5
++1,SLICES_A_Rovi_3,SLICES_A_Rovi_3.bin,SLICES_A_Rovi_3.md5
++1,SLIST_A_Sony_5,SLIST_A_Sony_5.bin,SLIST_A_Sony_5_yuv.md5
++1,SLIST_B_Sony_9,SLIST_B_Sony_9.bin,SLIST_B_Sony_9_yuv.md5
++1,SLIST_C_Sony_4,SLIST_C_Sony_4.bin,SLIST_C_Sony_4_yuv.md5
++1,SLIST_D_Sony_9,str.bin,SLIST_D_Sony_9_yuv.md5
++1,SLPPLP_A_VIDYO_2,SLPPLP_A_VIDYO_2.bit,SLPPLP_A_VIDYO_2_yuv.md5
++1,STRUCT_A_Samsung_7,STRUCT_A_Samsung_7.bin,STRUCT_A_Samsung_7.md5
++1,STRUCT_B_Samsung_7,STRUCT_B_Samsung_7.bin,STRUCT_B_Samsung_7.md5
++1,TILES_A_Cisco_2,TILES_A_Cisco_2.bin,TILES_A_Cisco_2_yuv.md5
++1,TILES_B_Cisco_1,TILES_B_Cisco_1.bin,TILES_B_Cisco_1_yuv.md5
++1,TMVP_A_MS_3,TMVP_A_MS_3.bit,TMVP_A_MS_3.yuv.md5
++1,TSCL_A_VIDYO_5,TSCL_A_VIDYO_5.bit,TSCL_A_VIDYO_5_yuv.md5
++1,TSCL_B_VIDYO_4,TSCL_B_VIDYO_4.bit,TSCL_B_VIDYO_4_yuv.md5
++1,TSKIP_A_MS_3,TSKIP_A_MS_3.bit,TSKIP_A_MS_3.yuv.md5
++3,TSUNEQBD_A_MAIN10_Technicolor_2,TSUNEQBD_A_MAIN10_Technicolor_2.bit,TSUNEQBD_A_MAIN10_Technicolor_2_yuv.md5, # unequal bit depth
++1,TUSIZE_A_Samsung_1,TUSIZE_A_Samsung_1.bin,TUSIZE_A_Samsung_1.md5
++1,VPSID_A_VIDYO_2,VPSID_A_VIDYO_2.bit,VPSID_A_VIDYO_2_yuv.md5
++3,VPSSPSPPS_A_MainConcept_1,VPSSPSPPS_A_MainConcept_1.bin,VPSSPSPPS_A_MainConcept_1_md5.txt, # ???
++1,WP_A_MAIN10_Toshiba_3,WP_A_MAIN10_Toshiba_3.bit,WP_A_MAIN10_Toshiba_3_yuv.md5
++1,WP_A_Toshiba_3,WP_A_Toshiba_3.bit,WP_A_Toshiba_3_yuv.md5
++1,WP_B_Toshiba_3,WP_B_Toshiba_3.bit,WP_B_Toshiba_3_yuv.md5
++1,WP_MAIN10_B_Toshiba_3,WP_MAIN10_B_Toshiba_3.bit,WP_MAIN10_B_Toshiba_3_yuv.md5
++1,WPP_A_ericsson_MAIN10_2,WPP_A_ericsson_MAIN10_2.bit,WPP_A_ericsson_MAIN10_yuv.md5
++1,WPP_A_ericsson_MAIN_2,WPP_A_ericsson_MAIN_2.bit,WPP_A_ericsson_MAIN_2_yuv.md5
++1,WPP_B_ericsson_MAIN10_2,WPP_B_ericsson_MAIN10_2.bit,WPP_B_ericsson_MAIN10_yuv.md5
++1,WPP_B_ericsson_MAIN_2,WPP_B_ericsson_MAIN_2.bit,WPP_B_ericsson_MAIN_2_yuv.md5
++1,WPP_C_ericsson_MAIN10_2,WPP_C_ericsson_MAIN10_2.bit,WPP_C_ericsson_MAIN10_yuv.md5
++1,WPP_C_ericsson_MAIN_2,WPP_C_ericsson_MAIN_2.bit,WPP_C_ericsson_MAIN_2_yuv.md5
++1,WPP_D_ericsson_MAIN10_2,WPP_D_ericsson_MAIN10_2.bit,WPP_D_ericsson_MAIN10_yuv.md5
++1,WPP_D_ericsson_MAIN_2,WPP_D_ericsson_MAIN_2.bit,WPP_D_ericsson_MAIN_2_yuv.md5
++1,WPP_E_ericsson_MAIN10_2,WPP_E_ericsson_MAIN10_2.bit,WPP_E_ericsson_MAIN10_yuv.md5
++1,WPP_E_ericsson_MAIN_2,WPP_E_ericsson_MAIN_2.bit,WPP_E_ericsson_MAIN_2_yuv.md5
++1,WPP_F_ericsson_MAIN10_2,WPP_F_ericsson_MAIN10_2.bit,WPP_F_ericsson_MAIN10_yuv.md5
++1,WPP_F_ericsson_MAIN_2,WPP_F_ericsson_MAIN_2.bit,WPP_F_ericsson_MAIN_2_yuv.md5
+diff --git a/pi-util/conf_h265.csv b/pi-util/conf_h265.csv
+new file mode 100644
+index 0000000000..fc14f2a3c2
+--- /dev/null
++++ b/pi-util/conf_h265.csv
+@@ -0,0 +1,144 @@
++1,ADJUST_IPRED_ANGLE_A_RExt_Mitsubishi_1,ADJUST_IPRED_ANGLE_A_RExt_Mitsubishi_1.bit,ADJUST_IPRED_ANGLE_A_RExt_Mitsubishi_1.md5
++1,AMP_A_Samsung_6,AMP_A_Samsung_6.bin,AMP_A_Samsung_6.md5
++1,AMP_B_Samsung_6,AMP_B_Samsung_6.bin,AMP_B_Samsung_6.md5
++1,AMP_D_Hisilicon_3,AMP_D_Hisilicon.bit,AMP_D_Hisilicon_3.yuv.md5
++1,AMP_E_Hisilicon_3,AMP_E_Hisilicon.bit,AMP_E_Hisilicon_3.yuv.md5
++1,AMP_F_Hisilicon_3,AMP_F_Hisilicon_3.bit,AMP_F_Hisilicon_3.yuv.md5
++1,AMVP_A_MTK_4,AMVP_A_MTK_4.bit,AMVP_A_MTK_4.md5
++1,AMVP_B_MTK_4,AMVP_B_MTK_4.bit,AMVP_B_MTK_4.md5
++1,AMVP_C_Samsung_6,AMVP_C_Samsung_6.bin,AMVP_C_Samsung_6.md5
++1,BUMPING_A_ericsson_1,BUMPING_A_ericsson_1.bit,BUMPING_A_ericsson_1.md5
++1,CAINIT_A_SHARP_4,CAINIT_A_SHARP_4.bit,CAINIT_A_SHARP_4.md5
++1,CAINIT_B_SHARP_4,CAINIT_B_SHARP_4.bit,CAINIT_B_SHARP_4.md5
++1,CAINIT_C_SHARP_3,CAINIT_C_SHARP_3.bit,CAINIT_C_SHARP_3.md5
++1,CAINIT_D_SHARP_3,CAINIT_D_SHARP_3.bit,CAINIT_D_SHARP_3.md5
++1,CAINIT_E_SHARP_3,CAINIT_E_SHARP_3.bit,CAINIT_E_SHARP_3.md5
++1,CAINIT_F_SHARP_3,CAINIT_F_SHARP_3.bit,CAINIT_F_SHARP_3.md5
++1,CAINIT_G_SHARP_3,CAINIT_G_SHARP_3.bit,CAINIT_G_SHARP_3.md5
++1,CAINIT_H_SHARP_3,CAINIT_H_SHARP_3.bit,CAINIT_H_SHARP_3.md5
++1,CIP_A_Panasonic_3,CIP_A_Panasonic_3.bit,CIP_A_Panasonic_3_yuv.md5
++1,cip_B_NEC_3,cip_B_NEC_3.bit,cip_B_NEC_3.md5
++1,CIP_C_Panasonic_2,CIP_C_Panasonic_2.bit,CIP_C_Panasonic_2_yuv.md5
++1,CONFWIN_A_Sony_1,CONFWIN_A_Sony_1.bit,CONFWIN_A_Sony_1.md5
++1,DBLK_A_MAIN10_VIXS_3,DBLK_A_MAIN10_VIXS_3.bit,DBLK_A_MAIN10_VIXS_3.md5
++1,DBLK_A_SONY_3,DBLK_A_SONY_3.bit,DBLK_A_SONY_3.bit.yuv.md5
++1,DBLK_B_SONY_3,DBLK_B_SONY_3.bit,DBLK_B_SONY_3.bit.yuv.md5
++1,DBLK_C_SONY_3,DBLK_C_SONY_3.bit,DBLK_C_SONY_3.bit.yuv.md5
++1,DBLK_D_VIXS_2,DBLK_D_VIXS_2.bit,DBLK_D_VIXS_2_yuv.md5
++1,DBLK_E_VIXS_2,DBLK_E_VIXS_2.bit,DBLK_E_VIXS_2_yuv.md5
++1,DBLK_F_VIXS_2,DBLK_F_VIXS_2.bit,DBLK_F_VIXS_2_yuv.md5
++1,DBLK_G_VIXS_2,DBLK_G_VIXS_2.bit,DBLK_G_VIXS_2_yuv.md5
++1,DELTAQP_A_BRCM_4,DELTAQP_A_BRCM_4.bit,DELTAQP_A_BRCM_4_yuv.md5
++1,DELTAQP_B_SONY_3,DELTAQP_B_SONY_3.bit,DELTAQP_B_SONY_3.bit.yuv.md5
++1,DELTAQP_C_SONY_3,DELTAQP_C_SONY_3.bit,DELTAQP_C_SONY_3.bit.yuv.md5
++1,DSLICE_A_HHI_5,DSLICE_A_HHI_5.bin,DSLICE_A_HHI_5.md5
++1,DSLICE_B_HHI_5,DSLICE_B_HHI_5.bin,DSLICE_B_HHI_5.md5
++1,DSLICE_C_HHI_5,DSLICE_C_HHI_5.bin,DSLICE_C_HHI_5.md5
++1,ENTP_A_QUALCOMM_1,ENTP_A_Qualcomm_1.bit,ENTP_A_Qualcomm_1.md5
++1,ENTP_B_Qualcomm_1,ENTP_B_Qualcomm_1.bit,ENTP_B_Qualcomm_1.md5
++1,ENTP_C_Qualcomm_1,ENTP_C_Qualcomm_1.bit,ENTP_C_Qualcomm_1.md5
++1,EXT_A_ericsson_4,EXT_A_ericsson_4.bit,EXT_A_ericsson_4.md5
++1,FILLER_A_Sony_1,FILLER_A_Sony_1.bit,FILLER_A_Sony_1.md5
++1,HRD_A_Fujitsu_3,HRD_A_Fujitsu_3.bin,HRD_A_Fujitsu_3.md5
++1,INITQP_A_Sony_1,INITQP_A_Sony_1.bit,INITQP_A_Sony_1.md5
++1,INITQP_B_Main10_Sony_1,INITQP_B_Main10_Sony_1.bit,INITQP_B_Main10_Sony_1.md5
++1,ipcm_A_NEC_3,ipcm_A_NEC_3.bit,ipcm_A_NEC_3.md5
++1,ipcm_B_NEC_3,ipcm_B_NEC_3.bit,ipcm_B_NEC_3.md5
++1,ipcm_C_NEC_3,ipcm_C_NEC_3.bit,ipcm_C_NEC_3.md5
++1,ipcm_D_NEC_3,ipcm_D_NEC_3.bit,ipcm_D_NEC_3.md5
++1,ipcm_E_NEC_2,ipcm_E_NEC_2.bit,ipcm_E_NEC_2.md5
++1,IPRED_A_docomo_2,IPRED_A_docomo_2.bit,IPRED_A_docomo_2.md5
++1,IPRED_B_Nokia_3,IPRED_B_Nokia_3.bit,IPRED_B_Nokia_3_yuv.md5
++1,IPRED_C_Mitsubishi_3,IPRED_C_Mitsubishi_3.bit,IPRED_C_Mitsubishi_3_yuv.md5
++1,LS_A_Orange_2,LS_A_Orange_2.bit,LS_A_Orange_2_yuv.md5
++1,LS_B_Orange_4,LS_B_Orange_4.bit,LS_B_Orange_4_yuv.md5
++1,LTRPSPS_A_Qualcomm_1,LTRPSPS_A_Qualcomm_1.bit,LTRPSPS_A_Qualcomm_1.md5
++1,MAXBINS_A_TI_4,MAXBINS_A_TI_4.bit,MAXBINS_A_TI_4.md5
++1,MAXBINS_B_TI_4,MAXBINS_B_TI_4.bit,MAXBINS_B_TI_4.md5
++1,MAXBINS_C_TI_4,MAXBINS_C_TI_4.bit,MAXBINS_C_TI_4.md5
++1,MERGE_A_TI_3,MERGE_A_TI_3.bit,MERGE_A_TI_3.md5
++1,MERGE_B_TI_3,MERGE_B_TI_3.bit,MERGE_B_TI_3.md5
++1,MERGE_C_TI_3,MERGE_C_TI_3.bit,MERGE_C_TI_3.md5
++1,MERGE_D_TI_3,MERGE_D_TI_3.bit,MERGE_D_TI_3.md5
++1,MERGE_E_TI_3,MERGE_E_TI_3.bit,MERGE_E_TI_3.md5
++1,MERGE_F_MTK_4,MERGE_F_MTK_4.bit,MERGE_F_MTK_4.md5
++1,MERGE_G_HHI_4,MERGE_G_HHI_4.bit,MERGE_G_HHI_4.md5
++1,MVCLIP_A_qualcomm_3,MVCLIP_A_qualcomm_3.bit,MVCLIP_A_qualcomm_3.yuv.md5
++1,MVDL1ZERO_A_docomo_4,MVDL1ZERO_A_docomo_4.bit,MVDL1ZERO_A_docomo_4.md5
++1,MVEDGE_A_qualcomm_3,MVEDGE_A_qualcomm_3.bit,MVEDGE_A_qualcomm_3.yuv.md5
++1,NoOutPrior_A_Qualcomm_1,NoOutPrior_A_Qualcomm_1.bit,NoOutPrior_A_Qualcomm_1.md5
++1,NoOutPrior_B_Qualcomm_1,NoOutPrior_B_Qualcomm_1.bit,NoOutPrior_B_Qualcomm_1.md5
++1,NUT_A_ericsson_5,NUT_A_ericsson_5.bit,NUT_A_ericsson_5.md5
++1,OPFLAG_A_Qualcomm_1,OPFLAG_A_Qualcomm_1.bit,OPFLAG_A_Qualcomm_1.md5
++1,OPFLAG_B_Qualcomm_1,OPFLAG_B_Qualcomm_1.bit,OPFLAG_B_Qualcomm_1.md5
++1,OPFLAG_C_Qualcomm_1,OPFLAG_C_Qualcomm_1.bit,OPFLAG_C_Qualcomm_1.md5
++1,PICSIZE_A_Bossen_1,PICSIZE_A_Bossen_1.bin,PICSIZE_A_Bossen_1.md5
++1,PICSIZE_B_Bossen_1,PICSIZE_B_Bossen_1.bin,PICSIZE_B_Bossen_1.md5
++1,PICSIZE_C_Bossen_1,PICSIZE_C_Bossen_1.bin,PICSIZE_C_Bossen_1.md5
++1,PICSIZE_D_Bossen_1,PICSIZE_D_Bossen_1.bin,PICSIZE_D_Bossen_1.md5
++1,PMERGE_A_TI_3,PMERGE_A_TI_3.bit,PMERGE_A_TI_3.md5
++1,PMERGE_B_TI_3,PMERGE_B_TI_3.bit,PMERGE_B_TI_3.md5
++1,PMERGE_C_TI_3,PMERGE_C_TI_3.bit,PMERGE_C_TI_3.md5
++1,PMERGE_D_TI_3,PMERGE_D_TI_3.bit,PMERGE_D_TI_3.md5
++1,PMERGE_E_TI_3,PMERGE_E_TI_3.bit,PMERGE_E_TI_3.md5
++1,POC_A_Bossen_3,POC_A_Bossen_3.bin,POC_A_Bossen_3.md5
++1,PPS_A_qualcomm_7,PPS_A_qualcomm_7.bit,PPS_A_qualcomm_7.yuv.md5
++1,PS_B_VIDYO_3,PS_B_VIDYO_3.bit,PS_B_VIDYO_3_yuv.md5
++1,RAP_A_docomo_6,RAP_A_docomo_6.bit,RAP_A_docomo_6.md5
++1,RAP_B_Bossen_2,RAP_B_Bossen_2.bit,RAP_B_Bossen_2.md5
++1,RPLM_A_qualcomm_4,RPLM_A_qualcomm_4.bit,RPLM_A_qualcomm_4.yuv.md5
++1,RPLM_B_qualcomm_4,RPLM_B_qualcomm_4.bit,RPLM_B_qualcomm_4.yuv.md5
++1,RPS_A_docomo_5,RPS_A_docomo_5.bit,RPS_A_docomo_5.md5
++1,RPS_B_qualcomm_5,RPS_B_qualcomm_5.bit,RPS_B_qualcomm_5.yuv.md5
++1,RPS_C_ericsson_5,RPS_C_ericsson_5.bit,RPS_C_ericsson_5.md5
++1,RPS_D_ericsson_6,RPS_D_ericsson_6.bit,RPS_D_ericsson_6.md5
++1,RPS_E_qualcomm_5,RPS_E_qualcomm_5.bit,RPS_E_qualcomm_5.yuv.md5
++1,RPS_F_docomo_2,RPS_F_docomo_2.bit,RPS_F_docomo_2.md5
++1,RQT_A_HHI_4,RQT_A_HHI_4.bit,RQT_A_HHI_4.md5
++1,RQT_B_HHI_4,RQT_B_HHI_4.bit,RQT_B_HHI_4.md5
++1,RQT_C_HHI_4,RQT_C_HHI_4.bit,RQT_C_HHI_4.md5
++1,RQT_D_HHI_4,RQT_D_HHI_4.bit,RQT_D_HHI_4.md5
++1,RQT_E_HHI_4,RQT_E_HHI_4.bit,RQT_E_HHI_4.md5
++1,RQT_F_HHI_4,RQT_F_HHI_4.bit,RQT_F_HHI_4.md5
++1,RQT_G_HHI_4,RQT_G_HHI_4.bit,RQT_G_HHI_4.md5
++1,SAO_A_MediaTek_4,SAO_A_MediaTek_4.bit,SAO_A_MediaTek_4.md5
++1,SAO_B_MediaTek_5,SAO_B_MediaTek_5.bit,SAO_B_MediaTek_5.md5
++1,SAO_C_Samsung_5,SAO_C_Samsung_5.bin,SAO_C_Samsung_5.md5
++1,SAO_D_Samsung_5,SAO_D_Samsung_5.bin,SAO_D_Samsung_5.md5
++1,SAO_E_Canon_4,SAO_E_Canon_4.bit,SAO_E_Canon_4.md5
++1,SAO_F_Canon_3,SAO_F_Canon_3.bit,SAO_F_Canon_3.md5
++1,SAO_G_Canon_3,SAO_G_Canon_3.bit,SAO_G_Canon_3.md5
++1,SDH_A_Orange_4,SDH_A_Orange_4.bit,SDH_A_Orange_4_yuv.md5
++1,SLICES_A_Rovi_3,SLICES_A_Rovi_3.bin,SLICES_A_Rovi_3.md5
++1,SLIST_A_Sony_4,str.bin,SLIST_A_Sony_4_yuv.md5
++1,SLIST_B_Sony_8,str.bin,SLIST_B_Sony_8_yuv.md5
++1,SLIST_C_Sony_3,str.bin,SLIST_C_Sony_3_yuv.md5
++1,SLIST_D_Sony_9,str.bin,SLIST_D_Sony_9_yuv.md5
++1,SLPPLP_A_VIDYO_2,SLPPLP_A_VIDYO_2.bit,SLPPLP_A_VIDYO_2_yuv.md5
++1,STRUCT_A_Samsung_6,STRUCT_A_Samsung_6.bin,STRUCT_A_Samsung_6.md5
++1,STRUCT_B_Samsung_6,STRUCT_B_Samsung_6.bin,STRUCT_B_Samsung_6.md5
++1,TILES_A_Cisco_2,TILES_A_Cisco_2.bin,TILES_A_Cisco_2_yuv.md5
++1,TILES_B_Cisco_1,TILES_B_Cisco_1.bin,TILES_B_Cisco_1_yuv.md5
++1,TMVP_A_MS_3,TMVP_A_MS_3.bit,TMVP_A_MS_3.yuv.md5
++1,TSCL_A_VIDYO_5,TSCL_A_VIDYO_5.bit,TSCL_A_VIDYO_5_yuv.md5
++1,TSCL_B_VIDYO_4,TSCL_B_VIDYO_4.bit,TSCL_B_VIDYO_4_yuv.md5
++1,TSKIP_A_MS_3,TSKIP_A_MS_3.bit,TSKIP_A_MS_3.yuv.md5
++0,TSUNEQBD_A_MAIN10_Technicolor_2,TSUNEQBD_A_MAIN10_Technicolor_2.bit,TSUNEQBD_A_MAIN10_Technicolor_2_yuv.md5, # Y/C bit depth unmatched
++1,TUSIZE_A_Samsung_1,TUSIZE_A_Samsung_1.bin,TUSIZE_A_Samsung_1.md5
++1,VPSID_A_VIDYO_2,VPSID_A_VIDYO_2.bit,VPSID_A_VIDYO_2_yuv.md5
++1,WP_A_MAIN10_Toshiba_3,WP_A_MAIN10_Toshiba_3.bit,WP_A_MAIN10_Toshiba_3_yuv.md5
++1,WP_A_Toshiba_3,WP_A_Toshiba_3.bit,WP_A_Toshiba_3_yuv.md5
++1,WP_B_Toshiba_3,WP_B_Toshiba_3.bit,WP_B_Toshiba_3_yuv.md5
++1,WP_MAIN10_B_Toshiba_3,WP_MAIN10_B_Toshiba_3.bit,WP_MAIN10_B_Toshiba_3_yuv.md5
++1,WPP_A_ericsson_MAIN10_2,WPP_A_ericsson_MAIN10_2.bit,WPP_A_ericsson_MAIN10_yuv.md5
++1,WPP_A_ericsson_MAIN_2,WPP_A_ericsson_MAIN_2.bit,WPP_A_ericsson_MAIN_2_yuv.md5
++1,WPP_B_ericsson_MAIN10_2,WPP_B_ericsson_MAIN10_2.bit,WPP_B_ericsson_MAIN10_yuv.md5
++1,WPP_B_ericsson_MAIN_2,WPP_B_ericsson_MAIN_2.bit,WPP_B_ericsson_MAIN_2_yuv.md5
++1,WPP_C_ericsson_MAIN10_2,WPP_C_ericsson_MAIN10_2.bit,WPP_C_ericsson_MAIN10_yuv.md5
++1,WPP_C_ericsson_MAIN_2,WPP_C_ericsson_MAIN_2.bit,WPP_C_ericsson_MAIN_2_yuv.md5
++1,WPP_D_ericsson_MAIN10_2,WPP_D_ericsson_MAIN10_2.bit,WPP_D_ericsson_MAIN10_yuv.md5
++1,WPP_D_ericsson_MAIN_2,WPP_D_ericsson_MAIN_2.bit,WPP_D_ericsson_MAIN_2_yuv.md5
++1,WPP_E_ericsson_MAIN10_2,WPP_E_ericsson_MAIN10_2.bit,WPP_E_ericsson_MAIN10_yuv.md5
++1,WPP_E_ericsson_MAIN_2,WPP_E_ericsson_MAIN_2.bit,WPP_E_ericsson_MAIN_2_yuv.md5
++1,WPP_F_ericsson_MAIN10_2,WPP_F_ericsson_MAIN10_2.bit,WPP_F_ericsson_MAIN10_yuv.md5
++1,WPP_F_ericsson_MAIN_2,WPP_F_ericsson_MAIN_2.bit,WPP_F_ericsson_MAIN_2_yuv.md5
+diff --git a/pi-util/conf_native.sh b/pi-util/conf_native.sh
+new file mode 100755
+index 0000000000..65576846e8
+--- /dev/null
++++ b/pi-util/conf_native.sh
+@@ -0,0 +1,108 @@
++echo "Configure for native build"
++
++FFSRC=`pwd`
++MC=`dpkg --print-architecture`
++BUILDBASE=$FFSRC/out
++
++#RPI_KEEPS="-save-temps=obj"
++RPI_KEEPS=""
++
++NOSHARED=
++MMAL=
++
++while [ "$1" != "" ] ; do
++    case $1 in
++	--noshared)
++	    NOSHARED=1
++	    ;;
++	--mmal)
++	    MMAL=1
++	    ;;
++	*)
++	    echo "Usage $0: [--noshared] [--mmal]"
++	    exit 1
++	    ;;
++    esac
++    shift
++done
++
++
++MCOPTS=
++RPI_INCLUDES=
++RPI_LIBDIRS=
++RPI_DEFINES=
++RPI_EXTRALIBS=
++
++if [ "$MC" == "arm64" ]; then
++  echo "M/C aarch64"
++  A=aarch64-linux-gnu
++  B=arm64
++elif [ "$MC" == "armhf" ]; then
++  echo "M/C armv7"
++  A=arm-linux-gnueabihf
++  B=armv7
++  MCOPTS="--arch=armv6t2 --cpu=cortex-a7"
++  RPI_DEFINES=-mfpu=neon-vfpv4
++else
++  echo Unexpected architecture $MC
++  exit 1
++fi
++
++if [ $MMAL ]; then
++  RPI_OPT_VC=/opt/vc
++  RPI_INCLUDES="-I$RPI_OPT_VC/include -I$RPI_OPT_VC/include/interface/vcos/pthreads -I$RPI_OPT_VC/include/interface/vmcs_host/linux"
++  RPI_LIBDIRS="-L$RPI_OPT_VC/lib"
++  RPI_DEFINES="$RPI_DEFINES -D__VCCOREVER__=0x4000000"
++  RPI_EXTRALIBS="-Wl,--start-group -lbcm_host -lmmal -lmmal_util -lmmal_core -lvcos -lvcsm -lvchostif -lvchiq_arm -Wl,--end-group"
++  RPIOPTS="--enable-mmal --enable-rpi"
++else
++  RPIOPTS="--disable-mmal --enable-sand"
++fi
++
++C=`lsb_release -sc`
++V=`cat RELEASE`
++
++SHARED_LIBS="--enable-shared"
++if [ $NOSHARED ]; then
++  SHARED_LIBS="--disable-shared"
++  OUT=$BUILDBASE/$B-$C-$V-static-rel
++  echo Static libs
++else
++  echo Shared libs
++  OUT=$BUILDBASE/$B-$C-$V-shared-rel
++fi
++
++USR_PREFIX=$OUT/install
++LIB_PREFIX=$USR_PREFIX/lib/$A
++INC_PREFIX=$USR_PREFIX/include/$A
++
++echo Destination directory: $OUT
++mkdir -p $OUT
++# Nothing under here need worry git - including this .gitignore!
++echo "**" > $BUILDBASE/.gitignore
++cd $OUT
++
++$FFSRC/configure \
++ --prefix=$USR_PREFIX\
++ --libdir=$LIB_PREFIX\
++ --incdir=$INC_PREFIX\
++ $MCOPTS\
++ --disable-stripping\
++ --disable-thumb\
++ --enable-v4l2-request\
++ --enable-libdrm\
++ --enable-epoxy\
++ --enable-libudev\
++ --enable-vout-egl\
++ --enable-vout-drm\
++ $SHARED_LIBS\
++ $RPIOPTS\
++ --extra-cflags="-ggdb $RPI_KEEPS $RPI_DEFINES $RPI_INCLUDES"\
++ --extra-cxxflags="$RPI_DEFINES $RPI_INCLUDES"\
++ --extra-ldflags="$RPI_LIBDIRS"\
++ --extra-libs="$RPI_EXTRALIBS"\
++ --extra-version="rpi"
++
++
++# gcc option for getting asm listing
++# -Wa,-ahls
+diff --git a/pi-util/ffconf.py b/pi-util/ffconf.py
+new file mode 100755
+index 0000000000..657568014e
+--- /dev/null
++++ b/pi-util/ffconf.py
+@@ -0,0 +1,215 @@
++#!/usr/bin/env python3
++
++import string
++import os
++import subprocess
++import re
++import argparse
++import sys
++import csv
++from stat import *
++
++CODEC_HEVC_RPI  = 1
++HWACCEL_RPI     = 2
++HWACCEL_DRM     = 3
++HWACCEL_VAAPI   = 4
++
++def testone(fileroot, srcname, es_file, md5_file, pix, dectype, vcodec, ffmpeg_exec):
++    hwaccel = ""
++    if dectype == HWACCEL_RPI:
++        hwaccel = "rpi"
++    elif dectype == HWACCEL_DRM:
++        hwaccel = "drm"
++    elif dectype == HWACCEL_VAAPI:
++        hwaccel = "vaapi"
++
++    pix_fmt = []
++    if pix == "8":
++        pix_fmt = ["-pix_fmt", "yuv420p"]
++    elif pix == "10":
++        pix_fmt = ["-pix_fmt", "yuv420p10le"]
++    elif pix == "12":
++        pix_fmt = ["-pix_fmt", "yuv420p12le"]
++
++    tmp_root = "/tmp"
++
++    names = srcname.split('/')
++    while len(names) > 1:
++        tmp_root = os.path.join(tmp_root, names[0])
++        del names[0]
++    name = names[0]
++
++    if not os.path.exists(tmp_root):
++        os.makedirs(tmp_root)
++
++    dec_file = os.path.join(tmp_root, name + ".dec.md5")
++    try:
++        os.remove(dec_file)
++    except:
++        pass
++
++    flog = open(os.path.join(tmp_root, name + ".log"), "wt")
++
++    ffargs = [ffmpeg_exec, "-flags", "unaligned", "-hwaccel", hwaccel, "-vcodec", "hevc", "-i", os.path.join(fileroot, es_file)] + pix_fmt + ["-f", "md5", dec_file]
++
++    # Unaligned needed for cropping conformance
++    if hwaccel:
++        rstr = subprocess.call(ffargs, stdout=flog, stderr=subprocess.STDOUT)
++    else:
++        rstr = subprocess.call(
++            [ffmpeg_exec, "-flags", "unaligned", "-vcodec", vcodec, "-i", os.path.join(fileroot, es_file), "-f", "md5", dec_file],
++            stdout=flog, stderr=subprocess.STDOUT)
++
++    try:
++        m1 = None
++        m2 = None
++        with open(os.path.join(fileroot, md5_file)) as f:
++            for line in f:
++                m1 = re.search("[0-9a-f]{32}", line.lower())
++                if m1:
++                    break
++
++        with open(dec_file) as f:
++            m2 = re.search("[0-9a-f]{32}", f.readline())
++    except:
++        pass
++
++    if  m1 and m2 and m1.group() == m2.group():
++        print("Match: " + m1.group(), file=flog)
++        rv = 0
++    elif not m1:
++        print("****** Cannot find m1", file=flog)
++        rv = 3
++    elif not m2:
++        print("****** Cannot find m2", file=flog)
++        rv = 2
++    else:
++        print("****** Mismatch: " + m1.group() + " != " + m2.group(), file=flog)
++        rv = 1
++    flog.close()
++    return rv
++
++def scandir(root):
++    aconf = []
++    ents = os.listdir(root)
++    ents.sort(key=str.lower)
++    for name in ents:
++        test_path = os.path.join(root, name)
++        if S_ISDIR(os.stat(test_path).st_mode):
++            files = os.listdir(test_path)
++            es_file = "?"
++            md5_file = "?"
++            for f in files:
++                (base, ext) = os.path.splitext(f)
++                if base[0] == '.':
++                    pass
++                elif ext == ".bit" or ext == ".bin":
++                    es_file = f
++                elif ext == ".md5" or (ext == ".txt" and (base[-4:] == "_md5" or base[-6:] == "md5sum")):
++                    if md5_file == "?":
++                        md5_file = f
++                    elif base[-3:] == "yuv":
++                        md5_file = f
++            aconf.append((1, name, es_file, md5_file))
++    return aconf
++
++def runtest(name, tests):
++    if not tests:
++        return True
++    for t in tests:
++        if name[0:len(t)] == t or name.find("/" + t) != -1:
++            return True
++    return False
++
++def doconf(csva, tests, test_root, vcodec, dectype, ffmpeg_exec):
++    unx_failures = []
++    unx_success = []
++    failures = 0
++    successes = 0
++    for a in csva:
++        exp_test = int(a[0])
++        if (exp_test and runtest(a[1], tests)):
++            name = a[1]
++            print ("==== ", name, end="")
++            sys.stdout.flush()
++
++            rv = testone(os.path.join(test_root, name), name, a[2], a[3], a[4], dectype=dectype, vcodec=vcodec, ffmpeg_exec=ffmpeg_exec)
++            if (rv == 0):
++                successes += 1
++            else:
++                failures += 1
++
++            if (rv == 0):
++                if exp_test == 2:
++                    print(": * OK *")
++                    unx_success.append(name)
++                else:
++                    print(": ok")
++            elif exp_test == 2 and rv == 1:
++                print(": fail")
++            elif exp_test == 3 and rv == 2:
++                # Call an expected "crash" an abort
++                print(": abort")
++            else:
++                unx_failures.append(name)
++                if rv == 1:
++                    print(": * FAIL *")
++                elif (rv == 2) :
++                    print(": * CRASH *")
++                elif (rv == 3) :
++                    print(": * MD5 MISSING *")
++                else :
++                    print(": * BANG *")
++
++    if unx_failures or unx_success:
++        print("Unexpected Failures:", unx_failures)
++        print("Unexpected Success: ", unx_success)
++    else:
++        print("All tests normal:", successes, "ok,", failures, "failed")
++
++
++class ConfCSVDialect(csv.Dialect):
++    delimiter = ','
++    doublequote = True
++    lineterminator = '\n'
++    quotechar='"'
++    quoting = csv.QUOTE_MINIMAL
++    skipinitialspace = True
++    strict = True
++
++if __name__ == '__main__':
++
++    argp = argparse.ArgumentParser(description="FFmpeg h265 conformance tester")
++    argp.add_argument("tests", nargs='*')
++    argp.add_argument("--pi4", action='store_true', help="Force pi4 cmd line")
++    argp.add_argument("--drm", action='store_true', help="Force v4l2 drm cmd line")
++    argp.add_argument("--vaapi", action='store_true', help="Force vaapi cmd line")
++    argp.add_argument("--test_root", default="/opt/conform/h265.2016", help="Root dir for test")
++    argp.add_argument("--csvgen", action='store_true', help="Generate CSV file for dir")
++    argp.add_argument("--csv", default="pi-util/conf_h265.2016.csv", help="CSV filename")
++    argp.add_argument("--vcodec", default="hevc_rpi", help="vcodec name to use")
++    argp.add_argument("--ffmpeg", default="./ffmpeg", help="ffmpeg exec name")
++    args = argp.parse_args()
++
++    if args.csvgen:
++        csv.writer(sys.stdout).writerows(scandir(args.test_root))
++        exit(0)
++
++    with open(args.csv, 'rt') as csvfile:
++        csva = [a for a in csv.reader(csvfile, ConfCSVDialect())]
++
++    dectype = CODEC_HEVC_RPI
++    if os.path.exists("/dev/rpivid-hevcmem"):
++        dectype = HWACCEL_RPI
++    if args.drm or os.path.exists("/sys/module/rpivid_hevc"):
++        dectype = HWACCEL_DRM
++
++    if args.pi4:
++        dectype = HWACCEL_RPI
++    elif args.drm:
++        dectype = HWACCEL_DRM
++    elif args.vaapi:
++        dectype = HWACCEL_VAAPI
++
++    doconf(csva, args.tests, args.test_root, args.vcodec, dectype, args.ffmpeg)
++
+diff --git a/pi-util/ffperf.py b/pi-util/ffperf.py
+new file mode 100755
+index 0000000000..65c5224cd8
+--- /dev/null
++++ b/pi-util/ffperf.py
+@@ -0,0 +1,128 @@
++#!/usr/bin/env python3
++
++import time
++import string
++import os
++import tempfile
++import subprocess
++import re
++import argparse
++import sys
++import csv
++from stat import *
++
++class tstats:
++    close_threshold = 0.01
++
++    def __init__(self, stats_dict=None):
++        if stats_dict != None:
++            self.name = stats_dict["name"]
++            self.elapsed = float(stats_dict["elapsed"])
++            self.user = float(stats_dict["user"])
++            self.sys = float(stats_dict["sys"])
++
++    def times_str(self):
++        ctime = self.sys + self.user
++        return "time=%6.2f, cpu=%6.2f (%4.2f%%)" % (self.elapsed, ctime, (ctime * 100.0) / self.elapsed)
++
++    def dict(self):
++        return {"name":self.name, "elapsed":self.elapsed, "user":self.user, "sys":self.sys}
++
++    def is_close(self, other):
++        return abs(self.elapsed - other.elapsed) / self.elapsed < self.close_threshold
++
++    def __lt__(self, other):
++        return self.elapsed < other.elapsed
++    def __gt__(self, other):
++        return self.elapsed > other.elapsed
++
++    def time_file(name, prefix, ffmpeg="./ffmpeg"):
++        stats = tstats()
++        stats.name = name
++        start_time = time.clock_gettime(time.CLOCK_MONOTONIC);
++        cproc = subprocess.Popen([ffmpeg, "-no_cvt_hw",
++                                  "-vcodec", "hevc_rpi",
++                                  "-t", "30", "-i", prefix + name,
++                                  "-f", "vout_rpi", os.devnull], bufsize=-1, stdout=flog, stderr=flog);
++        pinfo = os.wait4(cproc.pid, 0)
++        end_time = time.clock_gettime(time.CLOCK_MONOTONIC);
++        stats.elapsed = end_time - start_time
++        stats.user = pinfo[2].ru_utime
++        stats.sys = pinfo[2].ru_stime
++        return stats
++
++
++def common_prefix(s1, s2):
++    for i in range(min(len(s1),len(s2))):
++        if s1[i] != s2[i]:
++            return s1[:i]
++    return s1[:i+1]
++
++def main():
++    global flog
++
++    argp = argparse.ArgumentParser(description="FFmpeg performance tester", epilog="""
++To blank the screen before starting use "xdg-screensaver activate"
++(For some reason this doesn't seem to work from within python).
++""")
++
++    argp.add_argument("streams", nargs='*')
++    argp.add_argument("--csv_out", default="ffperf_out.csv", help="CSV output filename")
++    argp.add_argument("--csv_in", help="CSV input filename")
++    argp.add_argument("--prefix", help="Filename prefix (include terminal '/' if a directory).")
++    argp.add_argument("--repeat", default=3, type=int, help="Run repeat count")
++    argp.add_argument("--ffmpeg", default="./ffmpeg", help="FFmpeg executable")
++
++    args = argp.parse_args()
++
++    csv_out = csv.DictWriter(open(args.csv_out, 'w', newline=''), ["name", "elapsed", "user", "sys"])
++    csv_out.writeheader()
++
++    stats_in = {}
++    if args.csv_in != None:
++        with open(args.csv_in, 'r', newline='') as f_in:
++            stats_in = {x["name"]:tstats(x) for x in csv.DictReader(f_in)}
++
++    flog = open(os.path.join(tempfile.gettempdir(), "ffperf.log"), "wt")
++
++    streams = args.streams
++    if not streams:
++        if not stats_in:
++            print ("No source streams specified")
++            return 1
++        prefix = "" if args.prefix == None else args.prefix
++        streams = [k for k in stats_in]
++    elif args.prefix != None:
++        prefix = args.prefix
++    else:
++        prefix = streams[0]
++        for f in streams[1:]:
++            prefix = common_prefix(prefix, f)
++        pp = prefix.rpartition(os.sep)
++        prefix = pp[0] + pp[1]
++        streams = [s[len(prefix):] for s in streams]
++
++    for f in sorted(streams, key=lambda x : "~" * x.count(os.sep) + x.lower()):
++        print ("====", f)
++
++        t0 = tstats({"name":f, "elapsed":999, "user":999, "sys":999})
++        for i in range(args.repeat):
++            t = tstats.time_file(f, prefix, args.ffmpeg)
++            print ("...", t.times_str())
++            if t0 > t:
++                t0 = t
++
++        if t0.name in stats_in:
++            pstat = stats_in[t0.name]
++            print("---" if pstat.is_close(t0) else "<<<" if t0 < pstat else ">>>", pstat.times_str())
++
++        csv_out.writerow(t0.dict())
++
++        print ()
++
++    return 0
++
++
++if __name__ == '__main__':
++    exit(main())
++
+diff --git a/pi-util/genpatch.sh b/pi-util/genpatch.sh
+new file mode 100755
+index 0000000000..0948a68a7a
+--- /dev/null
++++ b/pi-util/genpatch.sh
+@@ -0,0 +1,35 @@
++set -e
++
++NOPATCH=
++if [ "$1" == "--notag" ]; then
++  shift
++  NOPATCH=1
++fi
++
++if [ "$1" == "" ]; then
++  echo Usage: $0 [--notag] \<patch_tag\>
++  echo e.g.: $0 mmal_4
++  exit 1
++fi
++
++VERSION=`cat RELEASE`
++if [ "$VERSION" == "" ]; then
++  echo Can\'t find version RELEASE
++  exit 1
++fi
++
++PATCHFILE=../ffmpeg-$VERSION-$1.patch
++
++if [ $NOPATCH ]; then
++  echo Not tagged
++else
++  # Only continue if we are all comitted
++  git diff --name-status --exit-code
++
++  PATCHTAG=pi/$VERSION/$1
++  echo Tagging: $PATCHTAG
++
++  git tag $PATCHTAG
++fi
++echo Generating patch: $PATCHFILE
++git diff n$VERSION -- > $PATCHFILE
+diff --git a/pi-util/make_array.py b/pi-util/make_array.py
+new file mode 100755
+index 0000000000..67b22d2d51
+--- /dev/null
++++ b/pi-util/make_array.py
+@@ -0,0 +1,23 @@
++#!/usr/bin/env python
++
++# Usage
++#   make_array file.bin
++#   Produces file.h with array of bytes.
++#
++import sys
++for file in sys.argv[1:]:
++  prefix,suffix = file.split('.')
++  assert suffix=='bin'
++  name=prefix.split('/')[-1]
++  print 'Converting',file
++  with open(prefix+'.h','wb') as out:
++    print >>out, 'static const unsigned char',name,'[] = {'
++    with open(file,'rb') as fd:
++      i = 0
++      for byte in fd.read():
++        print >>out, '0x%02x, ' % ord(byte),
++        i = i + 1
++        if i % 8 == 0:
++          print >>out, ' // %04x' % (i - 8)
++    print >>out,'};'
++
+diff --git a/pi-util/mkinst.sh b/pi-util/mkinst.sh
+new file mode 100755
+index 0000000000..271a39e846
+--- /dev/null
++++ b/pi-util/mkinst.sh
+@@ -0,0 +1,5 @@
++set -e
++
++make install
++
++cp -r install/* ../vlc/sysroot/raspian_stretch_pi1-sysroot/usr
+diff --git a/pi-util/patkodi.sh b/pi-util/patkodi.sh
+new file mode 100644
+index 0000000000..dcd05a606e
+--- /dev/null
++++ b/pi-util/patkodi.sh
+@@ -0,0 +1,9 @@
++set -e
++KODIBASE=/home/jc/rpi/kodi/xbmc
++JOBS=-j20
++make $JOBS
++git diff xbmc/release/4.3-kodi > $KODIBASE/tools/depends/target/ffmpeg/pfcd_hevc_optimisations.patch
++make -C $KODIBASE/tools/depends/target/ffmpeg $JOBS
++make -C $KODIBASE/build install
++
++
+diff --git a/pi-util/perfcmp.py b/pi-util/perfcmp.py
+new file mode 100755
+index 0000000000..e44cfa0c3c
+--- /dev/null
++++ b/pi-util/perfcmp.py
+@@ -0,0 +1,101 @@
++#!/usr/bin/env python3
++
++import time
++import string
++import os
++import tempfile
++import subprocess
++import re
++import argparse
++import sys
++import csv
++from stat import *
++
++class tstats:
++    close_threshold = 0.01
++
++    def __init__(self, stats_dict=None):
++        if stats_dict != None:
++            self.name = stats_dict["name"]
++            self.elapsed = float(stats_dict["elapsed"])
++            self.user = float(stats_dict["user"])
++            self.sys = float(stats_dict["sys"])
++
++    def times_str(self):
++        ctime = self.sys + self.user
++        return "time=%6.2f, cpu=%6.2f (%4.2f%%)" % (self.elapsed, ctime, (ctime * 100.0) / self.elapsed)
++
++    def dict(self):
++        return {"name":self.name, "elapsed":self.elapsed, "user":self.user, "sys":self.sys}
++
++    def is_close(self, other):
++        return abs(self.elapsed - other.elapsed) / self.elapsed < self.close_threshold
++
++    def __lt__(self, other):
++        return self.elapsed < other.elapsed
++    def __gt__(self, other):
++        return self.elapsed > other.elapsed
++
++    def time_file(name, prefix):
++        stats = tstats()
++        stats.name = name
++        start_time = time.clock_gettime(time.CLOCK_MONOTONIC);
++        cproc = subprocess.Popen(["./ffmpeg", "-t", "30", "-i", prefix + name,
++                                  "-f", "null", os.devnull], bufsize=-1, stdout=flog, stderr=flog);
++        pinfo = os.wait4(cproc.pid, 0)
++        end_time = time.clock_gettime(time.CLOCK_MONOTONIC);
++        stats.elapsed = end_time - start_time
++        stats.user = pinfo[2].ru_utime
++        stats.sys = pinfo[2].ru_stime
++        return stats
++
++
++def common_prefix(s1, s2):
++    for i in range(min(len(s1),len(s2))):
++        if s1[i] != s2[i]:
++            return s1[:i]
++    return s1[:i+1]
++
++def main():
++    argp = argparse.ArgumentParser(description="FFmpeg performance compare")
++
++    argp.add_argument("stream0", help="CSV to compare")
++    argp.add_argument("stream1", nargs='?', default="ffperf_out.csv", help="CSV to compare")
++
++    args = argp.parse_args()
++
++    with open(args.stream0, 'r', newline='') as f_in:
++        stats0 = {x["name"]:tstats(x) for x in csv.DictReader(f_in)}
++    with open(args.stream1, 'r', newline='') as f_in:
++        stats1 = {x["name"]:tstats(x) for x in csv.DictReader(f_in)}
++
++    print (args.stream0, "<<-->>", args.stream1)
++    print ()
++
++    for f in sorted(stats0.keys() | stats1.keys(), key=lambda x : "~" * x.count(os.sep) + x.lower()):
++       if not (f in stats0) :
++           print ("           XX               :", f)
++           continue
++       if not (f in stats1) :
++           print ("       XX                   :", f)
++           continue
++
++       s0 = stats0[f]
++       s1 = stats1[f]
++
++       pcent = ((s0.elapsed - s1.elapsed) / s0.elapsed) * 100.0
++       thresh = 0.3
++       tc = 6
++
++       nchar = min(tc - 1, int(abs(pcent) / thresh))
++       cc = "  --  " if nchar == 0 else "<" * nchar + " " * (tc - nchar) if pcent < 0 else " " * (tc - nchar) + ">" * nchar
++
++       print ("%6.2f %s%6.2f (%+5.2f) : %s" %
++           (s0.elapsed, cc, s1.elapsed, pcent, f))
++
++    return 0
++
++
++if __name__ == '__main__':
++    exit(main())
++
+diff --git a/pi-util/qem.sh b/pi-util/qem.sh
+new file mode 100755
+index 0000000000..a4dbb6eacd
+--- /dev/null
++++ b/pi-util/qem.sh
+@@ -0,0 +1,9 @@
++TARGET_DIR=../src/eupton_vc4dev_2012a/software/vc4/DEV/applications/tutorials/user_shader_example_tex
++QASM=python\ ../local/bin/qasm.py
++SRC_FILE=libavcodec/rpi_hevc_shader.qasm
++DST_BASE=shader
++
++cp libavcodec/rpi_hevc_shader_cmd.h $TARGET_DIR
++$QASM -mc_c:$DST_BASE,$DST_BASE,$DST_BASE $SRC_FILE > $TARGET_DIR/$DST_BASE.c
++$QASM -mc_h:$DST_BASE,$DST_BASE,$DST_BASE $SRC_FILE > $TARGET_DIR/$DST_BASE.h
++
+diff --git a/pi-util/v3dusage.py b/pi-util/v3dusage.py
+new file mode 100755
+index 0000000000..5935a11ca5
+--- /dev/null
++++ b/pi-util/v3dusage.py
+@@ -0,0 +1,128 @@
++#!/usr/bin/env python
++
++import sys
++import argparse
++import re
++
++def do_logparse(logname):
++
++    rmatch = re.compile(r'^([0-9]+\.[0-9]{3}): (done )?((vpu0)|(vpu1)|(qpu1)) ([A-Z_]+) cb:([0-9a-f]+) ')
++    rqcycle = re.compile(r'^([0-9]+\.[0-9]{3}): v3d: QPU Total clock cycles for all QPUs doing vertex/coordinate shading +([0-9]+)$')
++    rqtscycle = re.compile(r'^([0-9]+\.[0-9]{3}): v3d: QPU Total clock cycles for all QPUs stalled waiting for TMUs +([0-9]+)$')
++    rl2hits = re.compile(r'^([0-9]+\.[0-9]{3}): v3d: L2C Total Level 2 cache ([a-z]+) +([0-9]+)$')
++
++    ttotal = {'idle':0.0}
++    tstart = {}
++    qctotal = {}
++    qtstotal = {}
++    l2hits = {}
++    l2total = {}
++    time0 = None
++    idle_start = None
++    qpu_op_no = 0
++    op_count = 0
++
++    with open(logname, "rt") as infile:
++        for line in infile:
++            match = rmatch.match(line)
++            if match:
++#                print match.group(1), ":", match.group(2), ":", match.group(3), ":", match.group(7), ":"
++                time = float(match.group(1))
++                unit = match.group(3)
++                opstart = not match.group(2)
++                optype = match.group(7)
++                hascb = match.group(8) != "0"
++
++                if unit == 'qpu1':
++                    unit = unit + "." + str(qpu_op_no)
++                    if not opstart:
++                        if hascb or optype == 'EXECUTE_SYNC':
++                            qpu_op_no = 0
++                        else:
++                            qpu_op_no += 1
++
++                # Ignore sync type
++                if optype == 'EXECUTE_SYNC':
++                    continue
++
++                if not time0:
++                    time0 = time
++
++                if opstart:
++                    tstart[unit] = time;
++                elif unit in tstart:
++                    op_count += 1
++                    if not unit in ttotal:
++                        ttotal[unit] = 0.0
++                    ttotal[unit] += time - tstart[unit]
++                    del tstart[unit]
++
++                if not idle_start and not tstart:
++                    idle_start = time
++                elif idle_start and tstart:
++                    ttotal['idle'] += time - idle_start
++                    idle_start = None
++
++            match = rqcycle.match(line)
++            if match:
++                unit = "qpu1." + str(qpu_op_no)
++                if not unit in qctotal:
++                    qctotal[unit] = 0
++                qctotal[unit] += int(match.group(2))
++
++            match = rqtscycle.match(line)
++            if match:
++                unit = "qpu1." + str(qpu_op_no)
++                if not unit in qtstotal:
++                    qtstotal[unit] = 0
++                qtstotal[unit] += int(match.group(2))
++
++            match = rl2hits.match(line)
++            if match:
++                unit = "qpu1." + str(qpu_op_no)
++                if not unit in l2total:
++                    l2total[unit] = 0
++                    l2hits[unit] = 0
++                l2total[unit] += int(match.group(3))
++                if match.group(2) == "hits":
++                    l2hits[unit] += int(match.group(3))
++
++
++    if not time0:
++        print "No v3d profile records found"
++    else:
++        tlogged = time - time0
++
++        print "Logged time:", tlogged, "  Op count:", op_count
++        for unit in sorted(ttotal):
++            print b'%6s: %10.3f    %7.3f%%' % (unit, ttotal[unit], ttotal[unit] * 100.0 / tlogged)
++        print
++        for unit in sorted(qctotal):
++            if not unit in qtstotal:
++                qtstotal[unit] = 0;
++            print b'%6s: Qcycles: %10d, TMU stall: %10d (%7.3f%%)' % (unit, qctotal[unit], qtstotal[unit], (qtstotal[unit] * 100.0)/qctotal[unit])
++            if unit in l2total:
++                print b'        L2Total: %10d, hits:      %10d (%7.3f%%)' % (l2total[unit], l2hits[unit], (l2hits[unit] * 100.0)/l2total[unit])
++
++
++
++if __name__ == '__main__':
++    argp = argparse.ArgumentParser(
++        formatter_class=argparse.RawDescriptionHelpFormatter,
++        description="QPU/VPU perf summary from VC logging",
++        epilog = """
++Will also summarise TMU stalls if logging requests set in qpu noflush param
++in the profiled code.
++
++Example use:
++  vcgencmd set_logging level=0xc0
++  <command to profile>
++  sudo vcdbg log msg >& t.log
++  v3dusage.py t.log
++""")
++
++    argp.add_argument("logfile")
++    args = argp.parse_args()
++
++    do_logparse(args.logfile)
++
+-- 
+2.37.2
+

@@ -1,0 +1,171 @@
+From 95ff4a65ed4c88ea7e02ee55e260e37a0ce2ba88 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 18 Oct 2022 14:48:20 +0000
+Subject: [PATCH 089/122] v4l2_m2m: Add timeouts to dq_all and dequeue_packet
+
+Add timeouts and use them to have better flow control in encode
+
+(cherry picked from commit c6173cad7f21697e12887982bda796de9719bb32)
+---
+ libavcodec/v4l2_context.c | 16 +++++++++++-----
+ libavcodec/v4l2_context.h | 15 +++++++++++++--
+ libavcodec/v4l2_m2m_enc.c | 28 +++++++++++++++++++---------
+ 3 files changed, 43 insertions(+), 16 deletions(-)
+
+diff --git a/libavcodec/v4l2_context.c b/libavcodec/v4l2_context.c
+index b296dc111c..7031f3d340 100644
+--- a/libavcodec/v4l2_context.c
++++ b/libavcodec/v4l2_context.c
+@@ -712,13 +712,19 @@ clean_v4l2_buffer(V4L2Buffer * const avbuf)
+     return avbuf;
+ }
+ 
+-void
+-ff_v4l2_dq_all(V4L2Context *const ctx)
++int
++ff_v4l2_dq_all(V4L2Context *const ctx, int timeout1)
+ {
+     V4L2Buffer * avbuf;
++    if (timeout1 != 0) {
++        int rv = get_qbuf(ctx, &avbuf, timeout1);
++        if (rv != 0)
++            return rv;
++    }
+     do {
+         get_qbuf(ctx, &avbuf, 0);
+     } while (avbuf);
++    return 0;
+ }
+ 
+ static V4L2Buffer* v4l2_getfree_v4l2buf(V4L2Context *ctx)
+@@ -727,7 +733,7 @@ static V4L2Buffer* v4l2_getfree_v4l2buf(V4L2Context *ctx)
+ 
+     /* get back as many output buffers as possible */
+     if (V4L2_TYPE_IS_OUTPUT(ctx->type))
+-        ff_v4l2_dq_all(ctx);
++        ff_v4l2_dq_all(ctx, 0);
+ 
+     for (i = 0; i < ctx->num_buffers; i++) {
+         V4L2Buffer * const avbuf = (V4L2Buffer *)ctx->bufrefs[i]->data;
+@@ -1047,7 +1053,7 @@ int ff_v4l2_context_dequeue_frame(V4L2Context* ctx, AVFrame* frame, int timeout)
+    return 0;
+ }
+ 
+-int ff_v4l2_context_dequeue_packet(V4L2Context* ctx, AVPacket* pkt)
++int ff_v4l2_context_dequeue_packet(V4L2Context* ctx, AVPacket* pkt, int timeout)
+ {
+     V4L2m2mContext *s = ctx_to_m2mctx(ctx);
+     AVCodecContext *const avctx = s->avctx;
+@@ -1055,7 +1061,7 @@ int ff_v4l2_context_dequeue_packet(V4L2Context* ctx, AVPacket* pkt)
+     int rv;
+ 
+     do {
+-        if ((rv = get_qbuf(ctx, &avbuf, -1)) != 0)
++        if ((rv = get_qbuf(ctx, &avbuf, timeout)) != 0)
+             return rv == AVERROR(ENOSPC) ? AVERROR(EAGAIN) : rv;  // Caller not currently expecting ENOSPC
+         if ((rv = ff_v4l2_buffer_buf_to_avpkt(pkt, avbuf)) != 0)
+             return rv;
+diff --git a/libavcodec/v4l2_context.h b/libavcodec/v4l2_context.h
+index 8e4f681643..5afed3e6ec 100644
+--- a/libavcodec/v4l2_context.h
++++ b/libavcodec/v4l2_context.h
+@@ -179,7 +179,7 @@ int ff_v4l2_context_set_status(V4L2Context* ctx, uint32_t cmd);
+  * @param[inout] pkt The AVPacket to dequeue to.
+  * @return 0 in case of success, AVERROR(EAGAIN) if no buffer was ready, another negative error in case of error.
+  */
+-int ff_v4l2_context_dequeue_packet(V4L2Context* ctx, AVPacket* pkt);
++int ff_v4l2_context_dequeue_packet(V4L2Context* ctx, AVPacket* pkt, int timeout);
+ 
+ /**
+  * Dequeues a buffer from a V4L2Context to an AVFrame.
+@@ -218,7 +218,18 @@ int ff_v4l2_context_enqueue_packet(V4L2Context* ctx, const AVPacket* pkt, const
+  */
+ int ff_v4l2_context_enqueue_frame(V4L2Context* ctx, const AVFrame* f);
+ 
+-void ff_v4l2_dq_all(V4L2Context *const ctx);
++/**
++ * Dequeue all buffers on this queue
++ *
++ * Used to recycle output buffers
++ *
++ * @param[in] ctx The V4L2Context to dequeue from.
++ * @param[in] timeout1 A timeout on dequeuing the 1st buffer, 
++ *       all others have a timeout of zero
++ * @return AVERROR(EAGAIN) if timeout1 non-zero then the return
++ *         of the first dequeue operation, 0 otherwise.
++ */
++int ff_v4l2_dq_all(V4L2Context *const ctx, int timeout1);
+ 
+ /**
+  * Returns the number of buffers currently queued
+diff --git a/libavcodec/v4l2_m2m_enc.c b/libavcodec/v4l2_m2m_enc.c
+index a992a3cccc..d0d27e5bc2 100644
+--- a/libavcodec/v4l2_m2m_enc.c
++++ b/libavcodec/v4l2_m2m_enc.c
+@@ -420,16 +420,24 @@ static int v4l2_send_frame(AVCodecContext *avctx, const AVFrame *frame)
+ {
+     V4L2m2mContext *s = ((V4L2m2mPriv*)avctx->priv_data)->context;
+     V4L2Context *const output = &s->output;
++    int rv;
++    int needs_slot = ff_v4l2_context_q_count(output) == output->num_buffers;
+ 
+-    ff_v4l2_dq_all(output);
++    av_log(avctx, AV_LOG_TRACE, "<<< %s; needs_slot=%d\n", __func__, needs_slot);
+ 
+-    // Signal EOF if needed
++    // Signal EOF if needed (doesn't need q slot)
+     if (!frame) {
+         return ff_v4l2_context_enqueue_frame(output, frame);
+     }
+ 
++    if ((rv = ff_v4l2_dq_all(output, needs_slot? 500 : 0)) != 0) {
++        // We should be able to return AVERROR(EAGAIN) to indicate buffer
++        // exhaustion, but ffmpeg currently treats that as fatal.
++        av_log(avctx, AV_LOG_WARNING, "Failed to get buffer for src frame: %s\n", av_err2str(rv));
++        return rv;
++    }
++
+     if (s->input_drm && !output->streamon) {
+-        int rv;
+         struct v4l2_format req_format = {.type = output->format.type};
+ 
+         // Set format when we first get a buffer
+@@ -494,7 +502,9 @@ static int v4l2_receive_packet(AVCodecContext *avctx, AVPacket *avpkt)
+     AVFrame *frame = s->frame;
+     int ret;
+ 
+-    ff_v4l2_dq_all(output);
++    av_log(avctx, AV_LOG_TRACE, "<<< %s\n", __func__);
++
++    ff_v4l2_dq_all(output, 0);
+ 
+     if (s->draining)
+         goto dequeue;
+@@ -532,10 +542,10 @@ static int v4l2_receive_packet(AVCodecContext *avctx, AVPacket *avpkt)
+     }
+ 
+ dequeue:
+-    ret = ff_v4l2_context_dequeue_packet(capture, avpkt);
+-    ff_v4l2_dq_all(output);
++    ret = ff_v4l2_context_dequeue_packet(capture, avpkt, s->draining ? 300 : 0);
++    ff_v4l2_dq_all(output, 0);
+     if (ret)
+-        return ret;
++        return (s->draining && ret == AVERROR(EAGAIN)) ? AVERROR_EOF : ret;
+ 
+     if (capture->first_buf == 1) {
+         uint8_t * data;
+@@ -566,8 +576,8 @@ dequeue:
+             s->extdata_size = len;
+         }
+ 
+-        ret = ff_v4l2_context_dequeue_packet(capture, avpkt);
+-        ff_v4l2_dq_all(output);
++        ret = ff_v4l2_context_dequeue_packet(capture, avpkt, 0);
++        ff_v4l2_dq_all(output, 0);
+         if (ret)
+             return ret;
+     }
+-- 
+2.37.2
+

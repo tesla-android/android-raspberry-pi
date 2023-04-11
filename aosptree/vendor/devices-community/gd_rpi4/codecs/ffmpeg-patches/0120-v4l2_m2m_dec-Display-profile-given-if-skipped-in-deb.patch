@@ -1,0 +1,26 @@
+From 822baefed69372b3380144ab44226e2c6ad3e298 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 21 Mar 2023 14:23:20 +0000
+Subject: [PATCH 120/122] v4l2_m2m_dec: Display profile given if skipped in
+ debug
+
+---
+ libavcodec/v4l2_m2m_dec.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libavcodec/v4l2_m2m_dec.c b/libavcodec/v4l2_m2m_dec.c
+index 91136f03da..d124c7b1fc 100644
+--- a/libavcodec/v4l2_m2m_dec.c
++++ b/libavcodec/v4l2_m2m_dec.c
+@@ -792,7 +792,7 @@ check_profile(AVCodecContext *const avctx, V4L2m2mContext *const s)
+ 
+     // An unset profile is almost certainly zero or -99 - do not reject
+     if (avctx->profile <= 0) {
+-        av_log(avctx, AV_LOG_VERBOSE, "Profile <= 0 - check skipped\n");
++        av_log(avctx, AV_LOG_VERBOSE, "Profile %d <= 0 - check skipped\n", avctx->profile);
+         return 0;
+     }
+ 
+-- 
+2.37.2
+

@@ -1,0 +1,300 @@
+From 9a08431f7790507b0374d9585dfc736000c1bd42 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 27 Apr 2021 12:31:16 +0100
+Subject: [PATCH 006/122] Add an unsand filter
+
+---
+ configure                |   1 +
+ libavfilter/Makefile     |   1 +
+ libavfilter/allfilters.c |   1 +
+ libavfilter/buffersrc.c  |   2 +-
+ libavfilter/vf_unsand.c  | 228 +++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 232 insertions(+), 1 deletion(-)
+ create mode 100644 libavfilter/vf_unsand.c
+
+diff --git a/configure b/configure
+index 27112ced58..7712482bd5 100755
+--- a/configure
++++ b/configure
+@@ -3754,6 +3754,7 @@ tonemap_opencl_filter_deps="opencl const_nan"
+ transpose_opencl_filter_deps="opencl"
+ transpose_vaapi_filter_deps="vaapi VAProcPipelineCaps_rotation_flags"
+ transpose_vulkan_filter_deps="vulkan spirv_compiler"
++unsand_filter_select="sand"
+ unsharp_opencl_filter_deps="opencl"
+ uspp_filter_deps="gpl avcodec"
+ vaguedenoiser_filter_deps="gpl"
+diff --git a/libavfilter/Makefile b/libavfilter/Makefile
+index b3d3d981dd..c14fc995a0 100644
+--- a/libavfilter/Makefile
++++ b/libavfilter/Makefile
+@@ -518,6 +518,7 @@ OBJS-$(CONFIG_TRANSPOSE_VAAPI_FILTER)        += vf_transpose_vaapi.o vaapi_vpp.o
+ OBJS-$(CONFIG_TRANSPOSE_VULKAN_FILTER)       += vf_transpose_vulkan.o vulkan.o vulkan_filter.o
+ OBJS-$(CONFIG_TRIM_FILTER)                   += trim.o
+ OBJS-$(CONFIG_UNPREMULTIPLY_FILTER)          += vf_premultiply.o framesync.o
++OBJS-$(CONFIG_UNSAND_FILTER)                 += vf_unsand.o
+ OBJS-$(CONFIG_UNSHARP_FILTER)                += vf_unsharp.o
+ OBJS-$(CONFIG_UNSHARP_OPENCL_FILTER)         += vf_unsharp_opencl.o opencl.o \
+                                                 opencl/unsharp.o
+diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
+index d7db46c2af..b990a00152 100644
+--- a/libavfilter/allfilters.c
++++ b/libavfilter/allfilters.c
+@@ -490,6 +490,7 @@ extern const AVFilter ff_vf_trim;
+ extern const AVFilter ff_vf_unpremultiply;
+ extern const AVFilter ff_vf_unsharp;
+ extern const AVFilter ff_vf_unsharp_opencl;
++extern const AVFilter ff_vf_unsand;
+ extern const AVFilter ff_vf_untile;
+ extern const AVFilter ff_vf_uspp;
+ extern const AVFilter ff_vf_v360;
+diff --git a/libavfilter/buffersrc.c b/libavfilter/buffersrc.c
+index ba17450b93..0dbe5d2335 100644
+--- a/libavfilter/buffersrc.c
++++ b/libavfilter/buffersrc.c
+@@ -201,7 +201,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
+ 
+         switch (ctx->outputs[0]->type) {
+         case AVMEDIA_TYPE_VIDEO:
+-            CHECK_VIDEO_PARAM_CHANGE(ctx, s, frame->width, frame->height,
++            CHECK_VIDEO_PARAM_CHANGE(ctx, s, av_frame_cropped_width(frame), av_frame_cropped_height(frame),
+                                      frame->format, frame->pts);
+             break;
+         case AVMEDIA_TYPE_AUDIO:
+diff --git a/libavfilter/vf_unsand.c b/libavfilter/vf_unsand.c
+new file mode 100644
+index 0000000000..7100f2fc9b
+--- /dev/null
++++ b/libavfilter/vf_unsand.c
+@@ -0,0 +1,228 @@
++/*
++ * Copyright (c) 2007 Bobby Bingham
++ *
++ * This file is part of FFmpeg.
++ *
++ * FFmpeg is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with FFmpeg; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++/**
++ * @file
++ * format and noformat video filters
++ */
++
++#include <string.h>
++
++#include "libavutil/internal.h"
++#include "libavutil/mem.h"
++#include "libavutil/pixdesc.h"
++#include "libavutil/opt.h"
++#include "libavutil/rpi_sand_fns.h"
++
++#include "avfilter.h"
++#include "formats.h"
++#include "internal.h"
++#include "video.h"
++
++typedef struct UnsandContext {
++    const AVClass *class;
++} UnsandContext;
++
++static av_cold void uninit(AVFilterContext *ctx)
++{
++//    UnsandContext *s = ctx->priv;
++}
++
++static av_cold int init(AVFilterContext *ctx)
++{
++//    UnsandContext *s = ctx->priv;
++
++    return 0;
++}
++
++
++static int filter_frame(AVFilterLink *link, AVFrame *in)
++{
++    AVFilterLink * const outlink = link->dst->outputs[0];
++    AVFrame *out = NULL;
++    int rv = 0;
++
++    if (outlink->format == in->format) {
++        // If nothing to do then do nothing
++        out = in;
++    }
++    else
++    {
++        if ((out = ff_get_video_buffer(outlink, av_frame_cropped_width(in), av_frame_cropped_height(in))) == NULL)
++        {
++            rv = AVERROR(ENOMEM);
++            goto fail;
++        }
++        if (av_rpi_sand_to_planar_frame(out, in) != 0)
++        {
++            rv = -1;
++            goto fail;
++        }
++
++        av_frame_free(&in);
++    }
++
++    return ff_filter_frame(outlink, out);
++
++fail:
++    av_frame_free(&out);
++    av_frame_free(&in);
++    return rv;
++}
++
++#if 0
++static void dump_fmts(const AVFilterFormats * fmts)
++{
++    int i;
++    if (fmts== NULL) {
++        printf("NULL\n");
++        return;
++    }
++    for (i = 0; i < fmts->nb_formats; ++i) {
++        printf(" %d", fmts->formats[i]);
++    }
++    printf("\n");
++}
++#endif
++
++static int query_formats(AVFilterContext *ctx)
++{
++//    UnsandContext *s = ctx->priv;
++    int ret;
++
++    // If we aren't connected at both ends then just do nothing
++    if (ctx->inputs[0] == NULL || ctx->outputs[0] == NULL)
++        return 0;
++
++    // Our output formats depend on our input formats and we can't/don't
++    // want to convert between bit depths so we need to wait for the source
++    // to have an opinion before we do
++    if (ctx->inputs[0]->incfg.formats == NULL)
++        return AVERROR(EAGAIN);
++
++    // Accept anything
++    if (ctx->inputs[0]->outcfg.formats == NULL &&
++        (ret = ff_formats_ref(ctx->inputs[0]->incfg.formats, &ctx->inputs[0]->outcfg.formats)) < 0)
++        return ret;
++
++    // Filter out sand formats
++
++    // Generate a container if we don't already have one
++    if (ctx->outputs[0]->incfg.formats == NULL)
++    {
++        // Somewhat rubbish way of ensuring we have a good structure
++        const static enum AVPixelFormat out_fmts[] = {AV_PIX_FMT_YUV420P10, AV_PIX_FMT_YUV420P, AV_PIX_FMT_NONE};
++        AVFilterFormats *formats = ff_make_format_list(out_fmts);
++
++        if (formats == NULL)
++            return AVERROR(ENOMEM);
++        if ((ret = ff_formats_ref(formats, &ctx->outputs[0]->incfg.formats)) < 0)
++            return ret;
++    }
++
++    // Replace old format list with new filtered list derived from what our
++    // input says it can do
++    {
++        const AVFilterFormats * const src_ff = ctx->inputs[0]->outcfg.formats;
++        AVFilterFormats * const dst_ff = ctx->outputs[0]->incfg.formats;
++        enum AVPixelFormat *dst_fmts = av_malloc(sizeof(enum AVPixelFormat) * src_ff->nb_formats);
++        int i;
++        int n = 0;
++        int seen_420p = 0;
++        int seen_420p10 = 0;
++
++        for (i = 0; i < src_ff->nb_formats; ++i) {
++            const enum AVPixelFormat f = src_ff->formats[i];
++
++            switch (f){
++                case AV_PIX_FMT_YUV420P:
++                case AV_PIX_FMT_SAND128:
++                case AV_PIX_FMT_RPI4_8:
++                    if (!seen_420p) {
++                        seen_420p = 1;
++                        dst_fmts[n++] = AV_PIX_FMT_YUV420P;
++                    }
++                    break;
++                case AV_PIX_FMT_SAND64_10:
++                case AV_PIX_FMT_YUV420P10:
++                case AV_PIX_FMT_RPI4_10:
++                    if (!seen_420p10) {
++                        seen_420p10 = 1;
++                        dst_fmts[n++] = AV_PIX_FMT_YUV420P10;
++                    }
++                    break;
++                default:
++                    dst_fmts[n++] = f;
++                    break;
++            }
++        }
++
++        av_freep(&dst_ff->formats);
++        dst_ff->formats = dst_fmts;
++        dst_ff->nb_formats = n;
++    }
++
++//    printf("Unsand: %s calc: ", __func__);
++//    dump_fmts(ctx->outputs[0]->incfg.formats);
++
++    return 0;
++}
++
++
++#define OFFSET(x) offsetof(UnsandContext, x)
++static const AVOption unsand_options[] = {
++    { NULL }
++};
++
++
++AVFILTER_DEFINE_CLASS(unsand);
++
++static const AVFilterPad avfilter_vf_unsand_inputs[] = {
++    {
++        .name             = "default",
++        .type             = AVMEDIA_TYPE_VIDEO,
++        .filter_frame = filter_frame,
++    },
++    { NULL }
++};
++
++static const AVFilterPad avfilter_vf_unsand_outputs[] = {
++    {
++        .name = "default",
++        .type = AVMEDIA_TYPE_VIDEO
++    },
++};
++
++AVFilter ff_vf_unsand = {
++    .name          = "unsand",
++    .description   = NULL_IF_CONFIG_SMALL("Convert sand pix fmt to yuv"),
++
++    .init          = init,
++    .uninit        = uninit,
++
++    FILTER_QUERY_FUNC(query_formats),
++
++    .priv_size     = sizeof(UnsandContext),
++    .priv_class    = &unsand_class,
++
++    FILTER_INPUTS(avfilter_vf_unsand_inputs),
++    FILTER_OUTPUTS(avfilter_vf_unsand_outputs),
++};
++
+-- 
+2.37.2
+

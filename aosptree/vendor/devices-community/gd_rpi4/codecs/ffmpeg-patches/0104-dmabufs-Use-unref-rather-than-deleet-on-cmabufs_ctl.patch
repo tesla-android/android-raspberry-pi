@@ -1,0 +1,90 @@
+From 288807720443bbddf4c83c3589d1877c7fd418c3 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 13 Dec 2022 13:07:58 +0000
+Subject: [PATCH 104/122] dmabufs: Use unref rather than deleet on cmabufs_ctl
+
+---
+ libavcodec/v4l2_req_dmabufs.c  | 12 +++++++++++-
+ libavcodec/v4l2_req_dmabufs.h  |  3 ++-
+ libavcodec/v4l2_request_hevc.c |  4 ++--
+ 3 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/libavcodec/v4l2_req_dmabufs.c b/libavcodec/v4l2_req_dmabufs.c
+index 1c3a5e861f..acc0366e76 100644
+--- a/libavcodec/v4l2_req_dmabufs.c
++++ b/libavcodec/v4l2_req_dmabufs.c
+@@ -31,6 +31,7 @@ struct dmabuf_fns {
+ };
+ 
+ struct dmabufs_ctl {
++    atomic_int ref_count;
+     int fd;
+     size_t page_size;
+     void * v;
+@@ -271,7 +272,7 @@ static void dmabufs_ctl_free(struct dmabufs_ctl * const dbsc)
+     free(dbsc);
+ }
+ 
+-void dmabufs_ctl_delete(struct dmabufs_ctl ** const pDbsc)
++void dmabufs_ctl_unref(struct dmabufs_ctl ** const pDbsc)
+ {
+     struct dmabufs_ctl * const dbsc = *pDbsc;
+ 
+@@ -279,9 +280,18 @@ void dmabufs_ctl_delete(struct dmabufs_ctl ** const pDbsc)
+         return;
+     *pDbsc = NULL;
+ 
++    if (atomic_fetch_sub(&dbsc->ref_count, 1) != 0)
++        return;
++
+     dmabufs_ctl_free(dbsc);
+ }
+ 
++struct dmabufs_ctl * dmabufs_ctl_ref(struct dmabufs_ctl * const dbsc)
++{
++    atomic_fetch_add(&dbsc->ref_count, 1);
++    return dbsc;
++}
++
+ //-----------------------------------------------------------------------------
+ //
+ // Alloc dmabuf via CMA
+diff --git a/libavcodec/v4l2_req_dmabufs.h b/libavcodec/v4l2_req_dmabufs.h
+index c1d3d8c8d7..381ba2708d 100644
+--- a/libavcodec/v4l2_req_dmabufs.h
++++ b/libavcodec/v4l2_req_dmabufs.h
+@@ -7,7 +7,8 @@ struct dmabufs_ctl;
+ struct dmabuf_h;
+ 
+ struct dmabufs_ctl * dmabufs_ctl_new(void);
+-void dmabufs_ctl_delete(struct dmabufs_ctl ** const pdbsc);
++void dmabufs_ctl_unref(struct dmabufs_ctl ** const pdbsc);
++struct dmabufs_ctl * dmabufs_ctl_ref(struct dmabufs_ctl * const dbsc);
+ 
+ // Need not preserve old contents
+ // On NULL return old buffer is freed
+diff --git a/libavcodec/v4l2_request_hevc.c b/libavcodec/v4l2_request_hevc.c
+index 767ecb036a..db7ed13b6d 100644
+--- a/libavcodec/v4l2_request_hevc.c
++++ b/libavcodec/v4l2_request_hevc.c
+@@ -105,7 +105,7 @@ static int v4l2_request_hevc_uninit(AVCodecContext *avctx)
+     mediabufs_ctl_unref(&ctx->mbufs);
+     media_pool_delete(&ctx->mpool);
+     pollqueue_unref(&ctx->pq);
+-    dmabufs_ctl_delete(&ctx->dbufs);
++    dmabufs_ctl_unref(&ctx->dbufs);
+     devscan_delete(&ctx->devscan);
+ 
+     decode_q_uninit(&ctx->decode_q);
+@@ -324,7 +324,7 @@ fail3:
+ fail2:
+     pollqueue_unref(&ctx->pq);
+ fail1:
+-    dmabufs_ctl_delete(&ctx->dbufs);
++    dmabufs_ctl_unref(&ctx->dbufs);
+ fail0:
+     devscan_delete(&ctx->devscan);
+     return ret;
+-- 
+2.37.2
+

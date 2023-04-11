@@ -1,0 +1,119 @@
+From 9b0d964b727d98271f7f2f4dcdbcb1b41a429e2b Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 10 Jun 2021 18:59:38 +0100
+Subject: [PATCH 019/122] Fix YUV420P output from v4l2m2m
+
+Also put get_width get_height inlines in header as they are generally
+useful.
+---
+ libavcodec/v4l2_buffers.c | 12 ++++++------
+ libavcodec/v4l2_context.c | 22 ++++++----------------
+ libavcodec/v4l2_m2m.h     | 12 ++++++++++++
+ 3 files changed, 24 insertions(+), 22 deletions(-)
+
+diff --git a/libavcodec/v4l2_buffers.c b/libavcodec/v4l2_buffers.c
+index 1ca1128db6..f4c11ca8d0 100644
+--- a/libavcodec/v4l2_buffers.c
++++ b/libavcodec/v4l2_buffers.c
+@@ -425,17 +425,17 @@ static int v4l2_buffer_buf_to_swframe(AVFrame *frame, V4L2Buffer *avbuf)
+     case AV_PIX_FMT_NV21:
+         if (avbuf->num_planes > 1)
+             break;
+-        frame->linesize[1] = avbuf->plane_info[0].bytesperline;
+-        frame->data[1] = frame->buf[0]->data + avbuf->plane_info[0].bytesperline * avbuf->context->format.fmt.pix_mp.height;
++        frame->linesize[1] = frame->linesize[0];
++        frame->data[1] = frame->data[0] + frame->linesize[0] * ff_v4l2_get_format_height(&avbuf->context->format);
+         break;
+ 
+     case AV_PIX_FMT_YUV420P:
+         if (avbuf->num_planes > 1)
+             break;
+-        frame->linesize[1] = avbuf->plane_info[0].bytesperline >> 1;
+-        frame->linesize[2] = avbuf->plane_info[0].bytesperline >> 1;
+-        frame->data[1] = frame->buf[0]->data + avbuf->plane_info[0].bytesperline * avbuf->context->format.fmt.pix_mp.height;
+-        frame->data[2] = frame->data[1] + ((avbuf->plane_info[0].bytesperline * avbuf->context->format.fmt.pix_mp.height) >> 2);
++        frame->linesize[1] = frame->linesize[0] / 2;
++        frame->linesize[2] = frame->linesize[1];
++        frame->data[1] = frame->data[0] + frame->linesize[0] * ff_v4l2_get_format_height(&avbuf->context->format);
++        frame->data[2] = frame->data[1] + frame->linesize[1] * ff_v4l2_get_format_height(&avbuf->context->format) / 2;
+         break;
+ 
+     default:
+diff --git a/libavcodec/v4l2_context.c b/libavcodec/v4l2_context.c
+index be76068af3..6fe2586627 100644
+--- a/libavcodec/v4l2_context.c
++++ b/libavcodec/v4l2_context.c
+@@ -55,16 +55,6 @@ static inline AVCodecContext *logger(V4L2Context *ctx)
+     return ctx_to_m2mctx(ctx)->avctx;
+ }
+ 
+-static inline unsigned int v4l2_get_width(struct v4l2_format *fmt)
+-{
+-    return V4L2_TYPE_IS_MULTIPLANAR(fmt->type) ? fmt->fmt.pix_mp.width : fmt->fmt.pix.width;
+-}
+-
+-static inline unsigned int v4l2_get_height(struct v4l2_format *fmt)
+-{
+-    return V4L2_TYPE_IS_MULTIPLANAR(fmt->type) ? fmt->fmt.pix_mp.height : fmt->fmt.pix.height;
+-}
+-
+ static AVRational v4l2_get_sar(V4L2Context *ctx)
+ {
+     struct AVRational sar = { 0, 1 };
+@@ -96,8 +86,8 @@ static inline unsigned int v4l2_resolution_changed(V4L2Context *ctx, struct v4l2
+     if (ret)
+         av_log(logger(ctx), AV_LOG_DEBUG, "%s changed (%dx%d) -> (%dx%d)\n",
+             ctx->name,
+-            v4l2_get_width(fmt1), v4l2_get_height(fmt1),
+-            v4l2_get_width(fmt2), v4l2_get_height(fmt2));
++            ff_v4l2_get_format_width(fmt1), ff_v4l2_get_format_height(fmt1),
++            ff_v4l2_get_format_width(fmt2), ff_v4l2_get_format_height(fmt2));
+ 
+     return ret;
+ }
+@@ -195,8 +185,8 @@ static int do_source_change(V4L2m2mContext * const s)
+ 
+     reinit = v4l2_resolution_changed(&s->capture, &cap_fmt);
+     if (reinit) {
+-        s->capture.height = v4l2_get_height(&cap_fmt);
+-        s->capture.width = v4l2_get_width(&cap_fmt);
++        s->capture.height = ff_v4l2_get_format_height(&cap_fmt);
++        s->capture.width = ff_v4l2_get_format_width(&cap_fmt);
+     }
+     s->capture.sample_aspect_ratio = v4l2_get_sar(&s->capture);
+ 
+@@ -973,8 +963,8 @@ static int create_buffers(V4L2Context* const ctx, const unsigned int req_buffers
+     av_log(logger(ctx), AV_LOG_DEBUG, "%s: %s %02d buffers initialized: %04ux%04u, sizeimage %08u, bytesperline %08u\n", ctx->name,
+         V4L2_TYPE_IS_MULTIPLANAR(ctx->type) ? av_fourcc2str(ctx->format.fmt.pix_mp.pixelformat) : av_fourcc2str(ctx->format.fmt.pix.pixelformat),
+         req.count,
+-        v4l2_get_width(&ctx->format),
+-        v4l2_get_height(&ctx->format),
++        ff_v4l2_get_format_width(&ctx->format),
++        ff_v4l2_get_format_height(&ctx->format),
+         V4L2_TYPE_IS_MULTIPLANAR(ctx->type) ? ctx->format.fmt.pix_mp.plane_fmt[0].sizeimage : ctx->format.fmt.pix.sizeimage,
+         V4L2_TYPE_IS_MULTIPLANAR(ctx->type) ? ctx->format.fmt.pix_mp.plane_fmt[0].bytesperline : ctx->format.fmt.pix.bytesperline);
+ 
+diff --git a/libavcodec/v4l2_m2m.h b/libavcodec/v4l2_m2m.h
+index 24a9c94864..8f054f2f50 100644
+--- a/libavcodec/v4l2_m2m.h
++++ b/libavcodec/v4l2_m2m.h
+@@ -160,4 +160,16 @@ int ff_v4l2_m2m_codec_reinit(V4L2m2mContext *ctx);
+  */
+ int ff_v4l2_m2m_codec_full_reinit(V4L2m2mContext *ctx);
+ 
++
++static inline unsigned int ff_v4l2_get_format_width(struct v4l2_format *fmt)
++{
++    return V4L2_TYPE_IS_MULTIPLANAR(fmt->type) ? fmt->fmt.pix_mp.width : fmt->fmt.pix.width;
++}
++
++static inline unsigned int ff_v4l2_get_format_height(struct v4l2_format *fmt)
++{
++    return V4L2_TYPE_IS_MULTIPLANAR(fmt->type) ? fmt->fmt.pix_mp.height : fmt->fmt.pix.height;
++}
++
++
+ #endif /* AVCODEC_V4L2_M2M_H */
+-- 
+2.37.2
+

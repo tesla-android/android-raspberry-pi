@@ -1,0 +1,35 @@
+From 7bf6c062ed8a1e635aa5722c0072724f236daf00 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Wed, 17 Nov 2021 17:32:59 +0000
+Subject: [PATCH 027/122] v4l2_m2m_dec: Adjust timebase if H264
+
+Adjust AVCodecContext time_base if H264 in the same way that the
+software decoder does.
+---
+ libavcodec/v4l2_m2m_dec.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/libavcodec/v4l2_m2m_dec.c b/libavcodec/v4l2_m2m_dec.c
+index 1851acbc93..aa1e5c1597 100644
+--- a/libavcodec/v4l2_m2m_dec.c
++++ b/libavcodec/v4l2_m2m_dec.c
+@@ -481,6 +481,16 @@ static av_cold int v4l2_decode_init(AVCodecContext *avctx)
+ 
+     av_log(avctx, AV_LOG_TRACE, "<<< %s\n", __func__);
+ 
++    if (avctx->codec_id == AV_CODEC_ID_H264) {
++        if (avctx->ticks_per_frame == 1) {
++            if(avctx->time_base.den < INT_MAX/2) {
++                avctx->time_base.den *= 2;
++            } else
++                avctx->time_base.num /= 2;
++        }
++        avctx->ticks_per_frame = 2;
++    }
++
+     av_log(avctx, AV_LOG_INFO, "level=%d\n", avctx->level);
+     ret = ff_v4l2_m2m_create_context(priv, &s);
+     if (ret < 0)
+-- 
+2.37.2
+

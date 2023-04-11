@@ -1,0 +1,260 @@
+From 5fcbcd31761eea31dc0157793f558eaaadfe2ac3 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Fri, 3 Dec 2021 12:54:18 +0000
+Subject: [PATCH 033/122] Track pending frames in v4l2 stateful
+
+Track which frames are pending decode in the v4l2 stateful decoder.
+This relies on DTS & PTS having some relationship to reality, so
+any use of this code must cope with the results being wrong.
+
+Also moves the xlat state vars out of the main context and into their
+own structure.
+---
+ libavcodec/v4l2_m2m.h     |  15 ++++--
+ libavcodec/v4l2_m2m_dec.c | 100 +++++++++++++++++++++++++++++---------
+ 2 files changed, 89 insertions(+), 26 deletions(-)
+
+diff --git a/libavcodec/v4l2_m2m.h b/libavcodec/v4l2_m2m.h
+index 82feb0afdb..3f86809623 100644
+--- a/libavcodec/v4l2_m2m.h
++++ b/libavcodec/v4l2_m2m.h
+@@ -44,8 +44,10 @@
+ #define FF_V4L2_M2M_TRACK_SIZE 128
+ typedef struct V4L2m2mTrackEl {
+     int     discard;   // If we see this buffer its been flushed, so discard
++    int     pending;
+     int     pkt_size;
+     int64_t pts;
++    int64_t dts;
+     int64_t reordered_opaque;
+     int64_t pkt_pos;
+     int64_t pkt_duration;
+@@ -62,6 +64,14 @@ typedef struct pts_stats_s
+     int64_t guess;
+ } pts_stats_t;
+ 
++typedef struct xlat_track_s {
++    unsigned int track_no;
++    int64_t last_pts;
++    int64_t last_pkt_dts;
++    int64_t last_opaque;
++    V4L2m2mTrackEl track_els[FF_V4L2_M2M_TRACK_SIZE];
++} xlat_track_t;
++
+ typedef struct V4L2m2mContext {
+     char devname[PATH_MAX];
+     int fd;
+@@ -96,10 +106,7 @@ typedef struct V4L2m2mContext {
+     int output_drm;
+ 
+     /* Frame tracking */
+-    int64_t last_pkt_dts;
+-    int64_t last_opaque;
+-    unsigned int track_no;
+-    V4L2m2mTrackEl track_els[FF_V4L2_M2M_TRACK_SIZE];
++    xlat_track_t xlat;
+ 
+     pts_stats_t pts_stat;
+ 
+diff --git a/libavcodec/v4l2_m2m_dec.c b/libavcodec/v4l2_m2m_dec.c
+index 48a6810d18..d8ebb466cd 100644
+--- a/libavcodec/v4l2_m2m_dec.c
++++ b/libavcodec/v4l2_m2m_dec.c
+@@ -242,22 +242,24 @@ static inline unsigned int pts_to_track(AVCodecContext *avctx, const int64_t pts
+ // buffer of all the things we want preserved (including the original PTS)
+ // indexed by the tracking no.
+ static void
+-xlat_pts_in(AVCodecContext *const avctx, V4L2m2mContext *const s, AVPacket *const avpkt)
++xlat_pts_in(AVCodecContext *const avctx, xlat_track_t *const x, AVPacket *const avpkt)
+ {
+     int64_t track_pts;
+ 
+     // Avoid 0
+-    if (++s->track_no == 0)
+-        s->track_no = 1;
++    if (++x->track_no == 0)
++        x->track_no = 1;
+ 
+-    track_pts = track_to_pts(avctx, s->track_no);
++    track_pts = track_to_pts(avctx, x->track_no);
+ 
+-    av_log(avctx, AV_LOG_TRACE, "In PTS=%" PRId64 ", DTS=%" PRId64 ", track=%" PRId64 ", n=%u\n", avpkt->pts, avpkt->dts, track_pts, s->track_no);
+-    s->last_pkt_dts = avpkt->dts;
+-    s->track_els[s->track_no  % FF_V4L2_M2M_TRACK_SIZE] = (V4L2m2mTrackEl){
++    av_log(avctx, AV_LOG_TRACE, "In PTS=%" PRId64 ", DTS=%" PRId64 ", track=%" PRId64 ", n=%u\n", avpkt->pts, avpkt->dts, track_pts, x->track_no);
++    x->last_pkt_dts = avpkt->dts;
++    x->track_els[x->track_no  % FF_V4L2_M2M_TRACK_SIZE] = (V4L2m2mTrackEl){
+         .discard          = 0,
++        .pending          = 1,
+         .pkt_size         = avpkt->size,
+         .pts              = avpkt->pts,
++        .dts              = avpkt->dts,
+         .reordered_opaque = avctx->reordered_opaque,
+         .pkt_pos          = avpkt->pos,
+         .pkt_duration     = avpkt->duration,
+@@ -268,31 +270,36 @@ xlat_pts_in(AVCodecContext *const avctx, V4L2m2mContext *const s, AVPacket *cons
+ 
+ // Returns -1 if we should discard the frame
+ static int
+-xlat_pts_out(AVCodecContext *const avctx, V4L2m2mContext *const s, AVFrame *const frame)
++xlat_pts_out(AVCodecContext *const avctx,
++             xlat_track_t * const x,
++             pts_stats_t * const ps,
++             AVFrame *const frame)
+ {
+     unsigned int n = pts_to_track(avctx, frame->pts) % FF_V4L2_M2M_TRACK_SIZE;
+-    const V4L2m2mTrackEl *const t = s->track_els + n;
++    V4L2m2mTrackEl *const t = x->track_els + n;
+     if (frame->pts == AV_NOPTS_VALUE || frame->pts != t->track_pts)
+     {
+         av_log(avctx, AV_LOG_INFO, "Tracking failure: pts=%" PRId64 ", track[%d]=%" PRId64 "\n", frame->pts, n, t->track_pts);
+         frame->pts              = AV_NOPTS_VALUE;
+-        frame->pkt_dts          = s->last_pkt_dts;
+-        frame->reordered_opaque = s->last_opaque;
++        frame->pkt_dts          = x->last_pkt_dts;
++        frame->reordered_opaque = x->last_opaque;
+         frame->pkt_pos          = -1;
+         frame->pkt_duration     = 0;
+         frame->pkt_size         = -1;
+     }
+     else if (!t->discard)
+     {
+-        frame->pts              = t->pts;
+-        frame->pkt_dts          = s->last_pkt_dts;
++        frame->pts              = t->pending ? t->pts : AV_NOPTS_VALUE;
++        frame->pkt_dts          = x->last_pkt_dts;
+         frame->reordered_opaque = t->reordered_opaque;
+         frame->pkt_pos          = t->pkt_pos;
+         frame->pkt_duration     = t->pkt_duration;
+         frame->pkt_size         = t->pkt_size;
+ 
+-        s->last_opaque = s->track_els[n].reordered_opaque;
+-        s->track_els[n].pts = AV_NOPTS_VALUE;  // If we hit this again deny accurate knowledge of PTS
++        x->last_opaque = x->track_els[n].reordered_opaque;
++        if (frame->pts != AV_NOPTS_VALUE)
++            x->last_pts = frame->pts;
++        t->pending = 0;
+     }
+     else
+     {
+@@ -300,14 +307,62 @@ xlat_pts_out(AVCodecContext *const avctx, V4L2m2mContext *const s, AVFrame *cons
+         return -1;
+     }
+ 
+-    pts_stats_add(&s->pts_stat, frame->pts);
++    pts_stats_add(ps, frame->pts);
+ 
+-    frame->best_effort_timestamp = pts_stats_guess(&s->pts_stat);
++    frame->best_effort_timestamp = pts_stats_guess(ps);
+     frame->pkt_dts               = frame->pts;  // We can't emulate what s/w does in a useful manner?
+     av_log(avctx, AV_LOG_TRACE, "Out PTS=%" PRId64 "/%"PRId64", DTS=%" PRId64 "\n", frame->pts, frame->best_effort_timestamp, frame->pkt_dts);
+     return 0;
+ }
+ 
++static void
++xlat_flush(xlat_track_t * const x)
++{
++    unsigned int i;
++    for (i = 0; i != FF_V4L2_M2M_TRACK_SIZE; ++i) {
++        x->track_els[i].pending = 0;
++        x->track_els[i].discard = 1;
++    }
++    x->last_pts = AV_NOPTS_VALUE;
++}
++
++static void
++xlat_init(xlat_track_t * const x)
++{
++    memset(x, 0, sizeof(*x));
++    x->last_pts = AV_NOPTS_VALUE;
++}
++
++static int
++xlat_pending(const xlat_track_t * const x)
++{
++    unsigned int n = x->track_no % FF_V4L2_M2M_TRACK_SIZE;
++    unsigned int i;
++    int r = 0;
++    int64_t now = AV_NOPTS_VALUE;
++
++    for (i = 0; i < 32; ++i, n = (n - 1) % FF_V4L2_M2M_TRACK_SIZE) {
++        const V4L2m2mTrackEl * const t = x->track_els + n;
++
++        if (!t->pending)
++            continue;
++
++        if (now == AV_NOPTS_VALUE)
++            now = t->dts;
++
++        if (t->pts == AV_NOPTS_VALUE ||
++            ((now == AV_NOPTS_VALUE || t->pts <= now) &&
++             (x->last_pts == AV_NOPTS_VALUE || t->pts > x->last_pts)))
++            ++r;
++    }
++
++    // If we never get any ideas about PTS vs DTS allow a lot more buffer
++    if (now == AV_NOPTS_VALUE)
++        r -= 16;
++
++    return r;
++}
++
+ static inline int stream_started(const V4L2m2mContext * const s) {
+     return s->capture.streamon && s->output.streamon;
+ }
+@@ -374,7 +429,7 @@ static int try_enqueue_src(AVCodecContext * const avctx, V4L2m2mContext * const
+             return ret;
+         }
+ 
+-        xlat_pts_in(avctx, s, &s->buf_pkt);
++        xlat_pts_in(avctx, &s->xlat, &s->buf_pkt);
+     }
+ 
+     if ((ret = check_output_streamon(avctx, s)) != 0)
+@@ -417,6 +472,7 @@ static int v4l2_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+     int dst_rv = 1;  // Non-zero (done), non-negative (error) number
+ 
+     do {
++        av_log(avctx, AV_LOG_INFO, "Pending=%d\n", xlat_pending(&s->xlat));
+         src_rv = try_enqueue_src(avctx, s);
+ 
+         // If we got a frame last time and we have nothing to enqueue then
+@@ -451,7 +507,7 @@ static int v4l2_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+                            s->draining, s->capture.done, dst_rv);
+ 
+                 // Go again if we got a frame that we need to discard
+-            } while (dst_rv == 0 && xlat_pts_out(avctx, s, frame));
++            } while (dst_rv == 0 && xlat_pts_out(avctx, &s->xlat, &s->pts_stat, frame));
+         }
+ 
+         // Continue trying to enqueue packets if either
+@@ -550,6 +606,7 @@ static av_cold int v4l2_decode_init(AVCodecContext *avctx)
+     if (ret < 0)
+         return ret;
+ 
++    xlat_init(&s->xlat);
+     pts_stats_init(&s->pts_stat, avctx, "decoder");
+ 
+     capture = &s->capture;
+@@ -632,7 +689,7 @@ static void v4l2_decode_flush(AVCodecContext *avctx)
+     V4L2m2mContext * const s = priv->context;
+     V4L2Context * const output = &s->output;
+     V4L2Context * const capture = &s->capture;
+-    int ret, i;
++    int ret;
+ 
+     av_log(avctx, AV_LOG_TRACE, "<<< %s: streamon=%d\n", __func__, output->streamon);
+ 
+@@ -646,8 +703,7 @@ static void v4l2_decode_flush(AVCodecContext *avctx)
+ 
+     // V4L2 makes no guarantees about whether decoded frames are flushed or not
+     // so mark all frames we are tracking to be discarded if they appear
+-    for (i = 0; i != FF_V4L2_M2M_TRACK_SIZE; ++i)
+-        s->track_els[i].discard = 1;
++    xlat_flush(&s->xlat);
+ 
+     // resend extradata
+     s->extdata_sent = 0;
+-- 
+2.37.2
+

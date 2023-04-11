@@ -1,0 +1,26 @@
+From 15458be3fe79c14f4fdcc2ad786508d1b647c914 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 13 Dec 2022 17:57:27 +0000
+Subject: [PATCH 107/122] v4l2m2m: Fix crash if init errors out before setting
+ avctx
+
+---
+ libavcodec/v4l2_m2m.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libavcodec/v4l2_m2m.c b/libavcodec/v4l2_m2m.c
+index 1e30d15fd8..ac6bae0dc3 100644
+--- a/libavcodec/v4l2_m2m.c
++++ b/libavcodec/v4l2_m2m.c
+@@ -278,7 +278,7 @@ int ff_v4l2_m2m_codec_end(V4L2m2mPriv *priv)
+ 
+     av_log(s->avctx, AV_LOG_DEBUG, "V4L2 Codec end\n");
+ 
+-    if (av_codec_is_decoder(s->avctx->codec))
++    if (s->avctx && av_codec_is_decoder(s->avctx->codec))
+         av_packet_unref(&s->buf_pkt);
+ 
+     if (s->fd >= 0) {
+-- 
+2.37.2
+

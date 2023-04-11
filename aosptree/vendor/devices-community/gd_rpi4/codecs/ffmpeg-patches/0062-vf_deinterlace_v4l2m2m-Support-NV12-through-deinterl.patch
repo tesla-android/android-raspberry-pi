@@ -1,0 +1,328 @@
+From e7a62226f26073149d35c89268f56e17c8f45d76 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 26 Jul 2022 15:46:14 +0000
+Subject: [PATCH 062/122] vf_deinterlace_v4l2m2m: Support NV12 through
+ deinterlace
+
+Supports NV12 (though not yet NV12M) through deinterlace.
+Also improves error handling such that attempting to deinterlace an
+unsupported drm format causes an error.
+No longer leaks frame structures.
+---
+ libavfilter/vf_deinterlace_v4l2m2m.c | 160 ++++++++++++++++++---------
+ 1 file changed, 107 insertions(+), 53 deletions(-)
+
+diff --git a/libavfilter/vf_deinterlace_v4l2m2m.c b/libavfilter/vf_deinterlace_v4l2m2m.c
+index 1a933b7e0a..1a3bef5bcb 100644
+--- a/libavfilter/vf_deinterlace_v4l2m2m.c
++++ b/libavfilter/vf_deinterlace_v4l2m2m.c
+@@ -373,14 +373,16 @@ static int deint_v4l2m2m_try_format(V4L2Queue *queue)
+ 		 fmt->fmt.pix_mp.plane_fmt[0].sizeimage, fmt->fmt.pix_mp.plane_fmt[0].bytesperline);
+ 
+     if (V4L2_TYPE_IS_MULTIPLANAR(fmt->type)) {
+-        if (fmt->fmt.pix_mp.pixelformat != V4L2_PIX_FMT_YUV420 ||
++        if ((fmt->fmt.pix_mp.pixelformat != V4L2_PIX_FMT_YUV420 &&
++             fmt->fmt.pix_mp.pixelformat != V4L2_PIX_FMT_NV12) ||
+             fmt->fmt.pix_mp.field != field) {
+             av_log(ctx->logctx, AV_LOG_DEBUG, "format not supported for type %d\n", fmt->type);
+ 
+             return AVERROR(EINVAL);
+         }
+     } else {
+-        if (fmt->fmt.pix.pixelformat != V4L2_PIX_FMT_YUV420 ||
++        if ((fmt->fmt.pix.pixelformat != V4L2_PIX_FMT_YUV420 &&
++             fmt->fmt.pix.pixelformat != V4L2_PIX_FMT_NV12) ||
+             fmt->fmt.pix.field != field) {
+             av_log(ctx->logctx, AV_LOG_DEBUG, "format not supported for type %d\n", fmt->type);
+ 
+@@ -391,7 +393,7 @@ static int deint_v4l2m2m_try_format(V4L2Queue *queue)
+     return 0;
+ }
+ 
+-static int deint_v4l2m2m_set_format(V4L2Queue *queue, uint32_t field, int width, int height, int pitch, int ysize)
++static int deint_v4l2m2m_set_format(V4L2Queue *queue, uint32_t pixelformat, uint32_t field, int width, int height, int pitch, int ysize)
+ {
+     struct v4l2_format *fmt        = &queue->format;
+     DeintV4L2M2MContextShared *ctx = queue->ctx;
+@@ -402,13 +404,16 @@ static int deint_v4l2m2m_set_format(V4L2Queue *queue, uint32_t field, int width,
+         .target = V4L2_TYPE_IS_OUTPUT(fmt->type) ? V4L2_SEL_TGT_CROP_BOUNDS : V4L2_SEL_TGT_COMPOSE_BOUNDS,
+     };
+ 
++    // This works for most single object 4:2:0 types
+     if (V4L2_TYPE_IS_MULTIPLANAR(fmt->type)) {
++        fmt->fmt.pix_mp.pixelformat = pixelformat;
+         fmt->fmt.pix_mp.field = field;
+         fmt->fmt.pix_mp.width = width;
+         fmt->fmt.pix_mp.height = ysize / pitch;
+         fmt->fmt.pix_mp.plane_fmt[0].bytesperline = pitch;
+         fmt->fmt.pix_mp.plane_fmt[0].sizeimage = ysize + (ysize >> 1);
+     } else {
++        fmt->fmt.pix.pixelformat = pixelformat;
+         fmt->fmt.pix.field = field;
+         fmt->fmt.pix.width = width;
+         fmt->fmt.pix.height = height;
+@@ -417,12 +422,22 @@ static int deint_v4l2m2m_set_format(V4L2Queue *queue, uint32_t field, int width,
+     }
+ 
+     ret = ioctl(ctx->fd, VIDIOC_S_FMT, fmt);
+-    if (ret)
++    if (ret) {
++        ret = AVERROR(errno);
+         av_log(ctx->logctx, AV_LOG_ERROR, "VIDIOC_S_FMT failed: %d\n", ret);
++        return ret;
++    }
++
++    if (pixelformat != fmt->fmt.pix.pixelformat) {
++        av_log(ctx->logctx, AV_LOG_ERROR, "Format not supported: %s; S_FMT returned %s\n", av_fourcc2str(pixelformat), av_fourcc2str(fmt->fmt.pix.pixelformat));
++        return AVERROR(EINVAL);
++    }
+ 
+     ret = ioctl(ctx->fd, VIDIOC_G_SELECTION, &sel);
+-    if (ret)
+-        av_log(ctx->logctx, AV_LOG_ERROR, "VIDIOC_G_SELECTION failed: %d\n", ret);
++    if (ret) {
++        ret = AVERROR(errno);
++        av_log(ctx->logctx, AV_LOG_WARNING, "VIDIOC_G_SELECTION failed: %d\n", ret);
++    }
+ 
+     sel.r.width = width;
+     sel.r.height = height;
+@@ -432,10 +447,12 @@ static int deint_v4l2m2m_set_format(V4L2Queue *queue, uint32_t field, int width,
+     sel.flags = V4L2_SEL_FLAG_LE;
+ 
+     ret = ioctl(ctx->fd, VIDIOC_S_SELECTION, &sel);
+-    if (ret)
+-        av_log(ctx->logctx, AV_LOG_ERROR, "VIDIOC_S_SELECTION failed: %d\n", ret);
++    if (ret) {
++        ret = AVERROR(errno);
++        av_log(ctx->logctx, AV_LOG_WARNING, "VIDIOC_S_SELECTION failed: %d\n", ret);
++    }
+ 
+-    return ret;
++    return 0;
+ }
+ 
+ static int deint_v4l2m2m_probe_device(DeintV4L2M2MContextShared *ctx, char *node)
+@@ -517,10 +534,25 @@ static int deint_v4l2m2m_enqueue_buffer(V4L2Buffer *buf)
+     return 0;
+ }
+ 
+-static int v4l2_buffer_export_drm(V4L2Buffer* avbuf)
++static int v4l2_buffer_export_drm(V4L2Buffer* avbuf, const uint32_t pixelformat)
+ {
+     struct v4l2_exportbuffer expbuf;
+     int i, ret;
++    uint64_t mod = DRM_FORMAT_MOD_LINEAR;
++    uint32_t fmt = 0;
++
++    switch (pixelformat) {
++    case V4L2_PIX_FMT_NV12:
++        fmt = DRM_FORMAT_NV12;
++        break;
++    case V4L2_PIX_FMT_YUV420:
++        fmt = DRM_FORMAT_YUV420;
++        break;
++    default:
++        return AVERROR(EINVAL);
++    }
++
++    avbuf->drm_frame.layers[0].format = fmt;
+ 
+     for (i = 0; i < avbuf->num_planes; i++) {
+         memset(&expbuf, 0, sizeof(expbuf));
+@@ -539,12 +571,12 @@ static int v4l2_buffer_export_drm(V4L2Buffer* avbuf)
+             /* drm frame */
+             avbuf->drm_frame.objects[i].size = avbuf->buffer.m.planes[i].length;
+             avbuf->drm_frame.objects[i].fd = expbuf.fd;
+-            avbuf->drm_frame.objects[i].format_modifier = DRM_FORMAT_MOD_LINEAR;
++            avbuf->drm_frame.objects[i].format_modifier = mod;
+         } else {
+             /* drm frame */
+             avbuf->drm_frame.objects[0].size = avbuf->buffer.length;
+             avbuf->drm_frame.objects[0].fd = expbuf.fd;
+-            avbuf->drm_frame.objects[0].format_modifier = DRM_FORMAT_MOD_LINEAR;
++            avbuf->drm_frame.objects[0].format_modifier = mod;
+         }
+     }
+ 
+@@ -629,7 +661,7 @@ static int deint_v4l2m2m_allocate_buffers(V4L2Queue *queue)
+             if (ret)
+                 goto fail;
+ 
+-            ret = v4l2_buffer_export_drm(buf);
++            ret = v4l2_buffer_export_drm(buf, multiplanar ? fmt->fmt.pix_mp.pixelformat : fmt->fmt.pix.pixelformat);
+             if (ret)
+                 goto fail;
+         }
+@@ -878,7 +910,6 @@ static void v4l2_free_buffer(void *opaque, uint8_t *unused)
+ 
+ static uint8_t * v4l2_get_drm_frame(V4L2Buffer *avbuf, int height)
+ {
+-    int av_pix_fmt = AV_PIX_FMT_YUV420P;
+     AVDRMFrameDescriptor *drm_desc = &avbuf->drm_frame;
+     AVDRMLayerDescriptor *layer;
+ 
+@@ -895,20 +926,13 @@ static uint8_t * v4l2_get_drm_frame(V4L2Buffer *avbuf, int height)
+         layer->planes[i].pitch = avbuf->plane_info[i].bytesperline;
+     }
+ 
+-    switch (av_pix_fmt) {
+-    case AV_PIX_FMT_YUYV422:
+-
+-        layer->format = DRM_FORMAT_YUYV;
++    switch (layer->format) {
++    case DRM_FORMAT_YUYV:
+         layer->nb_planes = 1;
+-
+         break;
+ 
+-    case AV_PIX_FMT_NV12:
+-    case AV_PIX_FMT_NV21:
+-
+-        layer->format = av_pix_fmt == AV_PIX_FMT_NV12 ?
+-            DRM_FORMAT_NV12 : DRM_FORMAT_NV21;
+-
++    case DRM_FORMAT_NV12:
++    case DRM_FORMAT_NV21:
+         if (avbuf->num_planes > 1)
+             break;
+ 
+@@ -920,10 +944,7 @@ static uint8_t * v4l2_get_drm_frame(V4L2Buffer *avbuf, int height)
+         layer->planes[1].pitch = avbuf->plane_info[0].bytesperline;
+         break;
+ 
+-    case AV_PIX_FMT_YUV420P:
+-
+-        layer->format = DRM_FORMAT_YUV420;
+-
++    case DRM_FORMAT_YUV420:
+         if (avbuf->num_planes > 1)
+             break;
+ 
+@@ -1032,6 +1053,26 @@ static int deint_v4l2m2m_config_props(AVFilterLink *outlink)
+     return 0;
+ }
+ 
++static uint32_t desc_pixelformat(const AVDRMFrameDescriptor * const drm_desc)
++{
++    const int is_linear = (drm_desc->objects[0].format_modifier == DRM_FORMAT_MOD_LINEAR ||
++            drm_desc->objects[0].format_modifier == DRM_FORMAT_MOD_INVALID);
++
++    switch (drm_desc->layers[0].format) {
++    case DRM_FORMAT_YUV420:
++        if (is_linear)
++            return drm_desc->nb_objects == 1 ? V4L2_PIX_FMT_YUV420 : 0;
++        break;
++    case DRM_FORMAT_NV12:
++        if (is_linear)
++            return drm_desc->nb_objects == 1 ? V4L2_PIX_FMT_NV12 : 0;
++        break;
++    default:
++        break;
++    }
++    return 0;
++}
++
+ static int deint_v4l2m2m_filter_frame(AVFilterLink *link, AVFrame *in)
+ {
+     AVFilterContext *avctx         = link->dst;
+@@ -1047,23 +1088,27 @@ static int deint_v4l2m2m_filter_frame(AVFilterLink *link, AVFrame *in)
+            avctx->inputs[0]->status_in, avctx->inputs[0]->status_out, avctx->outputs[0]->status_in, avctx->outputs[0]->status_out);
+ 
+     if (ctx->field_order == V4L2_FIELD_ANY) {
+-        AVDRMFrameDescriptor *drm_desc = (AVDRMFrameDescriptor *)in->data[0];
++        const AVDRMFrameDescriptor * const drm_desc = (AVDRMFrameDescriptor *)in->data[0];
++        const uint32_t pixelformat = desc_pixelformat(drm_desc);
++
++        if (pixelformat == 0) {
++            av_log(avctx, AV_LOG_ERROR, "Unsupported DRM format %s in %d objects, modifier %#" PRIx64 "\n",
++                   av_fourcc2str(drm_desc->layers[0].format),
++                   drm_desc->nb_objects, drm_desc->objects[0].format_modifier);
++            return AVERROR(EINVAL);
++        }
++
+         ctx->orig_width = drm_desc->layers[0].planes[0].pitch;
+         ctx->orig_height = drm_desc->layers[0].planes[1].offset / ctx->orig_width;
+ 
+         av_log(priv, AV_LOG_DEBUG, "%s: %dx%d (%td,%td)\n", __func__, ctx->width, ctx->height,
+            drm_desc->layers[0].planes[0].pitch, drm_desc->layers[0].planes[1].offset);
+ 
+-        if (in->top_field_first)
+-            ctx->field_order = V4L2_FIELD_INTERLACED_TB;
+-        else
+-            ctx->field_order = V4L2_FIELD_INTERLACED_BT;
+-
+-        ret = deint_v4l2m2m_set_format(output, ctx->field_order, ctx->width, ctx->height, ctx->orig_width, drm_desc->layers[0].planes[1].offset);
++        ret = deint_v4l2m2m_set_format(output, pixelformat, ctx->field_order, ctx->width, ctx->height, ctx->orig_width, drm_desc->layers[0].planes[1].offset);
+         if (ret)
+             return ret;
+ 
+-        ret = deint_v4l2m2m_set_format(capture, V4L2_FIELD_NONE, ctx->width, ctx->height, ctx->orig_width, drm_desc->layers[0].planes[1].offset);
++        ret = deint_v4l2m2m_set_format(capture, pixelformat, V4L2_FIELD_NONE, ctx->width, ctx->height, ctx->orig_width, drm_desc->layers[0].planes[1].offset);
+         if (ret)
+             return ret;
+ 
+@@ -1082,6 +1127,12 @@ static int deint_v4l2m2m_filter_frame(AVFilterLink *link, AVFrame *in)
+         ret = deint_v4l2m2m_streamon(output);
+         if (ret)
+             return ret;
++
++        if (in->top_field_first)
++            ctx->field_order = V4L2_FIELD_INTERLACED_TB;
++        else
++            ctx->field_order = V4L2_FIELD_INTERLACED_BT;
++
+     }
+ 
+     ret = deint_v4l2m2m_enqueue_frame(output, in);
+@@ -1157,28 +1208,31 @@ again:
+         return 0;
+     }
+ 
+-    {
++    recycle_q(&s->output);
++    n = count_enqueued(&s->output);
++
++    while (n < 6) {
+         AVFrame * frame;
+         int rv;
+ 
+-        recycle_q(&s->output);
+-        n = count_enqueued(&s->output);
++        if ((rv = ff_inlink_consume_frame(inlink, &frame)) < 0) {
++            av_log(priv, AV_LOG_ERROR, "%s: consume in failed: %s\n", __func__, av_err2str(rv));
++            return rv;
++        }
+ 
+-        while (n < 6) {
+-            if ((rv = ff_inlink_consume_frame(inlink, &frame)) < 0) {
+-                av_log(priv, AV_LOG_ERROR, "%s: consume in failed: %s\n", __func__, av_err2str(rv));
+-                return rv;
+-            }
++        if (frame == NULL) {
++            av_log(priv, AV_LOG_TRACE, "%s: No frame\n", __func__);
++            break;
++        }
+ 
+-            if (frame == NULL) {
+-                av_log(priv, AV_LOG_TRACE, "%s: No frame\n", __func__);
+-                break;
+-            }
++        rv = deint_v4l2m2m_filter_frame(inlink, frame);
++        av_frame_free(&frame);
+ 
+-            deint_v4l2m2m_filter_frame(inlink, frame);
+-            av_log(priv, AV_LOG_TRACE, "%s: Q frame\n", __func__);
+-            ++n;
+-        }
++        if (rv != 0)
++            return rv;
++
++        av_log(priv, AV_LOG_TRACE, "%s: Q frame\n", __func__);
++        ++n;
+     }
+ 
+     if (n < 6) {
+-- 
+2.37.2
+

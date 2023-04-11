@@ -1,0 +1,34 @@
+From 15415ab226f966fd12e70d79fde3cb80f3d09144 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Wed, 17 Nov 2021 16:49:01 +0000
+Subject: [PATCH 026/122] ffmpeg: Do not inc DTS on no decode output
+
+V4L2 H264 decode has long latency and sometimes spits out a long stream
+of output without input. In this case incrementing DTS is wrong. There
+may be cases where the condition as written is correct so only "fix" in
+the cases which cause problems
+---
+ fftools/ffmpeg.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/fftools/ffmpeg.c b/fftools/ffmpeg.c
+index 5dc2cd73c1..ba0c1898cf 100644
+--- a/fftools/ffmpeg.c
++++ b/fftools/ffmpeg.c
+@@ -2609,7 +2609,12 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt, int no_eo
+         case AVMEDIA_TYPE_VIDEO:
+             ret = decode_video    (ist, repeating ? NULL : avpkt, &got_output, &duration_pts, !pkt,
+                                    &decode_failed);
+-            if (!repeating || !pkt || got_output) {
++            // Pi: Do not inc dts if no_cvt_hw set
++            // V4L2 H264 decode has long latency and sometimes spits out a long
++            // stream of output without input. In this case incrementing DTS is wrong.
++            // There may be cases where the condition as written is correct so only
++            // "fix" in the cases which cause problems
++            if (!repeating || !pkt || (got_output && !no_cvt_hw)) {
+                 if (pkt && pkt->duration) {
+                     duration_dts = av_rescale_q(pkt->duration, ist->st->time_base, AV_TIME_BASE_Q);
+                 } else if(ist->dec_ctx->framerate.num != 0 && ist->dec_ctx->framerate.den != 0) {
+-- 
+2.37.2
+

@@ -1,0 +1,69 @@
+From 7f6bce459e683bff3a0b972922fbcc808e9177a6 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 10 Jun 2021 18:59:18 +0100
+Subject: [PATCH 018/122] Allow v4l2m2m to select non-drm_prime output formats
+
+---
+ libavcodec/v4l2_buffers.c |  2 +-
+ libavcodec/v4l2_m2m_dec.c | 14 ++++++++++----
+ 2 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/libavcodec/v4l2_buffers.c b/libavcodec/v4l2_buffers.c
+index a003934ca1..1ca1128db6 100644
+--- a/libavcodec/v4l2_buffers.c
++++ b/libavcodec/v4l2_buffers.c
+@@ -524,7 +524,7 @@ static int v4l2_buffer_swframe_to_buf(const AVFrame *frame, V4L2Buffer *out)
+                 offset += dst_stride * out->context->height;
+             }
+             if (offset > out->plane_info[0].length) {
+-                av_log(NULL, AV_LOG_ERROR, "%s: Plane total %d > buffer size %d\n", __func__, offset, out->plane_info[0].length);
++                av_log(NULL, AV_LOG_ERROR, "%s: Plane total %u > buffer size %zu\n", __func__, offset, out->plane_info[0].length);
+                 return -1;
+             }
+ 
+diff --git a/libavcodec/v4l2_m2m_dec.c b/libavcodec/v4l2_m2m_dec.c
+index 7f6033ac2c..a4b5a4e7e9 100644
+--- a/libavcodec/v4l2_m2m_dec.c
++++ b/libavcodec/v4l2_m2m_dec.c
+@@ -455,10 +455,10 @@ static av_cold int v4l2_decode_init(AVCodecContext *avctx)
+     V4L2Context *capture, *output;
+     V4L2m2mContext *s;
+     V4L2m2mPriv *priv = avctx->priv_data;
++    int gf_pix_fmt;
+     int ret;
+ 
+     av_log(avctx, AV_LOG_TRACE, "<<< %s\n", __func__);
+-    avctx->pix_fmt = AV_PIX_FMT_DRM_PRIME;
+ 
+     ret = ff_v4l2_m2m_create_context(priv, &s);
+     if (ret < 0)
+@@ -486,10 +486,15 @@ static av_cold int v4l2_decode_init(AVCodecContext *avctx)
+      *   - the DRM frame format is passed in the DRM frame descriptor layer.
+      *       check the v4l2_get_drm_frame function.
+      */
+-    switch (ff_get_format(avctx, avctx->codec->pix_fmts)) {
+-    default:
++
++    gf_pix_fmt = ff_get_format(avctx, avctx->codec->pix_fmts);
++    av_log(avctx, AV_LOG_DEBUG, "avctx requested=%d (%s); get_format requested=%d (%s)\n",
++           avctx->pix_fmt, av_get_pix_fmt_name(avctx->pix_fmt), gf_pix_fmt, av_get_pix_fmt_name(gf_pix_fmt));
++
++    s->output_drm = 0;
++    if (gf_pix_fmt == AV_PIX_FMT_DRM_PRIME || avctx->pix_fmt == AV_PIX_FMT_DRM_PRIME) {
++        avctx->pix_fmt = AV_PIX_FMT_DRM_PRIME;
+         s->output_drm = 1;
+-        break;
+     }
+ 
+     s->device_ref = av_hwdevice_ctx_alloc(AV_HWDEVICE_TYPE_DRM);
+@@ -607,6 +612,7 @@ static const AVCodecHWConfigInternal *v4l2_m2m_hw_configs[] = {
+         .p.wrapper_name = "v4l2m2m", \
+         .p.pix_fmts     = (const enum AVPixelFormat[]) { AV_PIX_FMT_DRM_PRIME, \
+                                                          AV_PIX_FMT_NV12, \
++                                                         AV_PIX_FMT_YUV420P, \
+                                                          AV_PIX_FMT_NONE}, \
+         .hw_configs     = v4l2_m2m_hw_configs, \
+     }
+-- 
+2.37.2
+

@@ -1,0 +1,31 @@
+From 70227ebbc2999bc49075a3b683392d94618ecd89 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Fri, 30 Sep 2022 14:20:23 +0000
+Subject: [PATCH 080/122] v4l2_request_hevc: Fix up
+ V4L2_CID_CODEC_STATELESS_BASE if missing
+
+---
+ libavcodec/hevc-ctrls-v4.h | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/libavcodec/hevc-ctrls-v4.h b/libavcodec/hevc-ctrls-v4.h
+index 7829d82084..c02fdbe5a8 100644
+--- a/libavcodec/hevc-ctrls-v4.h
++++ b/libavcodec/hevc-ctrls-v4.h
+@@ -53,6 +53,13 @@
+ #include <linux/const.h>
+ #include <linux/types.h>
+ 
++#ifndef V4L2_CTRL_CLASS_CODEC_STATELESS
++#define V4L2_CTRL_CLASS_CODEC_STATELESS 0x00a40000	/* Stateless codecs controls */
++#endif
++#ifndef V4L2_CID_CODEC_STATELESS_BASE
++#define V4L2_CID_CODEC_STATELESS_BASE		(V4L2_CTRL_CLASS_CODEC_STATELESS | 0x900)
++#endif
++
+ #define V4L2_PIX_FMT_HEVC_SLICE v4l2_fourcc('S', '2', '6', '5') /* HEVC parsed slices */
+ 
+ #define V4L2_CID_STATELESS_HEVC_SPS		(V4L2_CID_CODEC_STATELESS_BASE + 400)
+-- 
+2.37.2
+

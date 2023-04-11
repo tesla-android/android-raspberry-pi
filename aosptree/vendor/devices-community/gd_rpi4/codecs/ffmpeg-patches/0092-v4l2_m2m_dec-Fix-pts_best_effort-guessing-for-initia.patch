@@ -1,0 +1,27 @@
+From ced9a7d442a04be08fc23e0af310312299a5d5a0 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Wed, 19 Oct 2022 11:00:16 +0000
+Subject: [PATCH 092/122] v4l2_m2m_dec: Fix pts_best_effort guessing for
+ initial pts
+
+(cherry picked from commit 1af32e5c87586a0f7e76cdf19a012ddbcf3eac67)
+---
+ libavcodec/v4l2_m2m_dec.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/libavcodec/v4l2_m2m_dec.c b/libavcodec/v4l2_m2m_dec.c
+index bec9b22fcf..47b2735f82 100644
+--- a/libavcodec/v4l2_m2m_dec.c
++++ b/libavcodec/v4l2_m2m_dec.c
+@@ -113,6 +113,8 @@ log_dump(void * logctx, int lvl, const void * const data, const size_t len)
+ 
+ static int64_t pts_stats_guess(const pts_stats_t * const stats)
+ {
++    if (stats->last_count <= 1)
++        return stats->last_pts;
+     if (stats->last_pts == AV_NOPTS_VALUE ||
+             stats->last_interval == 0 ||
+             stats->last_count >= STATS_LAST_COUNT_MAX)
+-- 
+2.37.2
+

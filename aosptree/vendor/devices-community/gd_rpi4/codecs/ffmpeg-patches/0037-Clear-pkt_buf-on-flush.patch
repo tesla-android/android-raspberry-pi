@@ -1,0 +1,26 @@
+From b2fa4ab3d63924597b8c3659123b145a786a2c13 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 9 Dec 2021 12:01:25 +0000
+Subject: [PATCH 037/122] Clear pkt_buf on flush
+
+---
+ libavcodec/v4l2_m2m_dec.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/libavcodec/v4l2_m2m_dec.c b/libavcodec/v4l2_m2m_dec.c
+index 7e7e4729d0..09ec496351 100644
+--- a/libavcodec/v4l2_m2m_dec.c
++++ b/libavcodec/v4l2_m2m_dec.c
+@@ -715,6 +715,9 @@ static void v4l2_decode_flush(AVCodecContext *avctx)
+     if (ret < 0)
+         av_log(avctx, AV_LOG_ERROR, "VIDIOC_STREAMOFF %s error: %d\n", output->name, ret);
+ 
++    // Clear any buffered input packet
++    av_packet_unref(&s->buf_pkt);
++
+     // V4L2 makes no guarantees about whether decoded frames are flushed or not
+     // so mark all frames we are tracking to be discarded if they appear
+     xlat_flush(&s->xlat);
+-- 
+2.37.2
+

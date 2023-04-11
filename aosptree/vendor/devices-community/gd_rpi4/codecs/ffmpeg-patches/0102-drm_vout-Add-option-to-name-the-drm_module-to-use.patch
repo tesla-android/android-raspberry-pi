@@ -1,0 +1,55 @@
+From 0469d1fb132a0d55593611c56e83733efe58045b Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Mon, 12 Dec 2022 18:00:41 +0000
+Subject: [PATCH 102/122] drm_vout: Add option to name the drm_module to use
+
+---
+ libavdevice/drm_vout.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/libavdevice/drm_vout.c b/libavdevice/drm_vout.c
+index 351abf1d60..491e1dc608 100644
+--- a/libavdevice/drm_vout.c
++++ b/libavdevice/drm_vout.c
+@@ -70,7 +70,9 @@ typedef struct drm_display_env_s
+     uint32_t con_id;
+     struct drm_setup setup;
+     enum AVPixelFormat avfmt;
++
+     int show_all;
++    const char * drm_module;
+ 
+     unsigned int ano;
+     drm_aux_t aux[AUX_SIZE];
+@@ -569,7 +571,6 @@ static int drm_vout_init(struct AVFormatContext * s)
+ {
+     drm_display_env_t * const de = s->priv_data;
+     int rv;
+-    const char * drm_module = DRM_MODULE;
+ 
+     av_log(s, AV_LOG_DEBUG, "<<< %s\n", __func__);
+ 
+@@ -578,10 +579,10 @@ static int drm_vout_init(struct AVFormatContext * s)
+     de->setup = (struct drm_setup){0};
+     de->q_terminate = 0;
+ 
+-    if ((de->drm_fd = drmOpen(drm_module, NULL)) < 0)
++    if ((de->drm_fd = drmOpen(de->drm_module, NULL)) < 0)
+     {
+         rv = AVERROR(errno);
+-        av_log(s, AV_LOG_ERROR, "Failed to drmOpen %s: %s\n", drm_module, av_err2str(rv));
++        av_log(s, AV_LOG_ERROR, "Failed to drmOpen %s: %s\n", de->drm_module, av_err2str(rv));
+         return rv;
+     }
+ 
+@@ -641,6 +642,7 @@ static void drm_vout_deinit(struct AVFormatContext * s)
+ #define OFFSET(x) offsetof(drm_display_env_t, x)
+ static const AVOption options[] = {
+     { "show_all", "show all frames", OFFSET(show_all), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, AV_OPT_FLAG_ENCODING_PARAM },
++    { "drm_module", "drm_module name to use, default=" DRM_MODULE, OFFSET(drm_module), AV_OPT_TYPE_STRING, { .str = DRM_MODULE }, 0, 0, AV_OPT_FLAG_ENCODING_PARAM },
+     { NULL }
+ };
+ 
+-- 
+2.37.2
+

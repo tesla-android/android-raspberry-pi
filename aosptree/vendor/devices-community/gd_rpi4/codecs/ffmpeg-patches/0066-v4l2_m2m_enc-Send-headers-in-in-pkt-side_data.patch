@@ -1,0 +1,83 @@
+From 35ec6af32c4f05b076f84ab343a8fc0d3263ba44 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Mon, 12 Sep 2022 17:59:22 +0100
+Subject: [PATCH 066/122] v4l2_m2m_enc: Send headers in in pkt side_data
+
+If GLOBAL_HEADERS are requested then we can't provide them at init time
+so send as NEW_EXTRADATA side data in a similar way to some AV1
+encoders.
+---
+ libavcodec/v4l2_m2m_enc.c | 33 +++++++++++++++++++++++----------
+ 1 file changed, 23 insertions(+), 10 deletions(-)
+
+diff --git a/libavcodec/v4l2_m2m_enc.c b/libavcodec/v4l2_m2m_enc.c
+index 05ff6ba726..099ad23928 100644
+--- a/libavcodec/v4l2_m2m_enc.c
++++ b/libavcodec/v4l2_m2m_enc.c
+@@ -544,14 +544,12 @@ dequeue:
+         av_freep(&avctx->extradata);
+         avctx->extradata_size = 0;
+ 
+-        if ((data = av_malloc(len + AV_INPUT_BUFFER_PADDING_SIZE)) != NULL)
+-            memcpy(data, avpkt->data, len);
++        if ((data = av_malloc(len + AV_INPUT_BUFFER_PADDING_SIZE)) == NULL)
++            goto fail_no_mem;
+ 
++        memcpy(data, avpkt->data, len);
+         av_packet_unref(avpkt);
+ 
+-        if (data == NULL)
+-            return AVERROR(ENOMEM);
+-
+         // We need to copy the header, but keep local if not global
+         if ((avctx->flags & AV_CODEC_FLAG_GLOBAL_HEADER) != 0) {
+             avctx->extradata = data;
+@@ -567,18 +565,28 @@ dequeue:
+     }
+ 
+     // First frame must be key so mark as such even if encoder forgot
+-    if (capture->first_buf == 2)
++    if (capture->first_buf == 2) {
+         avpkt->flags |= AV_PKT_FLAG_KEY;
+ 
++        // Add any extradata to the 1st packet we emit as we cannot create it at init
++        if (avctx->extradata_size > 0 && avctx->extradata) {
++            void * const side = av_packet_new_side_data(avpkt,
++                                           AV_PKT_DATA_NEW_EXTRADATA,
++                                           avctx->extradata_size);
++            if (!side)
++                goto fail_no_mem;
++
++            memcpy(side, avctx->extradata, avctx->extradata_size);
++        }
++    }
++
+     // Add SPS/PPS to the start of every key frame if non-global headers
+     if ((avpkt->flags & AV_PKT_FLAG_KEY) != 0 && s->extdata_size != 0) {
+         const size_t newlen = s->extdata_size + avpkt->size;
+         AVBufferRef * const buf = av_buffer_alloc(newlen + AV_INPUT_BUFFER_PADDING_SIZE);
+ 
+-        if (buf == NULL) {
+-            av_packet_unref(avpkt);
+-            return AVERROR(ENOMEM);
+-        }
++        if (buf == NULL)
++            goto fail_no_mem;
+ 
+         memcpy(buf->data, s->extdata_data, s->extdata_size);
+         memcpy(buf->data + s->extdata_size, avpkt->data, avpkt->size);
+@@ -592,6 +600,11 @@ dequeue:
+ //    av_log(avctx, AV_LOG_INFO, "%s: PTS out=%"PRId64", size=%d, ret=%d\n", __func__, avpkt->pts, avpkt->size, ret);
+     capture->first_buf = 0;
+     return 0;
++
++fail_no_mem:
++    ret = AVERROR(ENOMEM);
++    av_packet_unref(avpkt);
++    return ret;
+ }
+ 
+ static av_cold int v4l2_encode_init(AVCodecContext *avctx)
+-- 
+2.37.2
+

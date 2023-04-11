@@ -1,0 +1,133 @@
+From 21a348ae3282318fa96d3a6e2c70f3d4b90a7d52 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Sun, 3 Jul 2022 13:40:41 +0000
+Subject: [PATCH 057/122] v4l2_req: Observe limit on size of slice_array
+
+This in fact provides some minor simplifications by combing the
+multi-slice and single-slice paths.
+
+(cherry picked from commit 7631e6d1a66fca9048605c214f3464c90d37932c)
+---
+ libavcodec/v4l2_req_hevc_vx.c  | 39 ++++++++++++++--------------------
+ libavcodec/v4l2_request_hevc.h |  5 +----
+ 2 files changed, 17 insertions(+), 27 deletions(-)
+
+diff --git a/libavcodec/v4l2_req_hevc_vx.c b/libavcodec/v4l2_req_hevc_vx.c
+index 761c5b2dc7..9d08d13d9e 100644
+--- a/libavcodec/v4l2_req_hevc_vx.c
++++ b/libavcodec/v4l2_req_hevc_vx.c
+@@ -840,18 +840,21 @@ static int v4l2_request_hevc_decode_slice(AVCodecContext *avctx, const uint8_t *
+     int bcount = get_bits_count(&h->HEVClc->gb);
+     uint32_t boff = (ptr_from_index(buffer, bcount/8 + 1) - (buffer + bcount/8 + 1)) * 8 + bcount;
+ 
++    const unsigned int n = rd->num_slices;
++    const unsigned int block_start = (n / ctx->max_slices) * ctx->max_slices;
++
+     int rv;
+     struct slice_info * si;
+ 
+     if ((rv = slice_add(rd)) != 0)
+         return rv;
+ 
+-    si = rd->slices + rd->num_slices - 1;
++    si = rd->slices + n;
+     si->ptr = buffer;
+     si->len = size;
+ 
+-    if (ctx->multi_slice && rd->num_slices > 1) {
+-        struct slice_info *const si0 = rd->slices;
++    if (n != block_start) {
++        struct slice_info *const si0 = rd->slices + block_start;
+         const size_t offset = (buffer - si0->ptr);
+         boff += offset * 8;
+         size += offset;
+@@ -859,11 +862,11 @@ static int v4l2_request_hevc_decode_slice(AVCodecContext *avctx, const uint8_t *
+     }
+ 
+ #if HEVC_CTRLS_VERSION >= 2
+-    if (rd->num_slices == 1)
++    if (n == 0)
+         fill_decode_params(h, &rd->dec);
+-    fill_slice_params(h, &rd->dec, rd->slice_params + rd->num_slices - 1, size * 8, boff);
++    fill_slice_params(h, &rd->dec, rd->slice_params + n, size * 8, boff);
+ #else
+-    fill_slice_params(h, rd->slice_params + rd->num_slices - 1, size * 8, boff);
++    fill_slice_params(h, rd->slice_params + n, size * 8, boff);
+ #endif
+ 
+     return 0;
+@@ -997,18 +1000,11 @@ static int v4l2_request_hevc_end_frame(AVCodecContext *avctx)
+     }
+ 
+     // Send as slices
+-    if (ctx->multi_slice)
+-    {
+-        if ((rv = send_slice(avctx, rd, &rc, 0, rd->num_slices)) != 0)
++    for (i = 0; i < rd->num_slices; i += ctx->max_slices) {
++        const unsigned int e = FFMIN(rd->num_slices, i + ctx->max_slices);
++        if ((rv = send_slice(avctx, rd, &rc, i, e)) != 0)
+             goto fail;
+     }
+-    else
+-    {
+-        for (i = 0; i != rd->num_slices; ++i) {
+-            if ((rv = send_slice(avctx, rd, &rc, i, i + 1)) != 0)
+-                goto fail;
+-        }
+-    }
+ 
+     // Set the drm_prime desriptor
+     drm_from_format(&rd->drm, mediabufs_dst_fmt(ctx->mbufs));
+@@ -1081,8 +1077,6 @@ probe(AVCodecContext * const avctx, V4L2RequestContextHEVC * const ctx)
+         return AVERROR(EINVAL);
+     }
+ 
+-    ctx->multi_slice = (qc[0].flags & V4L2_CTRL_FLAG_DYNAMIC_ARRAY) != 0;
+-    av_log(avctx, AV_LOG_INFO, "%s SPS muti-slice\n", ctx->multi_slice ? "Has" : "No");
+     return 0;
+ }
+ 
+@@ -1120,11 +1114,10 @@ set_controls(AVCodecContext * const avctx, V4L2RequestContextHEVC * const ctx)
+         return AVERROR(EINVAL);
+     }
+ 
+-    ctx->max_slices = querys[2].elems;
+-    if (ctx->max_slices > MAX_SLICES) {
+-        av_log(avctx, AV_LOG_ERROR, "%s: unsupported max slices, %d\n", __func__, ctx->max_slices);
+-        return AVERROR(EINVAL);
+-    }
++    ctx->max_slices = (!(querys[2].flags & V4L2_CTRL_FLAG_DYNAMIC_ARRAY) ||
++                       querys[2].nr_of_dims != 1 || querys[2].dims[0] == 0) ?
++        1 : querys[2].dims[0];
++    av_log(avctx, AV_LOG_DEBUG, "%s: Max slices %d\n", __func__, ctx->max_slices);
+ 
+     ctrls[0].value = ctx->decode_mode;
+     ctrls[1].value = ctx->start_code;
+diff --git a/libavcodec/v4l2_request_hevc.h b/libavcodec/v4l2_request_hevc.h
+index d4adb3f812..0029e23309 100644
+--- a/libavcodec/v4l2_request_hevc.h
++++ b/libavcodec/v4l2_request_hevc.h
+@@ -46,8 +46,6 @@
+ #define V4L2_CTRL_FLAG_DYNAMIC_ARRAY	0x0800
+ #endif
+ 
+-#define MAX_SLICES 128
+-
+ #define VCAT(name, version) name##_v##version
+ #define V2(n,v) VCAT(n, v)
+ #define V(n) V2(n, HEVC_CTRLS_VERSION)
+@@ -64,10 +62,9 @@ typedef struct V4L2RequestContextHEVC {
+ 
+     unsigned int timestamp;  // ?? maybe uint64_t
+ 
+-    int multi_slice;
+     int decode_mode;
+     int start_code;
+-    int max_slices;
++    unsigned int max_slices;
+ 
+     req_decode_q decode_q;
+ 
+-- 
+2.37.2
+

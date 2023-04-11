@@ -1,0 +1,36 @@
+From b1d37be81bbf683a0eb16923c9b9f045fd0ea0c0 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 22 Sep 2022 15:12:27 +0000
+Subject: [PATCH 073/122] vf_deinterlace_v4l2m2m: Add Q name to structure for
+ debug
+
+---
+ libavfilter/vf_deinterlace_v4l2m2m.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/libavfilter/vf_deinterlace_v4l2m2m.c b/libavfilter/vf_deinterlace_v4l2m2m.c
+index 2df39ec0f1..4edecc02bf 100644
+--- a/libavfilter/vf_deinterlace_v4l2m2m.c
++++ b/libavfilter/vf_deinterlace_v4l2m2m.c
+@@ -84,6 +84,7 @@ typedef struct V4L2Queue {
+     struct v4l2_selection sel;
+     int num_buffers;
+     V4L2Buffer *buffers;
++    const char * name;
+     DeintV4L2M2MContextShared *ctx;
+ } V4L2Queue;
+ 
+@@ -1792,8 +1793,10 @@ static av_cold int common_v4l2m2m_init(AVFilterContext * const avctx, const filt
+     ctx->fd = -1;
+     ctx->output.ctx = ctx;
+     ctx->output.num_buffers = 8;
++    ctx->output.name = "OUTPUT";
+     ctx->capture.ctx = ctx;
+     ctx->capture.num_buffers = 12;
++    ctx->capture.name = "CAPTURE";
+     ctx->done = 0;
+     ctx->field_order = V4L2_FIELD_ANY;
+ 
+-- 
+2.37.2
+

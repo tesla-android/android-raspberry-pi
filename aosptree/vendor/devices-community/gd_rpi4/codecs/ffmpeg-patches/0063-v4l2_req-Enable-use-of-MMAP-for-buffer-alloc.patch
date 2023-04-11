@@ -1,0 +1,734 @@
+From 3d07826bcf588ad0384d00b210415664aa4489fb Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Fri, 19 Aug 2022 15:29:11 +0000
+Subject: [PATCH 063/122] v4l2_req: Enable use of MMAP for buffer alloc
+
+Use MMAP rather than DMABUF if either the dmabuf device can't be opened
+or create_buf doesn't set the capability.
+---
+ libavcodec/v4l2_req_dmabufs.c  |  22 +++
+ libavcodec/v4l2_req_dmabufs.h  |   3 +
+ libavcodec/v4l2_req_media.c    | 263 ++++++++++++++++++++++++++++-----
+ libavcodec/v4l2_req_media.h    |  21 ++-
+ libavcodec/v4l2_request_hevc.c |  42 +++++-
+ 5 files changed, 307 insertions(+), 44 deletions(-)
+
+diff --git a/libavcodec/v4l2_req_dmabufs.c b/libavcodec/v4l2_req_dmabufs.c
+index ae6c648369..c4bbed18c6 100644
+--- a/libavcodec/v4l2_req_dmabufs.c
++++ b/libavcodec/v4l2_req_dmabufs.c
+@@ -36,6 +36,26 @@ static unsigned int total_bufs = 0;
+ static size_t total_size = 0;
+ #endif
+ 
++struct dmabuf_h * dmabuf_import_mmap(void * mapptr, size_t size)
++{
++    struct dmabuf_h *dh;
++
++    if (mapptr == MAP_FAILED)
++        return NULL;
++
++    dh = malloc(sizeof(*dh));
++    if (!dh)
++        return NULL;
++
++    *dh = (struct dmabuf_h) {
++        .fd = -1,
++        .size = size,
++        .mapptr = mapptr
++    };
++
++    return dh;
++}
++
+ struct dmabuf_h * dmabuf_import(int fd, size_t size)
+ {
+     struct dmabuf_h *dh;
+@@ -122,6 +142,8 @@ int dmabuf_sync(struct dmabuf_h * const dh, unsigned int flags)
+     struct dma_buf_sync sync = {
+         .flags = flags
+     };
++    if (dh->fd == -1)
++        return 0;
+     while (ioctl(dh->fd, DMA_BUF_IOCTL_SYNC, &sync) == -1) {
+         const int err = errno;
+         if (errno == EINTR)
+diff --git a/libavcodec/v4l2_req_dmabufs.h b/libavcodec/v4l2_req_dmabufs.h
+index cfb17e801d..c1d3d8c8d7 100644
+--- a/libavcodec/v4l2_req_dmabufs.h
++++ b/libavcodec/v4l2_req_dmabufs.h
+@@ -18,6 +18,9 @@ static inline struct dmabuf_h * dmabuf_alloc(struct dmabufs_ctl * dbsc, size_t s
+ }
+ /* Create from existing fd - dups(fd) */
+ struct dmabuf_h * dmabuf_import(int fd, size_t size);
++/* Import an MMAP - return NULL if mapptr = MAP_FAIL */
++struct dmabuf_h * dmabuf_import_mmap(void * mapptr, size_t size);
++
+ void * dmabuf_map(struct dmabuf_h * const dh);
+ 
+ /* flags from linux/dmabuf.h DMA_BUF_SYNC_xxx */
+diff --git a/libavcodec/v4l2_req_media.c b/libavcodec/v4l2_req_media.c
+index 980b306b8a..910ac77bb6 100644
+--- a/libavcodec/v4l2_req_media.c
++++ b/libavcodec/v4l2_req_media.c
+@@ -33,9 +33,11 @@
+ #include <string.h>
+ #include <unistd.h>
+ #include <linux/media.h>
++#include <linux/mman.h>
+ #include <sys/ioctl.h>
+ #include <sys/select.h>
+ #include <sys/ioctl.h>
++#include <sys/mman.h>
+ 
+ #include <linux/videodev2.h>
+ 
+@@ -95,6 +97,32 @@ struct media_request {
+     struct polltask * pt;
+ };
+ 
++static inline enum v4l2_memory
++mediabufs_memory_to_v4l2(const enum mediabufs_memory m)
++{
++    return (enum v4l2_memory)m;
++}
++
++const char *
++mediabufs_memory_name(const enum mediabufs_memory m)
++{
++    switch (m) {
++    case MEDIABUFS_MEMORY_UNSET:
++        return "Unset";
++    case MEDIABUFS_MEMORY_MMAP:
++        return "MMap";
++    case MEDIABUFS_MEMORY_USERPTR:
++        return "UserPtr";
++    case MEDIABUFS_MEMORY_OVERLAY:
++        return "Overlay";
++    case MEDIABUFS_MEMORY_DMABUF:
++        return "DMABuf";
++    default:
++        break;
++    }
++    return "Unknown";
++}
++
+ 
+ static inline int do_trywait(sem_t *const sem)
+ {
+@@ -115,14 +143,14 @@ static inline int do_wait(sem_t *const sem)
+ }
+ 
+ static int request_buffers(int video_fd, unsigned int type,
+-                           enum v4l2_memory memory, unsigned int buffers_count)
++                           enum mediabufs_memory memory, unsigned int buffers_count)
+ {
+     struct v4l2_requestbuffers buffers;
+     int rc;
+ 
+     memset(&buffers, 0, sizeof(buffers));
+     buffers.type = type;
+-    buffers.memory = memory;
++    buffers.memory = mediabufs_memory_to_v4l2(memory);
+     buffers.count = buffers_count;
+ 
+     rc = ioctl(video_fd, VIDIOC_REQBUFS, &buffers);
+@@ -324,6 +352,7 @@ struct qent_base {
+     struct qent_base *next;
+     struct qent_base *prev;
+     enum qent_status status;
++    enum mediabufs_memory memtype;
+     uint32_t index;
+     struct dmabuf_h *dh[VIDEO_MAX_PLANES];
+     struct timeval timestamp;
+@@ -348,9 +377,9 @@ struct qe_list_head {
+ };
+ 
+ struct buf_pool {
++    enum mediabufs_memory memtype;
+     pthread_mutex_t lock;
+     sem_t free_sem;
+-    enum v4l2_buf_type buf_type;
+     struct qe_list_head free;
+     struct qe_list_head inuse;
+ };
+@@ -367,9 +396,10 @@ static inline struct qent_src *base_to_src(struct qent_base *be)
+ }
+ 
+ 
+-#define QENT_BASE_INITIALIZER {\
++#define QENT_BASE_INITIALIZER(mtype) {\
+     .ref_count = ATOMIC_VAR_INIT(0),\
+     .status = QENT_NEW,\
++    .memtype = (mtype),\
+     .index  = INDEX_UNSET\
+ }
+ 
+@@ -390,13 +420,13 @@ static void qe_src_free(struct qent_src *const be_src)
+     free(be_src);
+ }
+ 
+-static struct qent_src * qe_src_new(void)
++static struct qent_src * qe_src_new(enum mediabufs_memory mtype)
+ {
+     struct qent_src *const be_src = malloc(sizeof(*be_src));
+     if (!be_src)
+         return NULL;
+     *be_src = (struct qent_src){
+-        .base = QENT_BASE_INITIALIZER
++        .base = QENT_BASE_INITIALIZER(mtype)
+     };
+     return be_src;
+ }
+@@ -413,13 +443,13 @@ static void qe_dst_free(struct qent_dst *const be_dst)
+     free(be_dst);
+ }
+ 
+-static struct qent_dst* qe_dst_new(struct ff_weak_link_master * const wl)
++static struct qent_dst* qe_dst_new(struct ff_weak_link_master * const wl, const enum mediabufs_memory memtype)
+ {
+     struct qent_dst *const be_dst = malloc(sizeof(*be_dst));
+     if (!be_dst)
+         return NULL;
+     *be_dst = (struct qent_dst){
+-        .base = QENT_BASE_INITIALIZER,
++        .base = QENT_BASE_INITIALIZER(memtype),
+         .lock = PTHREAD_MUTEX_INITIALIZER,
+         .cond = PTHREAD_COND_INITIALIZER,
+         .mbc_wl = ff_weak_link_ref(wl)
+@@ -553,14 +583,14 @@ static struct qent_base *queue_tryget_free(struct buf_pool *const bp)
+     return buf;
+ }
+ 
+-static struct qent_base * queue_find_extract_fd(struct buf_pool *const bp, const int fd)
++static struct qent_base * queue_find_extract_index(struct buf_pool *const bp, const unsigned int index)
+ {
+     struct qent_base *be;
+ 
+     pthread_mutex_lock(&bp->lock);
+     /* Expect 1st in Q, but allow anywhere */
+     for (be = bp->inuse.head; be; be = be->next) {
+-        if (dmabuf_fd(be->dh[0]) == fd) {
++        if (be->index == index) {
+             bq_extract_inuse(bp, be);
+             break;
+         }
+@@ -602,6 +632,8 @@ struct mediabufs_ctl {
+     struct pollqueue * pq;
+     struct ff_weak_link_master * this_wlm;
+ 
++    enum mediabufs_memory src_memtype;
++    enum mediabufs_memory dst_memtype;
+     struct v4l2_format src_fmt;
+     struct v4l2_format dst_fmt;
+     struct v4l2_capability capability;
+@@ -614,7 +646,7 @@ static int qe_v4l2_queue(struct qent_base *const be,
+ {
+     struct v4l2_buffer buffer = {
+         .type = fmt->type,
+-        .memory = V4L2_MEMORY_DMABUF,
++        .memory = mediabufs_memory_to_v4l2(be->memtype),
+         .index = be->index
+     };
+     struct v4l2_plane planes[VIDEO_MAX_PLANES] = {{0}};
+@@ -628,7 +660,10 @@ static int qe_v4l2_queue(struct qent_base *const be,
+             /* *** Really need a pixdesc rather than a format so we can fill in data_offset */
+             planes[i].length = dmabuf_size(be->dh[i]);
+             planes[i].bytesused = dmabuf_len(be->dh[i]);
+-            planes[i].m.fd = dmabuf_fd(be->dh[i]);
++            if (be->memtype == MEDIABUFS_MEMORY_DMABUF)
++                planes[i].m.fd = dmabuf_fd(be->dh[i]);
++            else
++                planes[i].m.mem_offset = 0;
+         }
+         buffer.m.planes = planes;
+         buffer.length = i;
+@@ -639,7 +674,10 @@ static int qe_v4l2_queue(struct qent_base *const be,
+ 
+         buffer.bytesused = dmabuf_len(be->dh[0]);
+         buffer.length = dmabuf_size(be->dh[0]);
+-        buffer.m.fd = dmabuf_fd(be->dh[0]);
++        if (be->memtype == MEDIABUFS_MEMORY_DMABUF)
++            buffer.m.fd = dmabuf_fd(be->dh[0]);
++        else
++            buffer.m.offset = 0;
+     }
+ 
+     if (!is_dst && mreq) {
+@@ -668,14 +706,13 @@ static struct qent_base * qe_dequeue(struct buf_pool *const bp,
+                      const int vfd,
+                      const struct v4l2_format * const f)
+ {
+-    int fd;
+     struct qent_base *be;
+     int rc;
+     const bool mp = V4L2_TYPE_IS_MULTIPLANAR(f->type);
+     struct v4l2_plane planes[VIDEO_MAX_PLANES] = {{0}};
+     struct v4l2_buffer buffer = {
+         .type =  f->type,
+-        .memory = V4L2_MEMORY_DMABUF
++        .memory = mediabufs_memory_to_v4l2(bp->memtype)
+     };
+     if (mp) {
+         buffer.length = f->fmt.pix_mp.num_planes;
+@@ -690,10 +727,9 @@ static struct qent_base * qe_dequeue(struct buf_pool *const bp,
+         return NULL;
+     }
+ 
+-    fd = mp ? planes[0].m.fd : buffer.m.fd;
+-    be = queue_find_extract_fd(bp, fd);
++    be = queue_find_extract_index(bp, buffer.index);
+     if (!be) {
+-        request_log("Failed to find fd %d in Q\n", fd);
++        request_log("Failed to find index %d in Q\n", buffer.index);
+         return NULL;
+     }
+ 
+@@ -1104,7 +1140,7 @@ static int create_dst_bufs(struct mediabufs_ctl *const mbc, unsigned int n, stru
+ 
+     struct v4l2_create_buffers cbuf = {
+         .count = n,
+-        .memory = V4L2_MEMORY_DMABUF,
++        .memory = mediabufs_memory_to_v4l2(mbc->dst->memtype),
+         .format = mbc->dst_fmt,
+     };
+ 
+@@ -1125,12 +1161,97 @@ static int create_dst_bufs(struct mediabufs_ctl *const mbc, unsigned int n, stru
+     return cbuf.count;
+ }
+ 
++static MediaBufsStatus
++qe_import_from_buf(struct mediabufs_ctl *const mbc, struct qent_base * const be, const struct v4l2_format *const fmt,
++                   const unsigned int n, const bool x_dmabuf)
++{
++    struct v4l2_buffer buf = {
++        .index = n,
++        .type = fmt->type,
++    };
++    struct v4l2_plane planes[VIDEO_MAX_PLANES];
++    int ret;
++
++    if (be->dh[0])
++        return 0;
++
++    if (V4L2_TYPE_IS_MULTIPLANAR(fmt->type)) {
++        memset(planes, 0, sizeof(planes));
++        buf.m.planes = planes;
++        buf.length = VIDEO_MAX_PLANES;
++    }
++
++    if ((ret = ioctl(mbc->vfd, VIDIOC_QUERYBUF, &buf)) != 0) {
++        request_err(mbc->dc, "VIDIOC_QUERYBUF failed");
++        return MEDIABUFS_ERROR_OPERATION_FAILED;
++    }
++
++    if (V4L2_TYPE_IS_MULTIPLANAR(fmt->type))
++    {
++        unsigned int i;
++        for (i = 0; i != buf.length; ++i) {
++            if (x_dmabuf) {
++                struct v4l2_exportbuffer xbuf = {
++                    .type = buf.type,
++                    .index = buf.index,
++                    .plane = i,
++                    .flags = O_RDWR, // *** Arguably O_RDONLY would be fine
++                };
++                if (ioctl(mbc->vfd, VIDIOC_EXPBUF, &xbuf) == 0)
++                    be->dh[i] = dmabuf_import(xbuf.fd, planes[i].length);
++            }
++            else {
++                be->dh[i] = dmabuf_import_mmap(
++                    mmap(NULL, planes[i].length,
++                        PROT_READ | PROT_WRITE,
++                        MAP_SHARED | MAP_POPULATE,
++                        mbc->vfd, planes[i].m.mem_offset),
++                    planes[i].length);
++            }
++            /* On failure tidy up and die */
++            if (!be->dh[i]) {
++                while (i--) {
++                    dmabuf_free(be->dh[i]);
++                    be->dh[i] = NULL;
++                }
++                return MEDIABUFS_ERROR_OPERATION_FAILED;
++            }
++        }
++    }
++    else
++    {
++        if (x_dmabuf) {
++            struct v4l2_exportbuffer xbuf = {
++                .type = buf.type,
++                .index = buf.index,
++                .flags = O_RDWR, // *** Arguably O_RDONLY would be fine
++            };
++            if (ioctl(mbc->vfd, VIDIOC_EXPBUF, &xbuf) == 0)
++                be->dh[0] = dmabuf_import(xbuf.fd, buf.length);
++        }
++        else {
++            be->dh[0] = dmabuf_import_mmap(
++                mmap(NULL, buf.length,
++                    PROT_READ | PROT_WRITE,
++                    MAP_SHARED | MAP_POPULATE,
++                    mbc->vfd, buf.m.offset),
++                buf.length);
++        }
++        /* On failure tidy up and die */
++        if (!be->dh[0]) {
++            return MEDIABUFS_ERROR_OPERATION_FAILED;
++        }
++    }
++
++    return 0;
++}
++
+ struct qent_dst* mediabufs_dst_qent_alloc(struct mediabufs_ctl *const mbc, struct dmabufs_ctl *const dbsc)
+ {
+     struct qent_dst * be_dst;
+ 
+     if (mbc == NULL) {
+-        be_dst = qe_dst_new(NULL);
++        be_dst = qe_dst_new(NULL, MEDIABUFS_MEMORY_DMABUF);
+         if (be_dst)
+             be_dst->base.status = QENT_IMPORT;
+         return be_dst;
+@@ -1144,7 +1265,7 @@ struct qent_dst* mediabufs_dst_qent_alloc(struct mediabufs_ctl *const mbc, struc
+     else {
+         be_dst = base_to_dst(queue_tryget_free(mbc->dst));
+         if (!be_dst) {
+-            be_dst = qe_dst_new(mbc->this_wlm);
++            be_dst = qe_dst_new(mbc->this_wlm, mbc->dst->memtype);
+             if (!be_dst)
+                 return NULL;
+ 
+@@ -1155,12 +1276,21 @@ struct qent_dst* mediabufs_dst_qent_alloc(struct mediabufs_ctl *const mbc, struc
+         }
+     }
+ 
+-    if (qe_alloc_from_fmt(&be_dst->base, dbsc, &mbc->dst_fmt)) {
+-        /* Given  how create buf works we can't uncreate it on alloc failure
+-         * all we can do is put it on the free Q
+-        */
+-        queue_put_free(mbc->dst, &be_dst->base);
+-        return NULL;
++    if (mbc->dst->memtype == MEDIABUFS_MEMORY_MMAP) {
++        if (qe_import_from_buf(mbc, &be_dst->base, &mbc->dst_fmt, be_dst->base.index, true)) {
++            request_err(mbc->dc, "Failed to export as dmabuf\n");
++            queue_put_free(mbc->dst, &be_dst->base);
++            return NULL;
++        }
++    }
++    else {
++        if (qe_alloc_from_fmt(&be_dst->base, dbsc, &mbc->dst_fmt)) {
++            /* Given  how create buf works we can't uncreate it on alloc failure
++             * all we can do is put it on the free Q
++            */
++            queue_put_free(mbc->dst, &be_dst->base);
++            return NULL;
++        }
+     }
+ 
+     be_dst->base.status = QENT_PENDING;
+@@ -1208,7 +1338,7 @@ MediaBufsStatus mediabufs_dst_fmt_set(struct mediabufs_ctl *const mbc,
+ 
+ // ** This is a mess if we get partial alloc but without any way to remove
+ //    individual V4L2 Q members we are somewhat stuffed
+-MediaBufsStatus mediabufs_dst_slots_create(struct mediabufs_ctl *const mbc, const unsigned int n, const bool fixed)
++MediaBufsStatus mediabufs_dst_slots_create(struct mediabufs_ctl *const mbc, const unsigned int n, const bool fixed, const enum mediabufs_memory memtype)
+ {
+     unsigned int i;
+     int a = 0;
+@@ -1218,10 +1348,12 @@ MediaBufsStatus mediabufs_dst_slots_create(struct mediabufs_ctl *const mbc, cons
+     if (n > 32)
+         return MEDIABUFS_ERROR_ALLOCATION_FAILED;
+ 
++    mbc->dst->memtype = memtype;
++
+     // Create qents first as it is hard to get rid of the V4L2 buffers on error
+     for (qc = 0; qc != n; ++qc)
+     {
+-        if ((qes[qc] = qe_dst_new(mbc->this_wlm)) == NULL)
++        if ((qes[qc] = qe_dst_new(mbc->this_wlm, mbc->dst->memtype)) == NULL)
+             goto fail;
+     }
+ 
+@@ -1260,19 +1392,61 @@ void mediabufs_src_qent_abort(struct mediabufs_ctl *const mbc, struct qent_src *
+     queue_put_free(mbc->src, &qe_src->base);
+ }
+ 
++static MediaBufsStatus
++chk_memory_type(struct mediabufs_ctl *const mbc,
++    const struct v4l2_format * const f,
++    const enum mediabufs_memory m)
++{
++    struct v4l2_create_buffers cbuf = {
++        .count = 0,
++        .memory = V4L2_MEMORY_MMAP,
++        .format = *f
++    };
++
++    if (ioctl(mbc->vfd, VIDIOC_CREATE_BUFS, &cbuf) != 0)
++        return MEDIABUFS_ERROR_OPERATION_FAILED;
++
++    switch (m) {
++    case MEDIABUFS_MEMORY_DMABUF:
++        // 0 = Unknown but assume not in that case
++        if ((cbuf.capabilities & V4L2_BUF_CAP_SUPPORTS_DMABUF) == 0)
++            return MEDIABUFS_ERROR_UNSUPPORTED_MEMORY;
++        break;
++    case MEDIABUFS_MEMORY_MMAP:
++        break;
++    default:
++        return MEDIABUFS_ERROR_UNSUPPORTED_MEMORY;
++    }
++
++    return MEDIABUFS_STATUS_SUCCESS;
++}
++
++MediaBufsStatus
++mediabufs_src_chk_memtype(struct mediabufs_ctl *const mbc, const enum mediabufs_memory memtype)
++{
++    return chk_memory_type(mbc, &mbc->src_fmt, memtype);
++}
++
++MediaBufsStatus
++mediabufs_dst_chk_memtype(struct mediabufs_ctl *const mbc, const enum mediabufs_memory memtype)
++{
++    return chk_memory_type(mbc, &mbc->dst_fmt, memtype);
++}
++
+ /* src format must have been set up before this */
+ MediaBufsStatus mediabufs_src_pool_create(struct mediabufs_ctl *const mbc,
+                   struct dmabufs_ctl * const dbsc,
+-                  unsigned int n)
++                  unsigned int n, const enum mediabufs_memory memtype)
+ {
+     unsigned int i;
+     struct v4l2_requestbuffers req = {
+         .count = n,
+         .type = mbc->src_fmt.type,
+-        .memory = V4L2_MEMORY_DMABUF
++        .memory = mediabufs_memory_to_v4l2(memtype)
+     };
+ 
+     bq_free_all_free_src(mbc->src);
++
+     while (ioctl(mbc->vfd, VIDIOC_REQBUFS, &req) == -1) {
+         if (errno != EINTR) {
+             request_err(mbc->dc, "%s: Failed to request src bufs\n", __func__);
+@@ -1286,21 +1460,36 @@ MediaBufsStatus mediabufs_src_pool_create(struct mediabufs_ctl *const mbc,
+     }
+ 
+     for (i = 0; i != n; ++i) {
+-        struct qent_src *const be_src = qe_src_new();
++        struct qent_src *const be_src = qe_src_new(memtype);
+         if (!be_src) {
+             request_err(mbc->dc, "Failed to create src be %d\n", i);
+             goto fail;
+         }
+-        if (qe_alloc_from_fmt(&be_src->base, dbsc, &mbc->src_fmt)) {
+-            qe_src_free(be_src);
++        switch (memtype) {
++        case MEDIABUFS_MEMORY_MMAP:
++            if (qe_import_from_buf(mbc, &be_src->base, &mbc->src_fmt, i, false)) {
++                qe_src_free(be_src);
++                goto fail;
++            }
++            be_src->fixed_size = 1;
++            break;
++        case MEDIABUFS_MEMORY_DMABUF:
++            if (qe_alloc_from_fmt(&be_src->base, dbsc, &mbc->src_fmt)) {
++                qe_src_free(be_src);
++                goto fail;
++            }
++            be_src->fixed_size = !mediabufs_src_resizable(mbc);
++            break;
++        default:
++            request_err(mbc->dc, "Unexpected memorty type\n");
+             goto fail;
+         }
+         be_src->base.index = i;
+-        be_src->fixed_size = !mediabufs_src_resizable(mbc);
+ 
+         queue_put_free(mbc->src, &be_src->base);
+     }
+ 
++    mbc->src->memtype = memtype;
+     return MEDIABUFS_STATUS_SUCCESS;
+ 
+ fail:
+@@ -1437,9 +1626,13 @@ int mediabufs_ctl_query_ext_ctrls(struct mediabufs_ctl * mbc, struct v4l2_query_
+ 
+ int mediabufs_src_resizable(const struct mediabufs_ctl *const mbc)
+ {
++#if 1
++    return 0;
++#else
+     // Single planar OUTPUT can only take exact size buffers
+     // Multiplanar will take larger than negotiated
+     return V4L2_TYPE_IS_MULTIPLANAR(mbc->src_fmt.type);
++#endif
+ }
+ 
+ static void mediabufs_ctl_delete(struct mediabufs_ctl *const mbc)
+diff --git a/libavcodec/v4l2_req_media.h b/libavcodec/v4l2_req_media.h
+index 0307a831de..890947b2e2 100644
+--- a/libavcodec/v4l2_req_media.h
++++ b/libavcodec/v4l2_req_media.h
+@@ -43,6 +43,7 @@ typedef enum media_buf_status {
+     MEDIABUFS_ERROR_UNSUPPORTED_BUFFERTYPE,
+     MEDIABUFS_ERROR_UNSUPPORTED_RT_FORMAT,
+     MEDIABUFS_ERROR_ALLOCATION_FAILED,
++    MEDIABUFS_ERROR_UNSUPPORTED_MEMORY,
+ } MediaBufsStatus;
+ 
+ struct media_pool * media_pool_new(const char * const media_path,
+@@ -70,6 +71,15 @@ struct qent_dst;
+ struct dmabuf_h;
+ struct dmabufs_ctl;
+ 
++// 1-1 mammping to V4L2 type - just defined separetely to avoid some include versioning difficulties
++enum mediabufs_memory {
++   MEDIABUFS_MEMORY_UNSET            = 0,
++   MEDIABUFS_MEMORY_MMAP             = 1,
++   MEDIABUFS_MEMORY_USERPTR          = 2,
++   MEDIABUFS_MEMORY_OVERLAY          = 3,
++   MEDIABUFS_MEMORY_DMABUF           = 4,
++};
++
+ int qent_src_params_set(struct qent_src *const be, const struct timeval * timestamp);
+ struct timeval qent_dst_timestamp_get(const struct qent_dst *const be_dst);
+ 
+@@ -93,6 +103,8 @@ MediaBufsStatus qent_dst_import_fd(struct qent_dst *const be_dst,
+                 unsigned int plane,
+                 int fd, size_t size);
+ 
++const char * mediabufs_memory_name(const enum mediabufs_memory m);
++
+ MediaBufsStatus mediabufs_start_request(struct mediabufs_ctl *const mbc,
+                 struct media_request **const pmreq,
+                 struct qent_src **const psrc_be,
+@@ -106,7 +118,7 @@ struct qent_dst* mediabufs_dst_qent_alloc(struct mediabufs_ctl *const mbc,
+ // Create dst slots without alloc
+ // If fixed true then qent_alloc will only get slots from this pool and will
+ // block until a qent has been unrefed
+-MediaBufsStatus mediabufs_dst_slots_create(struct mediabufs_ctl *const mbc, const unsigned int n, const bool fixed);
++MediaBufsStatus mediabufs_dst_slots_create(struct mediabufs_ctl *const mbc, const unsigned int n, const bool fixed, const enum mediabufs_memory memtype);
+ 
+ MediaBufsStatus mediabufs_stream_on(struct mediabufs_ctl *const mbc);
+ MediaBufsStatus mediabufs_stream_off(struct mediabufs_ctl *const mbc);
+@@ -140,7 +152,12 @@ MediaBufsStatus mediabufs_src_fmt_set(struct mediabufs_ctl *const mbc,
+ 
+ MediaBufsStatus mediabufs_src_pool_create(struct mediabufs_ctl *const rw,
+                   struct dmabufs_ctl * const dbsc,
+-                  unsigned int n);
++                  unsigned int n,
++                  const enum mediabufs_memory memtype);
++
++// Want to have appropriate formats set first
++MediaBufsStatus mediabufs_src_chk_memtype(struct mediabufs_ctl *const mbc, const enum mediabufs_memory memtype);
++MediaBufsStatus mediabufs_dst_chk_memtype(struct mediabufs_ctl *const mbc, const enum mediabufs_memory memtype);
+ 
+ #define MEDIABUFS_DRIVER_VERSION(a, b, c) (((a) << 16) | ((b) << 8) | (c))
+ unsigned int mediabufs_ctl_driver_version(struct mediabufs_ctl *const mbc);
+diff --git a/libavcodec/v4l2_request_hevc.c b/libavcodec/v4l2_request_hevc.c
+index cd79aad563..5cf17dd5e3 100644
+--- a/libavcodec/v4l2_request_hevc.c
++++ b/libavcodec/v4l2_request_hevc.c
+@@ -144,6 +144,8 @@ static int v4l2_request_hevc_init(AVCodecContext *avctx)
+     const struct decdev * decdev;
+     const uint32_t src_pix_fmt = V2(ff_v4l2_req_hevc, 1).src_pix_fmt_v4l2;  // Assuming constant for all APIs but avoiding V4L2 includes
+     size_t src_size;
++    enum mediabufs_memory src_memtype;
++    enum mediabufs_memory dst_memtype;
+ 
+     av_log(avctx, AV_LOG_DEBUG, "<<< %s\n", __func__);
+ 
+@@ -174,8 +176,14 @@ static int v4l2_request_hevc_init(AVCodecContext *avctx)
+            decdev_media_path(decdev), decdev_video_path(decdev));
+ 
+     if ((ctx->dbufs = dmabufs_ctl_new()) == NULL) {
+-        av_log(avctx, AV_LOG_ERROR, "Unable to open dmabufs\n");
+-        goto fail0;
++        av_log(avctx, AV_LOG_DEBUG, "Unable to open dmabufs - try mmap buffers\n");
++        src_memtype = MEDIABUFS_MEMORY_MMAP;
++        dst_memtype = MEDIABUFS_MEMORY_MMAP;
++    }
++    else {
++        av_log(avctx, AV_LOG_DEBUG, "Dmabufs opened - try dmabuf buffers\n");
++        src_memtype = MEDIABUFS_MEMORY_DMABUF;
++        dst_memtype = MEDIABUFS_MEMORY_DMABUF;
+     }
+ 
+     if ((ctx->pq = pollqueue_new()) == NULL) {
+@@ -196,8 +204,9 @@ static int v4l2_request_hevc_init(AVCodecContext *avctx)
+     // Ask for an initial bitbuf size of max size / 4
+     // We will realloc if we need more
+     // Must use sps->h/w as avctx contains cropped size
++retry_src_memtype:
+     src_size = bit_buf_size(sps->width, sps->height, sps->bit_depth - 8);
+-    if (mediabufs_src_resizable(ctx->mbufs))
++    if (src_memtype == MEDIABUFS_MEMORY_DMABUF && mediabufs_src_resizable(ctx->mbufs))
+         src_size /= 4;
+     // Kludge for conformance tests which break Annex A limits
+     else if (src_size < 0x40000)
+@@ -210,6 +219,15 @@ static int v4l2_request_hevc_init(AVCodecContext *avctx)
+         goto fail4;
+     }
+ 
++    if (mediabufs_src_chk_memtype(ctx->mbufs, src_memtype)) {
++        if (src_memtype == MEDIABUFS_MEMORY_DMABUF) {
++            src_memtype = MEDIABUFS_MEMORY_MMAP;
++            goto retry_src_memtype;
++        }
++        av_log(avctx, AV_LOG_ERROR, "Failed to get src memory type\n");
++        goto fail4;
++    }
++
+     if (V2(ff_v4l2_req_hevc, 4).probe(avctx, ctx) == 0) {
+         av_log(avctx, AV_LOG_DEBUG, "HEVC API version 4 probed successfully\n");
+         ctx->fns = &V2(ff_v4l2_req_hevc, 4);
+@@ -238,7 +256,7 @@ static int v4l2_request_hevc_init(AVCodecContext *avctx)
+         goto fail4;
+     }
+ 
+-    if (mediabufs_src_pool_create(ctx->mbufs, ctx->dbufs, 6)) {
++    if (mediabufs_src_pool_create(ctx->mbufs, ctx->dbufs, 6, src_memtype)) {
+         av_log(avctx, AV_LOG_ERROR, "Failed to create source pool\n");
+         goto fail4;
+     }
+@@ -250,8 +268,17 @@ static int v4l2_request_hevc_init(AVCodecContext *avctx)
+                sps->temporal_layer[sps->max_sub_layers - 1].max_dec_pic_buffering,
+                avctx->thread_count, avctx->extra_hw_frames);
+ 
++        if (mediabufs_dst_chk_memtype(ctx->mbufs, dst_memtype)) {
++            if (dst_memtype != MEDIABUFS_MEMORY_DMABUF) {
++                av_log(avctx, AV_LOG_ERROR, "Failed to get dst memory type\n");
++                goto fail4;
++            }
++            av_log(avctx, AV_LOG_DEBUG, "Dst DMABUF not supported - trying mmap\n");
++            dst_memtype = MEDIABUFS_MEMORY_MMAP;
++        }
++
+         // extra_hw_frames is -1 if unset
+-        if (mediabufs_dst_slots_create(ctx->mbufs, dst_slots, (avctx->extra_hw_frames > 0))) {
++        if (mediabufs_dst_slots_create(ctx->mbufs, dst_slots, (avctx->extra_hw_frames > 0), dst_memtype)) {
+             av_log(avctx, AV_LOG_ERROR, "Failed to create destination slots\n");
+             goto fail4;
+         }
+@@ -277,9 +304,10 @@ static int v4l2_request_hevc_init(AVCodecContext *avctx)
+     // Set our s/w format
+     avctx->sw_pix_fmt = ((AVHWFramesContext *)avctx->hw_frames_ctx->data)->sw_format;
+ 
+-    av_log(avctx, AV_LOG_INFO, "Hwaccel %s; devices: %s,%s\n",
++    av_log(avctx, AV_LOG_INFO, "Hwaccel %s; devices: %s,%s; buffers: src %s, dst %s\n",
+            ctx->fns->name,
+-           decdev_media_path(decdev), decdev_video_path(decdev));
++           decdev_media_path(decdev), decdev_video_path(decdev),
++           mediabufs_memory_name(src_memtype), mediabufs_memory_name(dst_memtype));
+ 
+     return 0;
+ 
+-- 
+2.37.2
+

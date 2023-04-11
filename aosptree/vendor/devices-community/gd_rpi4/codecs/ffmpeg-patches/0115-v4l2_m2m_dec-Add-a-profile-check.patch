@@ -1,0 +1,159 @@
+From a63ae21e74ae48f1aedac53c18142b7596d041ad Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Mon, 30 Jan 2023 17:23:12 +0000
+Subject: [PATCH 115/122] v4l2_m2m_dec: Add a profile check
+
+Check the profile in avctx aginst what the v4l2 driver advertises. If
+the driver doesn't support the check then just accept anything.
+
+(cherry picked from commit 6dd83dead9ebce419fdea152db0c9f5e9a94e9ef)
+---
+ libavcodec/v4l2_m2m_dec.c | 125 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 125 insertions(+)
+
+diff --git a/libavcodec/v4l2_m2m_dec.c b/libavcodec/v4l2_m2m_dec.c
+index c8ab883d7e..098adf4821 100644
+--- a/libavcodec/v4l2_m2m_dec.c
++++ b/libavcodec/v4l2_m2m_dec.c
+@@ -715,6 +715,127 @@ static int v4l2_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+ }
+ #endif
+ 
++static uint32_t
++avprofile_to_v4l2(const enum AVCodecID codec_id, const int avprofile)
++{
++    switch (codec_id) {
++        case AV_CODEC_ID_H264:
++            switch (avprofile) {
++                case FF_PROFILE_H264_BASELINE:
++                    return V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE;
++                case FF_PROFILE_H264_CONSTRAINED_BASELINE:
++                    return V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_BASELINE;
++                case FF_PROFILE_H264_MAIN:
++                    return V4L2_MPEG_VIDEO_H264_PROFILE_MAIN;
++                case FF_PROFILE_H264_EXTENDED:
++                    return V4L2_MPEG_VIDEO_H264_PROFILE_EXTENDED;
++                case FF_PROFILE_H264_HIGH:
++                    return V4L2_MPEG_VIDEO_H264_PROFILE_HIGH;
++                case FF_PROFILE_H264_HIGH_10:
++                    return V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_10;
++                case FF_PROFILE_H264_HIGH_10_INTRA:
++                    return V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_10_INTRA;
++                case FF_PROFILE_H264_MULTIVIEW_HIGH:
++                case FF_PROFILE_H264_HIGH_422:
++                    return V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_422;
++                case FF_PROFILE_H264_HIGH_422_INTRA:
++                    return V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_422_INTRA;
++                case FF_PROFILE_H264_STEREO_HIGH:
++                    return V4L2_MPEG_VIDEO_H264_PROFILE_STEREO_HIGH;
++                case FF_PROFILE_H264_HIGH_444_PREDICTIVE:
++                    return V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_444_PREDICTIVE;
++                case FF_PROFILE_H264_HIGH_444_INTRA:
++                    return V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_444_INTRA;
++                case FF_PROFILE_H264_CAVLC_444:
++                    return V4L2_MPEG_VIDEO_H264_PROFILE_CAVLC_444_INTRA;
++                case FF_PROFILE_H264_HIGH_444:
++                default:
++                    break;
++//                    V4L2_MPEG_VIDEO_H264_PROFILE_SCALABLE_BASELINE		= 12,
++//                    V4L2_MPEG_VIDEO_H264_PROFILE_SCALABLE_HIGH		= 13,
++//                    V4L2_MPEG_VIDEO_H264_PROFILE_SCALABLE_HIGH_INTRA	= 14,
++//                    V4L2_MPEG_VIDEO_H264_PROFILE_MULTIVIEW_HIGH		= 16,
++//                    V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_HIGH		= 17,
++            }
++            break;
++        case AV_CODEC_ID_MPEG2VIDEO:
++        case AV_CODEC_ID_MPEG4:
++        case AV_CODEC_ID_VC1:
++        case AV_CODEC_ID_VP8:
++        case AV_CODEC_ID_VP9:
++        case AV_CODEC_ID_AV1:
++            // Most profiles are a simple number that matches the V4L2 enum
++            return avprofile;
++        default:
++            break;
++    }
++    return ~(uint32_t)0;
++}
++
++// This check mirrors Chrome's profile check by testing to see if the profile
++// exists as a possible value for the V4L2 profile control
++static int
++check_profile(AVCodecContext *const avctx, V4L2m2mContext *const s)
++{
++    struct v4l2_queryctrl query_ctrl;
++    struct v4l2_querymenu query_menu;
++    uint32_t profile_id;
++
++    // An unset profile is almost certainly zero or -99 - do not reject
++    if (avctx->profile <= 0) {
++        av_log(avctx, AV_LOG_VERBOSE, "Profile <= 0 - check skipped\n");
++        return 0;
++    }
++
++    memset(&query_ctrl, 0, sizeof(query_ctrl));
++    switch (avctx->codec_id) {
++        case AV_CODEC_ID_MPEG2VIDEO:
++            profile_id = V4L2_CID_MPEG_VIDEO_MPEG2_PROFILE;
++            break;
++        case AV_CODEC_ID_MPEG4:
++            profile_id = V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE;
++            break;
++        case AV_CODEC_ID_H264:
++            profile_id = V4L2_CID_MPEG_VIDEO_H264_PROFILE;
++            break;
++        case AV_CODEC_ID_VP8:
++            profile_id = V4L2_CID_MPEG_VIDEO_VP8_PROFILE;
++            break;
++        case AV_CODEC_ID_VP9:
++            profile_id = V4L2_CID_MPEG_VIDEO_VP9_PROFILE;
++            break;
++#ifdef V4L2_CID_MPEG_VIDEO_AV1_PROFILE
++        case AV_CODEC_ID_AV1:
++            profile_id = V4L2_CID_MPEG_VIDEO_AV1_PROFILE;
++            break;
++#endif
++        default:
++            av_log(avctx, AV_LOG_VERBOSE, "Can't map profile for codec id %d; profile check skipped\n", avctx->codec_id);
++            return 0;
++    }
++
++    query_ctrl = (struct v4l2_queryctrl){.id = profile_id};
++    if (ioctl(s->fd, VIDIOC_QUERYCTRL, &query_ctrl) != 0) {
++        av_log(avctx, AV_LOG_VERBOSE, "Query profile ctrl (%#x) not supported: assume OK\n", query_ctrl.id);
++    }
++    else {
++        av_log(avctx, AV_LOG_DEBUG, "%s: Control supported: %#x\n", __func__, query_ctrl.id);
++
++        query_menu = (struct v4l2_querymenu){
++            .id = query_ctrl.id,
++            .index = avprofile_to_v4l2(avctx->codec_id, avctx->profile),
++        };
++
++        if (query_menu.index > query_ctrl.maximum ||
++            query_menu.index < query_ctrl.minimum ||
++            ioctl(s->fd, VIDIOC_QUERYMENU, &query_menu) != 0) {
++            return AVERROR(ENOENT);
++        }
++    }
++
++    return 0;
++};
++
+ static int
+ check_size(AVCodecContext * const avctx, V4L2m2mContext * const s)
+ {
+@@ -955,6 +1076,10 @@ static av_cold int v4l2_decode_init(AVCodecContext *avctx)
+     if ((ret = check_size(avctx, s)) != 0)
+         return ret;
+ 
++    if ((ret = check_profile(avctx, s)) != 0) {
++        av_log(avctx, AV_LOG_WARNING, "Profile %d not supported by decode\n", avctx->profile);
++        return ret;
++    }
+     return 0;
+ }
+ 
+-- 
+2.37.2
+

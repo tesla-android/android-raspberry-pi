@@ -1,0 +1,39 @@
+From 85c42743046a05b347f33b1933e6d52ea1d17e00 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 22 Sep 2022 16:13:57 +0000
+Subject: [PATCH 075/122] vf_deinterlace_m2m: For deinterlace set outlink FR to
+ twice inlink
+
+We used to set the outlink framerate to unknown but it turns out that
+ffmpegs filter pipeline copes with that badly. Otherwise leave at 0,0
+which will copy FR from inlink to outlink.
+---
+ libavfilter/vf_deinterlace_v4l2m2m.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/libavfilter/vf_deinterlace_v4l2m2m.c b/libavfilter/vf_deinterlace_v4l2m2m.c
+index 4edecc02bf..c52dae1c44 100644
+--- a/libavfilter/vf_deinterlace_v4l2m2m.c
++++ b/libavfilter/vf_deinterlace_v4l2m2m.c
+@@ -1534,13 +1534,16 @@ static int deint_v4l2m2m_config_props(AVFilterLink *outlink)
+         ctx->output_height = ctx->height;
+     }
+ 
+-    av_log(priv, AV_LOG_DEBUG, "%s: %dx%d->%dx%d\n", __func__, ctx->width, ctx->height, ctx->output_width, ctx->output_height);
++    av_log(priv, AV_LOG_DEBUG, "%s: %dx%d->%dx%d FR: %d/%d->%d/%d\n", __func__,
++           ctx->width, ctx->height, ctx->output_width, ctx->output_height,
++           inlink->frame_rate.num, inlink->frame_rate.den, outlink->frame_rate.num, outlink->frame_rate.den);
+ 
+     outlink->time_base           = inlink->time_base;
+     outlink->w                   = ctx->output_width;
+     outlink->h                   = ctx->output_height;
+     outlink->format              = inlink->format;
+-    outlink->frame_rate = (AVRational) {1, 0};  // Deny knowledge of frame rate
++    if (ctx->filter_type == FILTER_V4L2_DEINTERLACE && inlink->frame_rate.den != 0)
++        outlink->frame_rate = (AVRational){inlink->frame_rate.num * 2, inlink->frame_rate.den};
+ 
+     if (inlink->sample_aspect_ratio.num)
+         outlink->sample_aspect_ratio = av_mul_q((AVRational){outlink->h * inlink->w, outlink->w * inlink->h}, inlink->sample_aspect_ratio);
+-- 
+2.37.2
+

@@ -1,0 +1,283 @@
+From 0fb00e51d1ca40eed22bfc66b7f309fdc56229bc Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 2 Dec 2021 17:49:55 +0000
+Subject: [PATCH 031/122] Put no_pts_rescale in context which makes more sense
+ than an arg
+
+---
+ libavcodec/v4l2_buffers.c | 28 ++++++++++++++--------------
+ libavcodec/v4l2_buffers.h |  5 ++---
+ libavcodec/v4l2_context.c |  8 ++++----
+ libavcodec/v4l2_context.h | 13 +++++++++----
+ libavcodec/v4l2_m2m_dec.c |  9 +++++----
+ 5 files changed, 34 insertions(+), 29 deletions(-)
+
+diff --git a/libavcodec/v4l2_buffers.c b/libavcodec/v4l2_buffers.c
+index 126d2a17f4..22da6bd722 100644
+--- a/libavcodec/v4l2_buffers.c
++++ b/libavcodec/v4l2_buffers.c
+@@ -39,7 +39,7 @@
+ #define USEC_PER_SEC 1000000
+ static const AVRational v4l2_timebase = { 1, USEC_PER_SEC };
+ 
+-static inline V4L2m2mContext *buf_to_m2mctx(V4L2Buffer *buf)
++static inline V4L2m2mContext *buf_to_m2mctx(const V4L2Buffer * const buf)
+ {
+     return V4L2_TYPE_IS_OUTPUT(buf->context->type) ?
+         container_of(buf->context, V4L2m2mContext, output) :
+@@ -51,34 +51,34 @@ static inline AVCodecContext *logger(V4L2Buffer *buf)
+     return buf_to_m2mctx(buf)->avctx;
+ }
+ 
+-static inline AVRational v4l2_get_timebase(V4L2Buffer *avbuf)
++static inline AVRational v4l2_get_timebase(const V4L2Buffer * const avbuf)
+ {
+-    V4L2m2mContext *s = buf_to_m2mctx(avbuf);
++    const V4L2m2mContext *s = buf_to_m2mctx(avbuf);
+     const AVRational tb = s->avctx->pkt_timebase.num ?
+         s->avctx->pkt_timebase :
+         s->avctx->time_base;
+     return tb.num && tb.den ? tb : v4l2_timebase;
+ }
+ 
+-static inline void v4l2_set_pts(V4L2Buffer *out, int64_t pts, int no_rescale)
++static inline void v4l2_set_pts(V4L2Buffer * const out, const int64_t pts)
+ {
+     /* convert pts to v4l2 timebase */
+     const int64_t v4l2_pts =
+-        no_rescale ? pts :
++        out->context->no_pts_rescale ? pts :
+         pts == AV_NOPTS_VALUE ? 0 :
+             av_rescale_q(pts, v4l2_get_timebase(out), v4l2_timebase);
+     out->buf.timestamp.tv_usec = v4l2_pts % USEC_PER_SEC;
+     out->buf.timestamp.tv_sec = v4l2_pts / USEC_PER_SEC;
+ }
+ 
+-static inline int64_t v4l2_get_pts(V4L2Buffer *avbuf, int no_rescale)
++static inline int64_t v4l2_get_pts(const V4L2Buffer * const avbuf)
+ {
+     /* convert pts back to encoder timebase */
+     const int64_t v4l2_pts = (int64_t)avbuf->buf.timestamp.tv_sec * USEC_PER_SEC +
+                         avbuf->buf.timestamp.tv_usec;
+ 
+     return
+-        no_rescale ? v4l2_pts :
++        avbuf->context->no_pts_rescale ? v4l2_pts :
+         v4l2_pts == 0 ? AV_NOPTS_VALUE :
+             av_rescale_q(v4l2_pts, v4l2_timebase, v4l2_get_timebase(avbuf));
+ }
+@@ -686,13 +686,13 @@ int ff_v4l2_buffer_avframe_to_buf(const AVFrame *frame, V4L2Buffer *out)
+     v4l2_set_color(out, frame->color_primaries, frame->colorspace, frame->color_trc);
+     v4l2_set_color_range(out, frame->color_range);
+     // PTS & interlace are buffer vars
+-    v4l2_set_pts(out, frame->pts, 0);
++    v4l2_set_pts(out, frame->pts);
+     v4l2_set_interlace(out, frame->interlaced_frame, frame->top_field_first);
+ 
+     return v4l2_buffer_swframe_to_buf(frame, out);
+ }
+ 
+-int ff_v4l2_buffer_buf_to_avframe(AVFrame *frame, V4L2Buffer *avbuf, int no_rescale_pts)
++int ff_v4l2_buffer_buf_to_avframe(AVFrame *frame, V4L2Buffer *avbuf)
+ {
+     int ret;
+     V4L2Context * const ctx = avbuf->context;
+@@ -710,7 +710,7 @@ int ff_v4l2_buffer_buf_to_avframe(AVFrame *frame, V4L2Buffer *avbuf, int no_resc
+     frame->colorspace = v4l2_get_color_space(avbuf);
+     frame->color_range = v4l2_get_color_range(avbuf);
+     frame->color_trc = v4l2_get_color_trc(avbuf);
+-    frame->pts = v4l2_get_pts(avbuf, no_rescale_pts);
++    frame->pts = v4l2_get_pts(avbuf);
+     frame->pkt_dts = AV_NOPTS_VALUE;
+     frame->interlaced_frame = v4l2_buf_is_interlaced(avbuf);
+     frame->top_field_first = v4l2_buf_is_top_first(avbuf);
+@@ -757,13 +757,13 @@ int ff_v4l2_buffer_buf_to_avpkt(AVPacket *pkt, V4L2Buffer *avbuf)
+         pkt->flags |= AV_PKT_FLAG_CORRUPT;
+     }
+ 
+-    pkt->dts = pkt->pts = v4l2_get_pts(avbuf, 0);
++    pkt->dts = pkt->pts = v4l2_get_pts(avbuf);
+ 
+     return 0;
+ }
+ 
+ int ff_v4l2_buffer_avpkt_to_buf_ext(const AVPacket *pkt, V4L2Buffer *out,
+-                                    const void *extdata, size_t extlen, int no_rescale_pts)
++                                    const void *extdata, size_t extlen)
+ {
+     int ret;
+ 
+@@ -777,7 +777,7 @@ int ff_v4l2_buffer_avpkt_to_buf_ext(const AVPacket *pkt, V4L2Buffer *out,
+     if (ret && ret != AVERROR(ENOMEM))
+         return ret;
+ 
+-    v4l2_set_pts(out, pkt->pts, no_rescale_pts);
++    v4l2_set_pts(out, pkt->pts);
+ 
+     if (pkt->flags & AV_PKT_FLAG_KEY)
+         out->flags = V4L2_BUF_FLAG_KEYFRAME;
+@@ -787,7 +787,7 @@ int ff_v4l2_buffer_avpkt_to_buf_ext(const AVPacket *pkt, V4L2Buffer *out,
+ 
+ int ff_v4l2_buffer_avpkt_to_buf(const AVPacket *pkt, V4L2Buffer *out)
+ {
+-    return ff_v4l2_buffer_avpkt_to_buf_ext(pkt, out, NULL, 0, 0);
++    return ff_v4l2_buffer_avpkt_to_buf_ext(pkt, out, NULL, 0);
+ }
+ 
+ 
+diff --git a/libavcodec/v4l2_buffers.h b/libavcodec/v4l2_buffers.h
+index 111526aee3..641e0e147b 100644
+--- a/libavcodec/v4l2_buffers.h
++++ b/libavcodec/v4l2_buffers.h
+@@ -83,12 +83,11 @@ typedef struct V4L2Buffer {
+  *
+  * @param[in] frame The AVFRame to push the information to
+  * @param[in] buf The V4L2Buffer to get the information from
+- * @param[in] no_rescale_pts If non-zero do not rescale PTS
+  *
+  * @returns 0 in case of success, AVERROR(EINVAL) if the number of planes is incorrect,
+  * AVERROR(ENOMEM) if the AVBufferRef can't be created.
+  */
+-int ff_v4l2_buffer_buf_to_avframe(AVFrame *frame, V4L2Buffer *buf, int no_rescale_pts);
++int ff_v4l2_buffer_buf_to_avframe(AVFrame *frame, V4L2Buffer *buf);
+ 
+ /**
+  * Extracts the data from a V4L2Buffer to an AVPacket
+@@ -113,7 +112,7 @@ int ff_v4l2_buffer_buf_to_avpkt(AVPacket *pkt, V4L2Buffer *buf);
+ int ff_v4l2_buffer_avpkt_to_buf(const AVPacket *pkt, V4L2Buffer *out);
+ 
+ int ff_v4l2_buffer_avpkt_to_buf_ext(const AVPacket *pkt, V4L2Buffer *out,
+-                                    const void *extdata, size_t extlen, int no_rescale_pts);
++                                    const void *extdata, size_t extlen);
+ 
+ /**
+  * Extracts the data from an AVFrame to a V4L2Buffer
+diff --git a/libavcodec/v4l2_context.c b/libavcodec/v4l2_context.c
+index 440dfaaba5..64540a37b3 100644
+--- a/libavcodec/v4l2_context.c
++++ b/libavcodec/v4l2_context.c
+@@ -808,7 +808,7 @@ int ff_v4l2_context_enqueue_frame(V4L2Context* ctx, const AVFrame* frame)
+ }
+ 
+ int ff_v4l2_context_enqueue_packet(V4L2Context* ctx, const AVPacket* pkt,
+-                                   const void * extdata, size_t extlen, int no_rescale_pts)
++                                   const void * extdata, size_t extlen)
+ {
+     V4L2m2mContext *s = ctx_to_m2mctx(ctx);
+     V4L2Buffer* avbuf;
+@@ -827,7 +827,7 @@ int ff_v4l2_context_enqueue_packet(V4L2Context* ctx, const AVPacket* pkt,
+     if (!avbuf)
+         return AVERROR(EAGAIN);
+ 
+-    ret = ff_v4l2_buffer_avpkt_to_buf_ext(pkt, avbuf, extdata, extlen, no_rescale_pts);
++    ret = ff_v4l2_buffer_avpkt_to_buf_ext(pkt, avbuf, extdata, extlen);
+     if (ret == AVERROR(ENOMEM))
+         av_log(logger(ctx), AV_LOG_ERROR, "Buffer overflow in %s: pkt->size=%d > buf->length=%d\n",
+                __func__, pkt->size, avbuf->planes[0].length);
+@@ -837,7 +837,7 @@ int ff_v4l2_context_enqueue_packet(V4L2Context* ctx, const AVPacket* pkt,
+     return ff_v4l2_buffer_enqueue(avbuf);
+ }
+ 
+-int ff_v4l2_context_dequeue_frame(V4L2Context* ctx, AVFrame* frame, int timeout, int no_rescale_pts)
++int ff_v4l2_context_dequeue_frame(V4L2Context* ctx, AVFrame* frame, int timeout)
+ {
+     V4L2Buffer *avbuf;
+ 
+@@ -854,7 +854,7 @@ int ff_v4l2_context_dequeue_frame(V4L2Context* ctx, AVFrame* frame, int timeout,
+         return AVERROR(EAGAIN);
+     }
+ 
+-    return ff_v4l2_buffer_buf_to_avframe(frame, avbuf, no_rescale_pts);
++    return ff_v4l2_buffer_buf_to_avframe(frame, avbuf);
+ }
+ 
+ int ff_v4l2_context_dequeue_packet(V4L2Context* ctx, AVPacket* pkt)
+diff --git a/libavcodec/v4l2_context.h b/libavcodec/v4l2_context.h
+index 37b0431400..4cc164886c 100644
+--- a/libavcodec/v4l2_context.h
++++ b/libavcodec/v4l2_context.h
+@@ -102,6 +102,13 @@ typedef struct V4L2Context {
+      */
+     int done;
+ 
++    /**
++     * PTS rescale not wanted
++     * If the PTS is just a dummy frame count then rescale is
++     * actively harmful
++     */
++    int no_pts_rescale;
++
+     AVBufferRef *frames_ref;
+     int q_count;
+     int dq_count;
+@@ -172,12 +179,10 @@ int ff_v4l2_context_dequeue_packet(V4L2Context* ctx, AVPacket* pkt);
+  * @param[in] ctx The V4L2Context to dequeue from.
+  * @param[inout] f The AVFrame to dequeue to.
+  * @param[in] timeout The timeout for dequeue (-1 to block, 0 to return immediately, or milliseconds)
+- * @param[in] no_rescale_pts (0 rescale pts, 1 use pts as
+- *       timestamp directly)
+  *
+  * @return 0 in case of success, AVERROR(EAGAIN) if no buffer was ready, another negative error in case of error.
+  */
+-int ff_v4l2_context_dequeue_frame(V4L2Context* ctx, AVFrame* f, int timeout, int no_rescale_pts);
++int ff_v4l2_context_dequeue_frame(V4L2Context* ctx, AVFrame* f, int timeout);
+ 
+ /**
+  * Enqueues a buffer to a V4L2Context from an AVPacket
+@@ -189,7 +194,7 @@ int ff_v4l2_context_dequeue_frame(V4L2Context* ctx, AVFrame* f, int timeout, int
+  * @param[in] pkt A pointer to an AVPacket.
+  * @return 0 in case of success, a negative error otherwise.
+  */
+-int ff_v4l2_context_enqueue_packet(V4L2Context* ctx, const AVPacket* pkt, const void * ext_data, size_t ext_size, int no_rescale_pts);
++int ff_v4l2_context_enqueue_packet(V4L2Context* ctx, const AVPacket* pkt, const void * ext_data, size_t ext_size);
+ 
+ /**
+  * Enqueues a buffer to a V4L2Context from an AVFrame
+diff --git a/libavcodec/v4l2_m2m_dec.c b/libavcodec/v4l2_m2m_dec.c
+index b49f470c0a..36754b314a 100644
+--- a/libavcodec/v4l2_m2m_dec.c
++++ b/libavcodec/v4l2_m2m_dec.c
+@@ -360,7 +360,7 @@ static int try_enqueue_src(AVCodecContext * const avctx, V4L2m2mContext * const
+             if (!s->draining) {
+                 // Calling enqueue with an empty pkt starts drain
+                 av_assert0(s->buf_pkt.size == 0);
+-                ret = ff_v4l2_context_enqueue_packet(&s->output, &s->buf_pkt, NULL, 0, 1);
++                ret = ff_v4l2_context_enqueue_packet(&s->output, &s->buf_pkt, NULL, 0);
+                 if (ret) {
+                     av_log(avctx, AV_LOG_ERROR, "Failed to start drain: ret=%d\n", ret);
+                     return ret;
+@@ -381,8 +381,7 @@ static int try_enqueue_src(AVCodecContext * const avctx, V4L2m2mContext * const
+         return ret;
+ 
+     ret = ff_v4l2_context_enqueue_packet(&s->output, &s->buf_pkt,
+-                                         avctx->extradata, s->extdata_sent ? 0 : avctx->extradata_size,
+-                                         1);
++                                         avctx->extradata, s->extdata_sent ? 0 : avctx->extradata_size);
+ 
+     if (ret == AVERROR(EAGAIN)) {
+         // Out of input buffers - keep packet
+@@ -442,7 +441,7 @@ static int v4l2_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+                 // when discarding
+                 // This returns AVERROR(EAGAIN) if there isn't a frame ready yet
+                 // but there is room in the input Q
+-                dst_rv = ff_v4l2_context_dequeue_frame(&s->capture, frame, src_rv == NQ_Q_FULL ? 100 : -1, 1);
++                dst_rv = ff_v4l2_context_dequeue_frame(&s->capture, frame, src_rv == NQ_Q_FULL ? 100 : -1);
+ 
+                 if (dst_rv == AVERROR_EOF && (s->draining || s->capture.done))
+                     av_log(avctx, AV_LOG_DEBUG, "Dequeue EOF: draining=%d, cap.done=%d\n",
+@@ -569,10 +568,12 @@ static av_cold int v4l2_decode_init(AVCodecContext *avctx)
+     output->av_codec_id = avctx->codec_id;
+     output->av_pix_fmt  = AV_PIX_FMT_NONE;
+     output->min_buf_size = max_coded_size(avctx);
++    output->no_pts_rescale = 1;
+ 
+     capture->av_codec_id = AV_CODEC_ID_RAWVIDEO;
+     capture->av_pix_fmt = avctx->pix_fmt;
+     capture->min_buf_size = 0;
++    capture->no_pts_rescale = 1;
+ 
+     /* the client requests the codec to generate DRM frames:
+      *   - data[0] will therefore point to the returned AVDRMFrameDescriptor
+-- 
+2.37.2
+

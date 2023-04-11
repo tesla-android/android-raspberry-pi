@@ -1,0 +1,111 @@
+From 2470968adf0d28bbaf310e782720dd00d57d7bf6 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 4 Jan 2022 16:58:31 +0000
+Subject: [PATCH 041/122] v4l2_buffers: rework flags for keyframe
+
+Previously flags could become confused and keyframe info could be lost.
+This fixes that and removes the duplicate flags field in V4L2Buffer.
+---
+ libavcodec/v4l2_buffers.c | 15 ++++++++++-----
+ libavcodec/v4l2_buffers.h |  1 -
+ libavcodec/v4l2_context.c | 18 +++++++++++++++++-
+ 3 files changed, 27 insertions(+), 7 deletions(-)
+
+diff --git a/libavcodec/v4l2_buffers.c b/libavcodec/v4l2_buffers.c
+index 2cf7be6632..62d1c26053 100644
+--- a/libavcodec/v4l2_buffers.c
++++ b/libavcodec/v4l2_buffers.c
+@@ -680,7 +680,9 @@ static int v4l2_buffer_swframe_to_buf(const AVFrame *frame, V4L2Buffer *out)
+ 
+ int ff_v4l2_buffer_avframe_to_buf(const AVFrame *frame, V4L2Buffer *out)
+ {
+-    out->buf.flags = frame->key_frame ? (out->buf.flags & ~V4L2_BUF_FLAG_KEYFRAME) : (out->buf.flags | V4L2_BUF_FLAG_KEYFRAME);
++    out->buf.flags = frame->key_frame ?
++        (out->buf.flags | V4L2_BUF_FLAG_KEYFRAME) :
++        (out->buf.flags & ~V4L2_BUF_FLAG_KEYFRAME);
+     // Beware that colour info is held in format rather than the actual
+     // v4l2 buffer struct so this may not be as useful as you might hope
+     v4l2_set_color(out, frame->color_primaries, frame->colorspace, frame->color_trc);
+@@ -706,6 +708,10 @@ int ff_v4l2_buffer_buf_to_avframe(AVFrame *frame, V4L2Buffer *avbuf)
+ 
+     /* 2. get frame information */
+     frame->key_frame = !!(avbuf->buf.flags & V4L2_BUF_FLAG_KEYFRAME);
++    frame->pict_type = frame->key_frame ? AV_PICTURE_TYPE_I :
++        (avbuf->buf.flags & V4L2_BUF_FLAG_PFRAME) != 0 ? AV_PICTURE_TYPE_P :
++        (avbuf->buf.flags & V4L2_BUF_FLAG_BFRAME) != 0 ? AV_PICTURE_TYPE_B :
++            AV_PICTURE_TYPE_NONE;
+     frame->color_primaries = v4l2_get_color_primaries(avbuf);
+     frame->colorspace = v4l2_get_color_space(avbuf);
+     frame->color_range = v4l2_get_color_range(avbuf);
+@@ -779,8 +785,9 @@ int ff_v4l2_buffer_avpkt_to_buf_ext(const AVPacket *pkt, V4L2Buffer *out,
+ 
+     v4l2_set_pts(out, pkt->pts);
+ 
+-    if (pkt->flags & AV_PKT_FLAG_KEY)
+-        out->flags = V4L2_BUF_FLAG_KEYFRAME;
++    out->buf.flags = (pkt->flags & AV_PKT_FLAG_KEY) != 0 ?
++        (out->buf.flags | V4L2_BUF_FLAG_KEYFRAME) :
++        (out->buf.flags & ~V4L2_BUF_FLAG_KEYFRAME);
+ 
+     return ret;
+ }
+@@ -924,8 +931,6 @@ int ff_v4l2_buffer_enqueue(V4L2Buffer* avbuf)
+     int ret;
+     int qc;
+ 
+-    avbuf->buf.flags = avbuf->flags;
+-
+     if (avbuf->buf.timestamp.tv_sec || avbuf->buf.timestamp.tv_usec) {
+         av_log(logger(avbuf), AV_LOG_DEBUG, "--- %s pre VIDIOC_QBUF: index %d, ts=%ld.%06ld count=%d\n",
+                avbuf->context->name, avbuf->buf.index,
+diff --git a/libavcodec/v4l2_buffers.h b/libavcodec/v4l2_buffers.h
+index 641e0e147b..3b7ca4d99e 100644
+--- a/libavcodec/v4l2_buffers.h
++++ b/libavcodec/v4l2_buffers.h
+@@ -73,7 +73,6 @@ typedef struct V4L2Buffer {
+     struct v4l2_buffer buf;
+     struct v4l2_plane planes[VIDEO_MAX_PLANES];
+ 
+-    int flags;
+     enum V4L2Buffer_status status;
+ 
+ } V4L2Buffer;
+diff --git a/libavcodec/v4l2_context.c b/libavcodec/v4l2_context.c
+index c11b5e6863..53b522d43e 100644
+--- a/libavcodec/v4l2_context.c
++++ b/libavcodec/v4l2_context.c
+@@ -527,6 +527,22 @@ get_qbuf(V4L2Context * const ctx, V4L2Buffer ** const ppavbuf, const int timeout
+     }
+ }
+ 
++// Clear out flags and timestamps that should should be set by the user
++// Returns the passed avbuf
++static V4L2Buffer *
++clean_v4l2_buffer(V4L2Buffer * const avbuf)
++{
++    struct v4l2_buffer *const buf = &avbuf->buf;
++
++    buf->flags = 0;
++    buf->field = V4L2_FIELD_ANY;
++    buf->timestamp = (struct timeval){0};
++    buf->timecode = (struct v4l2_timecode){0};
++    buf->sequence = 0;
++
++    return avbuf;
++}
++
+ static V4L2Buffer* v4l2_getfree_v4l2buf(V4L2Context *ctx)
+ {
+     int i;
+@@ -542,7 +558,7 @@ static V4L2Buffer* v4l2_getfree_v4l2buf(V4L2Context *ctx)
+     for (i = 0; i < ctx->num_buffers; i++) {
+         V4L2Buffer * const avbuf = (V4L2Buffer *)ctx->bufrefs[i]->data;
+         if (avbuf->status == V4L2BUF_AVAILABLE)
+-            return avbuf;
++            return clean_v4l2_buffer(avbuf);
+     }
+ 
+     return NULL;
+-- 
+2.37.2
+

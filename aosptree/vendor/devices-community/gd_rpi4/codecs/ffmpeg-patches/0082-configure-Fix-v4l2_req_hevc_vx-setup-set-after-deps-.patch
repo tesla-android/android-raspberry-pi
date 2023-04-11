@@ -1,0 +1,40 @@
+From f06f9ee41bf0f6f74240503f0cb427328cf6792f Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Sun, 2 Oct 2022 12:36:43 +0000
+Subject: [PATCH 082/122] configure: Fix v4l2_req_hevc_vx setup; set after deps
+ fixups
+
+---
+ configure | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/configure b/configure
+index 5c00a183e3..94c8161b91 100755
+--- a/configure
++++ b/configure
+@@ -6914,12 +6914,6 @@ fi
+ check_func_headers "linux/media.h linux/videodev2.h" v4l2_timeval_to_ns
+ check_cc hevc_v4l2_request linux/videodev2.h "int i = V4L2_PIX_FMT_HEVC_SLICE;"
+ disable v4l2_req_hevc_vx
+-if enabled hevc_v4l2request_hwaccel; then
+-    enable v4l2_req_hevc_vx
+-fi
+-if enabled hevc_v4l2_request; then
+-    disable v4l2_req_hevc_vx
+-fi
+ 
+ check_headers sys/videoio.h
+ test_code cc sys/videoio.h "struct v4l2_frmsizeenum vfse; vfse.discrete.width = 0;" && enable_sanitized struct_v4l2_frmivalenum_discrete
+@@ -7415,6 +7409,9 @@ check_deps $CONFIG_LIST       \
+ 
+ enabled threads && ! enabled pthreads && ! enabled atomics_native && die "non pthread threading without atomics not supported, try adding --enable-pthreads or --cpu=i486 or higher if you are on x86"
+ 
++# Sub-feature of hevc_v4l2request_hwaccel - can only be set once deps are done
++enabled hevc_v4l2request_hwaccel && disabled hevc_v4l2_request && enable v4l2_req_hevc_vx
++
+ case $target_os in
+ haiku)
+     disable memalign
+-- 
+2.37.2
+

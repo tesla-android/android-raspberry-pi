@@ -2,6 +2,8 @@
 #
 # Copyright (C) 2019 The Android Open-Source Project
 
+BC_PATH := $(patsubst $(CURDIR)/%,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+
 include glodroid/configuration/common/board-common.mk
 
 BOARD_MESA3D_GALLIUM_DRIVERS := vc4 v3d
@@ -13,3 +15,6 @@ BOARD_KERNEL_CMDLINE += coherent_pool=1M 8250.nr_uarts=1 snd_bcm2835.enable_comp
 BOARD_LIBCAMERA_EXTRA_TARGETS := \
     libetc:libcamera/ipa_rpi.so:libcamera:ipa_rpi.so:           \
     libetc:libcamera/ipa_rpi.so.sign:libcamera:ipa_rpi.so.sign: \
+
+BOARD_FFMPEG_ENABLE_REQUEST_API := true
+BOARD_FFMPEG_PATCHES_DIRS := $(BC_PATH)/codecs/ffmpeg-patches

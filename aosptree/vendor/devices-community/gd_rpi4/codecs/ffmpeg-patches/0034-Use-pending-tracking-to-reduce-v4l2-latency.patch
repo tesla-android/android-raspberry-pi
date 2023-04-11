@@ -1,0 +1,125 @@
+From 6fae7b3f42c8e9e431a59323c0faa6c88fe951d9 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Wed, 15 Dec 2021 17:58:21 +0000
+Subject: [PATCH 034/122] Use pending tracking to reduce v4l2 latency
+
+If there are more than 5 pending decodes outstanding then add a small
+timeout to the capture poll to reduce the rate at which frames are
+added.
+---
+ libavcodec/v4l2_m2m_dec.c | 58 ++++++++++++++++++++++++---------------
+ 1 file changed, 36 insertions(+), 22 deletions(-)
+
+diff --git a/libavcodec/v4l2_m2m_dec.c b/libavcodec/v4l2_m2m_dec.c
+index d8ebb466cd..7e7e4729d0 100644
+--- a/libavcodec/v4l2_m2m_dec.c
++++ b/libavcodec/v4l2_m2m_dec.c
+@@ -370,16 +370,19 @@ static inline int stream_started(const V4L2m2mContext * const s) {
+ #define NQ_OK        0
+ #define NQ_Q_FULL    1
+ #define NQ_SRC_EMPTY 2
+-#define NQ_DRAINING  3
+-#define NQ_DEAD      4
++#define NQ_NONE      3
++#define NQ_DRAINING  4
++#define NQ_DEAD      5
+ 
+ #define TRY_DQ(nq_status) ((nq_status) >= NQ_OK && (nq_status) <= NQ_DRAINING)
++#define RETRY_NQ(nq_status) ((nq_status) == NQ_Q_FULL || (nq_status) == NQ_NONE)
+ 
+ // AVERROR_EOF     Flushing an already flushed stream
+ // -ve             Error (all errors except EOF are unexpected)
+ // NQ_OK (0)       OK
+ // NQ_Q_FULL       Dst full (retry if we think V4L2 Q has space now)
+ // NQ_SRC_EMPTY    Src empty (do not retry)
++// NQ_NONE         Enqueue not attempted
+ // NQ_DRAINING     At EOS, dQ dest until EOS there too
+ // NQ_DEAD         Not running (do not retry, do not attempt capture dQ)
+ 
+@@ -468,23 +471,28 @@ static int try_enqueue_src(AVCodecContext * const avctx, V4L2m2mContext * const
+ static int v4l2_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+ {
+     V4L2m2mContext *const s = ((V4L2m2mPriv*)avctx->priv_data)->context;
+-    int src_rv;
++    int src_rv = NQ_NONE;
+     int dst_rv = 1;  // Non-zero (done), non-negative (error) number
++    unsigned int i = 0;
+ 
+     do {
+-        av_log(avctx, AV_LOG_INFO, "Pending=%d\n", xlat_pending(&s->xlat));
+-        src_rv = try_enqueue_src(avctx, s);
+-
+-        // If we got a frame last time and we have nothing to enqueue then
+-        // return now. rv will be AVERROR(EAGAIN) indicating that we want more input
+-        // This should mean that once decode starts we enter a stable state where
+-        // we alternately ask for input and produce output
+-        if (s->req_pkt && src_rv == NQ_SRC_EMPTY)
+-            break;
+-
+-        if (src_rv == NQ_Q_FULL && dst_rv == AVERROR(EAGAIN)) {
+-            av_log(avctx, AV_LOG_WARNING, "Poll says src Q has space but enqueue fail");
+-            src_rv = NQ_SRC_EMPTY;  // If we can't enqueue pretend that there is nothing to enqueue
++        const int pending = xlat_pending(&s->xlat);
++        const int prefer_dq = (pending > 5);
++
++        // Enqueue another pkt for decode if
++        // (a) We don't have a lot of stuff in the buffer already OR
++        // (b) ... we (think we) do but we've failed to get a frame already OR
++        // (c) We've dequeued a lot of frames without asking for input
++        if (!prefer_dq || i != 0 || s->req_pkt > 2) {
++            src_rv = try_enqueue_src(avctx, s);
++
++            // If we got a frame last time or we've already tried to get a frame and
++            // we have nothing to enqueue then return now. rv will be AVERROR(EAGAIN)
++            // indicating that we want more input.
++            // This should mean that once decode starts we enter a stable state where
++            // we alternately ask for input and produce output
++            if ((i != 0 || s->req_pkt) && src_rv == NQ_SRC_EMPTY)
++                break;
+         }
+ 
+         // Try to get a new frame if
+@@ -495,9 +503,9 @@ static int v4l2_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+                 // Dequeue frame will unref any previous contents of frame
+                 // if it returns success so we don't need an explicit unref
+                 // when discarding
+-                // This returns AVERROR(EAGAIN) if there isn't a frame ready yet
+-                // but there is room in the input Q
+-                dst_rv = ff_v4l2_context_dequeue_frame(&s->capture, frame, src_rv == NQ_Q_FULL ? 100 : -1);
++                // This returns AVERROR(EAGAIN) on timeout or if
++                // there is room in the input Q and timeout == -1
++                dst_rv = ff_v4l2_context_dequeue_frame(&s->capture, frame, prefer_dq ? 5 : -1);
+ 
+                 if (dst_rv == AVERROR_EOF && (s->draining || s->capture.done))
+                     av_log(avctx, AV_LOG_DEBUG, "Dequeue EOF: draining=%d, cap.done=%d\n",
+@@ -510,10 +518,16 @@ static int v4l2_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+             } while (dst_rv == 0 && xlat_pts_out(avctx, &s->xlat, &s->pts_stat, frame));
+         }
+ 
++        ++i;
++        if (i >= 256) {
++            av_log(avctx, AV_LOG_ERROR, "Unexpectedly large retry count: %d\n", i);
++            src_rv = AVERROR(EIO);
++        }
++
+         // Continue trying to enqueue packets if either
+         // (a) we succeeded last time OR
+-        // (b) enqueue failed due to input Q full AND there is now room
+-    } while (src_rv == NQ_OK || (src_rv == NQ_Q_FULL && dst_rv == AVERROR(EAGAIN)) );
++        // (b) we didn't ret a frame and we can retry the input
++    } while (src_rv == NQ_OK || (dst_rv == AVERROR(EAGAIN) && RETRY_NQ(src_rv)));
+ 
+     // Ensure that the frame contains nothing if we aren't returning a frame
+     // (might happen when discarding)
+@@ -521,7 +535,7 @@ static int v4l2_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+         av_frame_unref(frame);
+ 
+     // If we got a frame this time ask for a pkt next time
+-    s->req_pkt = (dst_rv == 0);
++    s->req_pkt = (dst_rv == 0) ? s->req_pkt + 1 : 0;
+ 
+ #if 0
+     if (dst_rv == 0)
+-- 
+2.37.2
+

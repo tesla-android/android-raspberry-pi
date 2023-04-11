@@ -1,0 +1,97 @@
+From 39f49cdaefa4483914f703c3f352c8894b3b81fd Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Mon, 6 Feb 2023 19:23:16 +0000
+Subject: [PATCH 114/122] Initial buffersink alloc callback code
+
+(cherry picked from commit dde8d3c8f3cc279b9b92ed4f10a2e3990f4aadeb)
+---
+ libavfilter/buffersink.c | 44 ++++++++++++++++++++++++++++++++++++++++
+ libavfilter/buffersink.h |  3 +++
+ 2 files changed, 47 insertions(+)
+
+diff --git a/libavfilter/buffersink.c b/libavfilter/buffersink.c
+index 306c283f77..d3c82aabf3 100644
+--- a/libavfilter/buffersink.c
++++ b/libavfilter/buffersink.c
+@@ -62,6 +62,11 @@ typedef struct BufferSinkContext {
+     int sample_rates_size;
+ 
+     AVFrame *peeked_frame;
++
++    union {
++        av_buffersink_alloc_video_frame * video;
++    } alloc_cb;
++    void * alloc_v;
+ } BufferSinkContext;
+ 
+ #define NB_ITEMS(list) (list ## _size / sizeof(*list))
+@@ -154,6 +159,44 @@ int attribute_align_arg av_buffersink_get_samples(AVFilterContext *ctx,
+     return get_frame_internal(ctx, frame, 0, nb_samples);
+ }
+ 
++static AVFrame * alloc_video_buffer(AVFilterLink *link, int w, int h)
++{
++    AVFilterContext * const ctx = link->dst;
++    BufferSinkContext * const bs = ctx->priv;
++    return bs->alloc_cb.video ? bs->alloc_cb.video(ctx, bs->alloc_v, w, h) :
++        ff_default_get_video_buffer(link, w, h);
++}
++
++int av_buffersink_set_alloc_video_frame(AVFilterContext *ctx, av_buffersink_alloc_video_frame * cb, void * v)
++{
++    BufferSinkContext * const bs = ctx->priv;
++    bs->alloc_cb.video = cb;
++    bs->alloc_v = v;
++    return 0;
++}
++
++#if FF_API_BUFFERSINK_ALLOC
++AVBufferSinkParams *av_buffersink_params_alloc(void)
++{
++    static const int pixel_fmts[] = { AV_PIX_FMT_NONE };
++    AVBufferSinkParams *params = av_malloc(sizeof(AVBufferSinkParams));
++    if (!params)
++        return NULL;
++
++    params->pixel_fmts = pixel_fmts;
++    return params;
++}
++
++AVABufferSinkParams *av_abuffersink_params_alloc(void)
++{
++    AVABufferSinkParams *params = av_mallocz(sizeof(AVABufferSinkParams));
++
++    if (!params)
++        return NULL;
++    return params;
++}
++#endif
++
+ static av_cold int common_init(AVFilterContext *ctx)
+ {
+     BufferSinkContext *buf = ctx->priv;
+@@ -381,6 +424,7 @@ static const AVFilterPad avfilter_vsink_buffer_inputs[] = {
+     {
+         .name = "default",
+         .type = AVMEDIA_TYPE_VIDEO,
++        .get_buffer = {.video = alloc_video_buffer},
+     },
+ };
+ 
+diff --git a/libavfilter/buffersink.h b/libavfilter/buffersink.h
+index 64e08de53e..09737d322f 100644
+--- a/libavfilter/buffersink.h
++++ b/libavfilter/buffersink.h
+@@ -166,6 +166,9 @@ int av_buffersink_get_frame(AVFilterContext *ctx, AVFrame *frame);
+  */
+ int av_buffersink_get_samples(AVFilterContext *ctx, AVFrame *frame, int nb_samples);
+ 
++typedef AVFrame * av_buffersink_alloc_video_frame(AVFilterContext * ctx, void * v, int w, int h);
++int av_buffersink_set_alloc_video_frame(AVFilterContext *ctx, av_buffersink_alloc_video_frame * cb, void * v);
++
+ /**
+  * @}
+  */
+-- 
+2.37.2
+

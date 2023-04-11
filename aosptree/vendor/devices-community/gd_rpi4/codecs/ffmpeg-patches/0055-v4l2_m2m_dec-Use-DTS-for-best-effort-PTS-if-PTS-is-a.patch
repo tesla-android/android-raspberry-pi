@@ -1,0 +1,87 @@
+From 6b437ce70582c67971aa81871a6694a08b709784 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Wed, 8 Jun 2022 16:13:31 +0000
+Subject: [PATCH 055/122] v4l2_m2m_dec: Use DTS for best effort PTS if PTS is
+ always NO_PTS
+
+If we do have DTS but don't have PTS then assume PTS=DTS.
+Also get rid of last_dts from tracking as its info wasn't actually
+useful in any way.
+---
+ libavcodec/v4l2_context.c | 6 ++----
+ libavcodec/v4l2_m2m.h     | 1 -
+ libavcodec/v4l2_m2m_dec.c | 8 +++++++-
+ 3 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/libavcodec/v4l2_context.c b/libavcodec/v4l2_context.c
+index 7a707d21fc..6b97eab41e 100644
+--- a/libavcodec/v4l2_context.c
++++ b/libavcodec/v4l2_context.c
+@@ -73,7 +73,6 @@ xlat_pts_pkt_in(AVCodecContext *const avctx, xlat_track_t *const x, const AVPack
+     track_pts = track_to_pts(avctx, x->track_no);
+ 
+     av_log(avctx, AV_LOG_TRACE, "In pkt PTS=%" PRId64 ", DTS=%" PRId64 ", track=%" PRId64 ", n=%u\n", avpkt->pts, avpkt->dts, track_pts, x->track_no);
+-    x->last_pkt_dts = avpkt->dts;
+     x->track_els[x->track_no  % FF_V4L2_M2M_TRACK_SIZE] = (V4L2m2mTrackEl){
+         .discard          = 0,
+         .pending          = 1,
+@@ -100,7 +99,6 @@ xlat_pts_frame_in(AVCodecContext *const avctx, xlat_track_t *const x, const AVFr
+     track_pts = track_to_pts(avctx, x->track_no);
+ 
+     av_log(avctx, AV_LOG_TRACE, "In frame PTS=%" PRId64 ", track=%" PRId64 ", n=%u\n", frame->pts, track_pts, x->track_no);
+-    x->last_pkt_dts = frame->pkt_dts;
+     x->track_els[x->track_no  % FF_V4L2_M2M_TRACK_SIZE] = (V4L2m2mTrackEl){
+         .discard          = 0,
+         .pending          = 1,
+@@ -129,7 +127,7 @@ xlat_pts_frame_out(AVCodecContext *const avctx,
+         av_log(avctx, frame->pts == AV_NOPTS_VALUE ? AV_LOG_DEBUG : AV_LOG_WARNING,
+                "Frame tracking failure: pts=%" PRId64 ", track[%d]=%" PRId64 "\n", frame->pts, n, t->track_pts);
+         frame->pts              = AV_NOPTS_VALUE;
+-        frame->pkt_dts          = x->last_pkt_dts;
++        frame->pkt_dts          = AV_NOPTS_VALUE;
+         frame->reordered_opaque = x->last_opaque;
+         frame->pkt_pos          = -1;
+         frame->pkt_duration     = 0;
+@@ -138,7 +136,7 @@ xlat_pts_frame_out(AVCodecContext *const avctx,
+     else if (!t->discard)
+     {
+         frame->pts              = t->pending ? t->pts : AV_NOPTS_VALUE;
+-        frame->pkt_dts          = x->last_pkt_dts;
++        frame->pkt_dts          = t->dts;
+         frame->reordered_opaque = t->reordered_opaque;
+         frame->pkt_pos          = t->pkt_pos;
+         frame->pkt_duration     = t->pkt_duration;
+diff --git a/libavcodec/v4l2_m2m.h b/libavcodec/v4l2_m2m.h
+index d6cdaf65e1..ee72beb052 100644
+--- a/libavcodec/v4l2_m2m.h
++++ b/libavcodec/v4l2_m2m.h
+@@ -67,7 +67,6 @@ typedef struct pts_stats_s
+ typedef struct xlat_track_s {
+     unsigned int track_no;
+     int64_t last_pts;
+-    int64_t last_pkt_dts;
+     int64_t last_opaque;
+     V4L2m2mTrackEl track_els[FF_V4L2_M2M_TRACK_SIZE];
+ } xlat_track_t;
+diff --git a/libavcodec/v4l2_m2m_dec.c b/libavcodec/v4l2_m2m_dec.c
+index fbbfc81342..485a96f4b4 100644
+--- a/libavcodec/v4l2_m2m_dec.c
++++ b/libavcodec/v4l2_m2m_dec.c
+@@ -177,7 +177,13 @@ set_best_effort_pts(AVCodecContext *const avctx,
+     pts_stats_add(ps, frame->pts);
+ 
+     frame->best_effort_timestamp = pts_stats_guess(ps);
+-    frame->pkt_dts               = frame->pts;  // We can't emulate what s/w does in a useful manner?
++    // If we can't guess from just PTS - try DTS
++    if (frame->best_effort_timestamp == AV_NOPTS_VALUE)
++        frame->best_effort_timestamp = frame->pkt_dts;
++
++    // We can't emulate what s/w does in a useful manner and using the
++    // "correct" answer seems to just confuse things.
++    frame->pkt_dts               = frame->pts;
+     av_log(avctx, AV_LOG_TRACE, "Out PTS=%" PRId64 "/%"PRId64", DTS=%" PRId64 "\n",
+            frame->pts, frame->best_effort_timestamp, frame->pkt_dts);
+ }
+-- 
+2.37.2
+

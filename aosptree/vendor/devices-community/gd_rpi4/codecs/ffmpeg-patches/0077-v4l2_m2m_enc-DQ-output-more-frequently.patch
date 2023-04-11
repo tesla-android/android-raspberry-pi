@@ -1,0 +1,61 @@
+From 95dfc168c74f7b0f282c1b2ad9deb8fba10a7ce5 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Fri, 23 Sep 2022 11:38:36 +0000
+Subject: [PATCH 077/122] v4l2_m2m_enc: DQ output more frequently
+
+Ensure that we DQ any released src buffers on every op to avoid deadlock
+with source.
+
+There is a plausible argument that this patch is inelegant and the drain
+should be integrated into dq_buf, but that is a further reaching delta.
+---
+ libavcodec/v4l2_m2m_enc.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/libavcodec/v4l2_m2m_enc.c b/libavcodec/v4l2_m2m_enc.c
+index b8ba815c37..a992a3cccc 100644
+--- a/libavcodec/v4l2_m2m_enc.c
++++ b/libavcodec/v4l2_m2m_enc.c
+@@ -421,6 +421,8 @@ static int v4l2_send_frame(AVCodecContext *avctx, const AVFrame *frame)
+     V4L2m2mContext *s = ((V4L2m2mPriv*)avctx->priv_data)->context;
+     V4L2Context *const output = &s->output;
+ 
++    ff_v4l2_dq_all(output);
++
+     // Signal EOF if needed
+     if (!frame) {
+         return ff_v4l2_context_enqueue_frame(output, frame);
+@@ -492,6 +494,8 @@ static int v4l2_receive_packet(AVCodecContext *avctx, AVPacket *avpkt)
+     AVFrame *frame = s->frame;
+     int ret;
+ 
++    ff_v4l2_dq_all(output);
++
+     if (s->draining)
+         goto dequeue;
+ 
+@@ -528,7 +532,9 @@ static int v4l2_receive_packet(AVCodecContext *avctx, AVPacket *avpkt)
+     }
+ 
+ dequeue:
+-    if ((ret = ff_v4l2_context_dequeue_packet(capture, avpkt)) != 0)
++    ret = ff_v4l2_context_dequeue_packet(capture, avpkt);
++    ff_v4l2_dq_all(output);
++    if (ret)
+         return ret;
+ 
+     if (capture->first_buf == 1) {
+@@ -560,7 +566,9 @@ dequeue:
+             s->extdata_size = len;
+         }
+ 
+-        if ((ret = ff_v4l2_context_dequeue_packet(capture, avpkt)) != 0)
++        ret = ff_v4l2_context_dequeue_packet(capture, avpkt);
++        ff_v4l2_dq_all(output);
++        if (ret)
+             return ret;
+     }
+ 
+-- 
+2.37.2
+

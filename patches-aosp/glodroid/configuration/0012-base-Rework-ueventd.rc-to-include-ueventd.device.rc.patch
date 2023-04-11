@@ -1,0 +1,61 @@
+From c28e79533cb0d744b50043b7e5589f1c3fac9d86 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Wed, 12 Apr 2023 00:36:52 +0300
+Subject: [PATCH 12/12] base: Rework ueventd.rc to include ueventd.device.rc
+
+From now on, the ueventd.rc defines only common rules.
+Device-specific rules must be defined by ueventd.device.rc.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ common/base/ueventd.common.rc | 27 +++------------------------
+ 1 file changed, 3 insertions(+), 24 deletions(-)
+
+diff --git a/common/base/ueventd.common.rc b/common/base/ueventd.common.rc
+index ec7c3d0..7f71537 100644
+--- a/common/base/ueventd.common.rc
++++ b/common/base/ueventd.common.rc
+@@ -1,31 +1,10 @@
++import /vendor/etc/uevent.device.rc
++
+ modalias_handling enabled
+ 
+ subsystem usbmisc
+     devname uevent_devname
+ 
+-/dev/pvr_sync                                          0666    system       graphics
+-/dev/sw_sync                                           0666    system       graphics
+-/dev/dri/controlD64                                    0660    system       graphics
+-/dev/composer                                          0660    system       graphics
+-/dev/graphics/fb0                                      0666    system       graphics
+-/dev/tee0                                              0660    system       keystore
+-/dev/teepriv0                                          0660    system       keystore
+-/dev/ttyUSB0                                           0666    system       system
+-/dev/ttyUSB1                                           0666    system       system
+-/dev/ttyUSB2                                           0666    system       system
+-/dev/ttyUSB3                                           0666    system       system
+-/dev/block/platform/soc/1c0f000.mmc/by-name/vendor     0600    system       system
+-/dev/block/platform/soc/1c0f000.mmc/by-name/userdata   0600    system       system
+-/dev/rfkill                                            0660    bluetooth    net_bt
+-/dev/ion                                               0664    system       system
+-/dev/iio:device0                                       0660    system       system
+-/dev/iio:device1                                       0660    system       system
+-/dev/iio:device2                                       0660    system       system
+-/dev/iio:device3                                       0660    system       system
+-/dev/video*                                            0660    system       camera
+-/dev/media*                                            0660    system       camera
+-/dev/v4l-subdev*                                       0660    system       camera
+-
+ /dev/dma_heap/system                                   0666    system       graphics
+ /dev/dma_heap/linux,cma                                0666    system       graphics
+ 
+@@ -37,4 +16,4 @@ subsystem usbmisc
+ /sys/devices/system  *                scaling_max_freq 0644    system       system
+ 
+ # USB Gadget HAL v1.2
+-/sys/class/udc*                          current_speed 0644    system       system
+\ No newline at end of file
++/sys/class/udc*                          current_speed 0644    system       system
+-- 
+2.37.2
+

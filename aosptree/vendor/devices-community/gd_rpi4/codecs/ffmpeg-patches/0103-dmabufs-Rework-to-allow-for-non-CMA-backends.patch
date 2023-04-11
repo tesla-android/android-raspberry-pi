@@ -1,0 +1,256 @@
+From 61cb9fc3ce06e0ecaeeec3add143bc3a82956853 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 13 Dec 2022 13:01:00 +0000
+Subject: [PATCH 103/122] dmabufs: Rework to allow for non-CMA backends
+
+---
+ libavcodec/v4l2_req_dmabufs.c | 161 ++++++++++++++++++++++++----------
+ 1 file changed, 116 insertions(+), 45 deletions(-)
+
+diff --git a/libavcodec/v4l2_req_dmabufs.c b/libavcodec/v4l2_req_dmabufs.c
+index c4bbed18c6..1c3a5e861f 100644
+--- a/libavcodec/v4l2_req_dmabufs.c
++++ b/libavcodec/v4l2_req_dmabufs.c
+@@ -1,3 +1,4 @@
++#include <stdatomic.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <unistd.h>
+@@ -19,9 +20,21 @@
+ 
+ #define TRACE_ALLOC 0
+ 
++struct dmabufs_ctl;
++struct dmabuf_h;
++
++struct dmabuf_fns {
++    int (*buf_alloc)(struct dmabufs_ctl * dbsc, struct dmabuf_h * dh, size_t size);
++    void (*buf_free)(struct dmabuf_h * dh);
++    int (*ctl_new)(struct dmabufs_ctl * dbsc);
++    void (*ctl_free)(struct dmabufs_ctl * dbsc);
++};
++
+ struct dmabufs_ctl {
+     int fd;
+     size_t page_size;
++    void * v;
++    const struct dmabuf_fns * fns;
+ };
+ 
+ struct dmabuf_h {
+@@ -29,6 +42,8 @@ struct dmabuf_h {
+     size_t size;
+     size_t len;
+     void * mapptr;
++    void * v;
++    const struct dmabuf_fns * fns;
+ };
+ 
+ #if TRACE_ALLOC
+@@ -88,15 +103,8 @@ struct dmabuf_h * dmabuf_import(int fd, size_t size)
+ struct dmabuf_h * dmabuf_realloc(struct dmabufs_ctl * dbsc, struct dmabuf_h * old, size_t size)
+ {
+     struct dmabuf_h * dh;
+-    struct dma_heap_allocation_data data = {
+-        .len = (size + dbsc->page_size - 1) & ~(dbsc->page_size - 1),
+-        .fd = 0,
+-        .fd_flags = O_RDWR,
+-        .heap_flags = 0
+-    };
+-
+     if (old != NULL) {
+-        if (old->size == data.len) {
++        if (old->size >= size) {
+             return old;
+         }
+         dmabuf_free(old);
+@@ -106,24 +114,16 @@ struct dmabuf_h * dmabuf_realloc(struct dmabufs_ctl * dbsc, struct dmabuf_h * ol
+         (dh = malloc(sizeof(*dh))) == NULL)
+         return NULL;
+ 
+-    while (ioctl(dbsc->fd, DMA_HEAP_IOCTL_ALLOC, &data)) {
+-        int err = errno;
+-        request_log("Failed to alloc %" PRIu64 " from dma-heap(fd=%d): %d (%s)\n",
+-                (uint64_t)data.len,
+-                dbsc->fd,
+-                err,
+-                strerror(err));
+-        if (err == EINTR)
+-            continue;
+-        goto fail;
+-    }
+-
+     *dh = (struct dmabuf_h){
+-        .fd = data.fd,
+-        .size = (size_t)data.len,
+-        .mapptr = MAP_FAILED
++        .fd = -1,
++        .mapptr = MAP_FAILED,
++        .fns = dbsc->fns
+     };
+ 
++    if (dh->fns->buf_alloc(dbsc, dh, size) != 0)
++        goto fail;
++
++
+ #if TRACE_ALLOC
+     ++total_bufs;
+     total_size += dh->size;
+@@ -220,8 +220,6 @@ void dmabuf_len_set(struct dmabuf_h * const dh, const size_t len)
+     dh->len = len;
+ }
+ 
+-
+-
+ void dmabuf_free(struct dmabuf_h * dh)
+ {
+     if (!dh)
+@@ -233,20 +231,63 @@ void dmabuf_free(struct dmabuf_h * dh)
+     request_log("%s: Free: %zd, total=%zd, bufs=%d\n", __func__, dh->size, total_size, total_bufs);
+ #endif
+ 
+-    if (dh->mapptr != MAP_FAILED)
++    dh->fns->buf_free(dh);
++
++    if (dh->mapptr != MAP_FAILED && dh->mapptr != NULL)
+         munmap(dh->mapptr, dh->size);
+-    while (close(dh->fd) == -1 && errno == EINTR)
+-        /* loop */;
++    if (dh->fd != -1)
++        while (close(dh->fd) == -1 && errno == EINTR)
++            /* loop */;
+     free(dh);
+ }
+ 
+-struct dmabufs_ctl * dmabufs_ctl_new(void)
++static struct dmabufs_ctl * dmabufs_ctl_new2(const struct dmabuf_fns * const fns)
+ {
+-    struct dmabufs_ctl * dbsc = malloc(sizeof(*dbsc));
++    struct dmabufs_ctl * dbsc = calloc(1, sizeof(*dbsc));
+ 
+     if (!dbsc)
+         return NULL;
+ 
++    dbsc->fd = -1;
++    dbsc->fns = fns;
++    dbsc->page_size = (size_t)sysconf(_SC_PAGE_SIZE);
++
++    if (fns->ctl_new(dbsc) != 0)
++        goto fail;
++
++    return dbsc;
++
++fail:
++    free(dbsc);
++    return NULL;
++}
++
++static void dmabufs_ctl_free(struct dmabufs_ctl * const dbsc)
++{
++    request_debug(NULL, "Free dmabuf ctl\n");
++
++    dbsc->fns->ctl_free(dbsc);
++
++    free(dbsc);
++}
++
++void dmabufs_ctl_delete(struct dmabufs_ctl ** const pDbsc)
++{
++    struct dmabufs_ctl * const dbsc = *pDbsc;
++
++    if (!dbsc)
++        return;
++    *pDbsc = NULL;
++
++    dmabufs_ctl_free(dbsc);
++}
++
++//-----------------------------------------------------------------------------
++//
++// Alloc dmabuf via CMA
++
++static int ctl_cma_new(struct dmabufs_ctl * dbsc)
++{
+     while ((dbsc->fd = open(DMABUF_NAME1, O_RDWR)) == -1 &&
+            errno == EINTR)
+         /* Loop */;
+@@ -258,31 +299,61 @@ struct dmabufs_ctl * dmabufs_ctl_new(void)
+         if (dbsc->fd == -1) {
+             request_log("Unable to open either %s or %s\n",
+                     DMABUF_NAME1, DMABUF_NAME2);
+-            goto fail;
++            return -1;
+         }
+     }
++    return 0;
++}
+ 
+-    dbsc->page_size = (size_t)sysconf(_SC_PAGE_SIZE);
+-
+-    return dbsc;
++static void ctl_cma_free(struct dmabufs_ctl * dbsc)
++{
++    if (dbsc->fd != -1)
++        while (close(dbsc->fd) == -1 && errno == EINTR)
++            /* loop */;
+ 
+-fail:
+-    free(dbsc);
+-    return NULL;
+ }
+ 
+-void dmabufs_ctl_delete(struct dmabufs_ctl ** const pDbsc)
++static int buf_cma_alloc(struct dmabufs_ctl * const dbsc, struct dmabuf_h * dh, size_t size)
+ {
+-    struct dmabufs_ctl * const dbsc = *pDbsc;
++    struct dma_heap_allocation_data data = {
++        .len = (size + dbsc->page_size - 1) & ~(dbsc->page_size - 1),
++        .fd = 0,
++        .fd_flags = O_RDWR,
++        .heap_flags = 0
++    };
+ 
+-    if (!dbsc)
+-        return;
+-    *pDbsc = NULL;
++    while (ioctl(dbsc->fd, DMA_HEAP_IOCTL_ALLOC, &data)) {
++        int err = errno;
++        request_log("Failed to alloc %" PRIu64 " from dma-heap(fd=%d): %d (%s)\n",
++                (uint64_t)data.len,
++                dbsc->fd,
++                err,
++                strerror(err));
++        if (err == EINTR)
++            continue;
++        return -err;
++    }
+ 
+-    while (close(dbsc->fd) == -1 && errno == EINTR)
+-        /* loop */;
++    dh->fd = data.fd;
++    dh->size = (size_t)data.len;
++    return 0;
++}
+ 
+-    free(dbsc);
++static void buf_cma_free(struct dmabuf_h * dh)
++{
++    // Nothing needed
+ }
+ 
++static const struct dmabuf_fns dmabuf_cma_fns = {
++    .buf_alloc  = buf_cma_alloc,
++    .buf_free   = buf_cma_free,
++    .ctl_new    = ctl_cma_new,
++    .ctl_free   = ctl_cma_free,
++};
++
++struct dmabufs_ctl * dmabufs_ctl_new(void)
++{
++    request_debug(NULL, "Dmabufs using CMA\n");;
++    return dmabufs_ctl_new2(&dmabuf_cma_fns);
++}
+ 
+-- 
+2.37.2
+

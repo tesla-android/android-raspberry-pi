@@ -27,6 +27,7 @@ PRODUCT_COPY_FILES += \
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/etc/power.rpi4.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/power.rpi4.rc \
     $(LOCAL_PATH)/etc/snd.rpi4.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/snd.rpi4.rc     \
+    $(LOCAL_PATH)/etc/uevent.device.rc:$(TARGET_COPY_OUT_VENDOR)/etc/uevent.device.rc \
 
 # Checked by android.opengl.cts.OpenGlEsVersionTest#testOpenGlEsVersion. Required to run correct set of dEQP tests.
 # 196609 == 0x00030001 == GLES v3.1
@@ -41,6 +42,13 @@ LIBCAMERA_CFGS := \
     ov5647.json ov5647_noir.json ov9281_mono.json se327m12.json uncalibrated.json
 
 PRODUCT_COPY_FILES += $(foreach cfg,$(LIBCAMERA_CFGS),glodroid/vendor/libcamera/src/ipa/raspberrypi/data/$(cfg):$(TARGET_COPY_OUT_VENDOR)/etc/libcamera/ipa/raspberrypi/$(cfg)$(space))
+
+# Codecs
+PRODUCT_VENDOR_PROPERTIES += \
+    persist.ffmpeg_codec2.v4l2.h264=true \
+    persist.ffmpeg_codec2.v4l2.h265=true \
+    persist.ffmpeg_codec2.rank.audio=16 \
+    persist.ffmpeg_codec2.rank.video=128 \
 
 # Vulkan
 PRODUCT_PACKAGES += \

@@ -1,0 +1,108 @@
+From a1cd1cb98e48c631392b385ccac5ab7b09bb5ee9 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 14 Dec 2021 16:11:10 +0000
+Subject: [PATCH 040/122] Add an always-reinit quirk
+
+---
+ libavcodec/v4l2_context.c |  7 +++++--
+ libavcodec/v4l2_m2m.h     |  5 +++++
+ libavcodec/v4l2_m2m_dec.c | 33 ++++++++++++++++++++++++++++++++-
+ 3 files changed, 42 insertions(+), 3 deletions(-)
+
+diff --git a/libavcodec/v4l2_context.c b/libavcodec/v4l2_context.c
+index d765181645..c11b5e6863 100644
+--- a/libavcodec/v4l2_context.c
++++ b/libavcodec/v4l2_context.c
+@@ -188,6 +188,9 @@ static int do_source_change(V4L2m2mContext * const s)
+     get_default_selection(&s->capture, &s->capture.selection);
+ 
+     reinit = ctx_resolution_changed(&s->capture, &cap_fmt);
++    if ((s->quirks & FF_V4L2_QUIRK_REINIT_ALWAYS) != 0)
++        reinit = 1;
++
+     s->capture.format = cap_fmt;
+     if (reinit) {
+         s->capture.height = ff_v4l2_get_format_height(&cap_fmt);
+@@ -202,10 +205,10 @@ static int do_source_change(V4L2m2mContext * const s)
+ 
+     s->capture.sample_aspect_ratio = v4l2_get_sar(&s->capture);
+ 
+-    av_log(avctx, AV_LOG_DEBUG, "Source change: SAR: %d/%d, crop %dx%d @ %d,%d\n",
++    av_log(avctx, AV_LOG_DEBUG, "Source change: SAR: %d/%d, crop %dx%d @ %d,%d, reinit=%d\n",
+            s->capture.sample_aspect_ratio.num, s->capture.sample_aspect_ratio.den,
+            s->capture.selection.width, s->capture.selection.height,
+-           s->capture.selection.left, s->capture.selection.top);
++           s->capture.selection.left, s->capture.selection.top, reinit);
+ 
+     if (reinit) {
+         if (avctx)
+diff --git a/libavcodec/v4l2_m2m.h b/libavcodec/v4l2_m2m.h
+index d71f6b721c..f1923bb26d 100644
+--- a/libavcodec/v4l2_m2m.h
++++ b/libavcodec/v4l2_m2m.h
+@@ -113,6 +113,11 @@ typedef struct V4L2m2mContext {
+ 
+     /* Ext data sent */
+     int extdata_sent;
++
++#define FF_V4L2_QUIRK_REINIT_ALWAYS     1
++    /* Quirks */
++    unsigned int quirks;
++
+ } V4L2m2mContext;
+ 
+ typedef struct V4L2m2mPriv {
+diff --git a/libavcodec/v4l2_m2m_dec.c b/libavcodec/v4l2_m2m_dec.c
+index c9655bcc3b..e2b10f5e3a 100644
+--- a/libavcodec/v4l2_m2m_dec.c
++++ b/libavcodec/v4l2_m2m_dec.c
+@@ -540,6 +540,34 @@ static int v4l2_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+ }
+ #endif
+ 
++static int
++get_quirks(AVCodecContext * const avctx, V4L2m2mContext * const s)
++{
++    struct v4l2_capability cap;
++
++    memset(&cap, 0, sizeof(cap));
++    while (ioctl(s->fd, VIDIOC_QUERYCAP, &cap) != 0) {
++        int err = errno;
++        if (err == EINTR)
++            continue;
++        av_log(avctx, AV_LOG_ERROR, "V4L2: Failed to get capabilities: %s\n", strerror(err));
++        return AVERROR(err);
++    }
++
++    // Could be made table driven if we have a few more but right now there
++    // seems no point
++
++    // Meson (amlogic) always gives a resolution changed event after output
++    // streamon and userspace must (re)allocate capture buffers and streamon
++    // capture to clear the event even if the capture buffers were the right
++    // size in the first place.
++    if (strcmp(cap.driver, "meson-vdec") == 0)
++        s->quirks |= FF_V4L2_QUIRK_REINIT_ALWAYS;
++
++    av_log(avctx, AV_LOG_DEBUG, "Driver '%s': Quirks=%#x\n", cap.driver, s->quirks);
++    return 0;
++}
++
+ // This heuristic is for H264 but use for everything
+ static uint32_t max_coded_size(const AVCodecContext * const avctx)
+ {
+@@ -646,7 +674,10 @@ static av_cold int v4l2_decode_init(AVCodecContext *avctx)
+         return ret;
+     }
+ 
+-    return v4l2_prepare_decoder(s);
++    if ((ret = v4l2_prepare_decoder(s)) < 0)
++        return ret;
++
++    return get_quirks(avctx, s);
+ }
+ 
+ static av_cold int v4l2_decode_close(AVCodecContext *avctx)
+-- 
+2.37.2
+

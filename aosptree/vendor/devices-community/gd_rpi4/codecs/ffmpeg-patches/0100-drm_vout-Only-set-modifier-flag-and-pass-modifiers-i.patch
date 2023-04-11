@@ -1,0 +1,62 @@
+From 0ee1c3b41774d05595376f8d25de2a901dbb12c7 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Mon, 12 Dec 2022 17:51:46 +0000
+Subject: [PATCH 100/122] drm_vout: Only set modifier flag and pass modifiers
+ if there are some
+
+---
+ libavdevice/drm_vout.c | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/libavdevice/drm_vout.c b/libavdevice/drm_vout.c
+index 9bd9e04421..a56adea866 100644
+--- a/libavdevice/drm_vout.c
++++ b/libavdevice/drm_vout.c
+@@ -34,6 +34,7 @@
+ 
+ #include <xf86drm.h>
+ #include <xf86drmMode.h>
++#include <drm_fourcc.h>
+ 
+ #define TRACE_ALL 0
+ 
+@@ -249,6 +250,7 @@ static int do_display(AVFormatContext * const s, drm_display_env_t * const de, A
+         uint32_t offsets[4] = {0};
+         uint64_t modifiers[4] = {0};
+         uint32_t bo_handles[4] = {0};
++        int has_mods = 0;
+         int i, j, n;
+ 
+         da->frame = frame;
+@@ -258,6 +260,9 @@ static int do_display(AVFormatContext * const s, drm_display_env_t * const de, A
+                 av_log(s, AV_LOG_WARNING, "drmPrimeFDToHandle[%d](%d) failed: %s\n", i, desc->objects[i].fd, ERRSTR);
+                 return -1;
+             }
++            if (desc->objects[i].format_modifier != DRM_FORMAT_MOD_LINEAR &&
++                desc->objects[i].format_modifier != DRM_FORMAT_MOD_INVALID)
++                has_mods = 1;
+         }
+ 
+         n = 0;
+@@ -299,11 +304,13 @@ static int do_display(AVFormatContext * const s, drm_display_env_t * const de, A
+ #endif
+ 
+         if (drmModeAddFB2WithModifiers(de->drm_fd,
+-                                         av_frame_cropped_width(frame),
+-                                         av_frame_cropped_height(frame),
+-                                         desc->layers[0].format, bo_handles,
+-                                         pitches, offsets, modifiers,
+-                                         &da->fb_handle, DRM_MODE_FB_MODIFIERS /** 0 if no mods */) != 0) {
++                                       av_frame_cropped_width(frame),
++                                       av_frame_cropped_height(frame),
++                                       desc->layers[0].format, bo_handles,
++                                       pitches, offsets,
++                                       has_mods ? modifiers : NULL,
++                                       &da->fb_handle,
++                                       has_mods ? DRM_MODE_FB_MODIFIERS : 0) != 0) {
+             av_log(s, AV_LOG_WARNING, "drmModeAddFB2WithModifiers failed: %s\n", ERRSTR);
+             return -1;
+         }
+-- 
+2.37.2
+

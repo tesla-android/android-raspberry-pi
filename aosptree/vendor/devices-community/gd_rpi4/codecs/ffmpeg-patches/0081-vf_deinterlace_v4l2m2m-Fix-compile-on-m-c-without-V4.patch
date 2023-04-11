@@ -1,0 +1,136 @@
+From 22d2000382839dbd04588af1bb20cc9d9b3a4362 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Sat, 1 Oct 2022 13:40:57 +0000
+Subject: [PATCH 081/122] vf_deinterlace_v4l2m2m: Fix compile on m/c without
+ V4L2 SAND
+
+---
+ libavfilter/vf_deinterlace_v4l2m2m.c | 33 +++++++++++++++++++++++-----
+ 1 file changed, 28 insertions(+), 5 deletions(-)
+
+diff --git a/libavfilter/vf_deinterlace_v4l2m2m.c b/libavfilter/vf_deinterlace_v4l2m2m.c
+index c52dae1c44..716789f988 100644
+--- a/libavfilter/vf_deinterlace_v4l2m2m.c
++++ b/libavfilter/vf_deinterlace_v4l2m2m.c
+@@ -35,6 +35,8 @@
+ #include <sys/mman.h>
+ #include <unistd.h>
+ 
++#include "config.h"
++
+ #include "libavutil/avassert.h"
+ #include "libavutil/avstring.h"
+ #include "libavutil/common.h"
+@@ -59,6 +61,16 @@
+ #define DRM_FORMAT_P030 fourcc_code('P', '0', '3', '0') /* 2x2 subsampled Cr:Cb plane 10 bits per channel packed */
+ #endif
+ 
++// V4L2_PIX_FMT_NV12_10_COL128 and V4L2_PIX_FMT_NV12_COL128 should be defined
++// in drm_fourcc.h hopefully will be sometime in the future but until then...
++#ifndef V4L2_PIX_FMT_NV12_10_COL128
++#define V4L2_PIX_FMT_NV12_10_COL128 v4l2_fourcc('N', 'C', '3', '0')
++#endif
++
++#ifndef V4L2_PIX_FMT_NV12_COL128
++#define V4L2_PIX_FMT_NV12_COL128 v4l2_fourcc('N', 'C', '1', '2') /* 12  Y/CbCr 4:2:0 128 pixel wide column */
++#endif
++
+ typedef struct V4L2Queue V4L2Queue;
+ typedef struct DeintV4L2M2MContextShared DeintV4L2M2MContextShared;
+ 
+@@ -176,9 +188,11 @@ fmt_av_to_v4l2(const enum AVPixelFormat avfmt)
+         return V4L2_PIX_FMT_YUV420;
+     case AV_PIX_FMT_NV12:
+         return V4L2_PIX_FMT_NV12;
++#if CONFIG_SAND
+     case AV_PIX_FMT_RPI4_8:
+     case AV_PIX_FMT_SAND128:
+         return V4L2_PIX_FMT_NV12_COL128;
++#endif
+     default:
+         break;
+     }
+@@ -193,8 +207,10 @@ fmt_v4l2_to_av(const uint32_t pixfmt)
+         return AV_PIX_FMT_YUV420P;
+     case V4L2_PIX_FMT_NV12:
+         return AV_PIX_FMT_NV12;
++#if CONFIG_SAND
+     case V4L2_PIX_FMT_NV12_COL128:
+         return AV_PIX_FMT_RPI4_8;
++#endif
+     default:
+         break;
+     }
+@@ -823,6 +839,7 @@ static int set_src_fmt(V4L2Queue * const q, const AVFrame * const frame)
+                 h = src->layers[0].planes[1].offset / bpl;
+                 w = bpl;
+             }
++#if CONFIG_SAND
+             else if (fourcc_mod_broadcom_mod(mod) == DRM_FORMAT_MOD_BROADCOM_SAND128) {
+                 if (src->layers[0].nb_planes != 2)
+                     break;
+@@ -831,9 +848,11 @@ static int set_src_fmt(V4L2Queue * const q, const AVFrame * const frame)
+                 h = src->layers[0].planes[1].offset / 128;
+                 bpl = fourcc_mod_broadcom_param(mod);
+             }
++#endif
+             break;
+ 
+         case DRM_FORMAT_P030:
++#if CONFIG_SAND
+             if (fourcc_mod_broadcom_mod(mod) == DRM_FORMAT_MOD_BROADCOM_SAND128) {
+                 if (src->layers[0].nb_planes != 2)
+                     break;
+@@ -842,6 +861,7 @@ static int set_src_fmt(V4L2Queue * const q, const AVFrame * const frame)
+                 h = src->layers[0].planes[1].offset / 128;
+                 bpl = fourcc_mod_broadcom_param(mod);
+             }
++#endif
+             break;
+ 
+         default:
+@@ -1048,7 +1068,6 @@ static int v4l2_buffer_export_drm(V4L2Queue * const q, V4L2Buffer * const avbuf)
+     AVDRMLayerDescriptor * const layer = &drm_desc->layers[0];
+     const struct v4l2_format *const fmt = &q->format;
+     const uint32_t height = fmt_height(fmt);
+-    const uint32_t width  = fmt_width(fmt);
+     ptrdiff_t bpl0;
+ 
+     /* fill the DRM frame descriptor */
+@@ -1063,7 +1082,7 @@ static int v4l2_buffer_export_drm(V4L2Queue * const q, V4L2Buffer * const avbuf)
+     bpl0 = layer->planes[0].pitch;
+ 
+     switch (fmt_pixelformat(fmt)) {
+-
++#if CONFIG_SAND
+         case V4L2_PIX_FMT_NV12_COL128:
+             mod = DRM_FORMAT_MOD_BROADCOM_SAND128_COL_HEIGHT(bpl0);
+             layer->format = V4L2_PIX_FMT_NV12;
+@@ -1074,9 +1093,10 @@ static int v4l2_buffer_export_drm(V4L2Queue * const q, V4L2Buffer * const avbuf)
+             layer->nb_planes = 2;
+             layer->planes[1].object_index = 0;
+             layer->planes[1].offset = height * 128;
+-            layer->planes[0].pitch = width;
+-            layer->planes[1].pitch = width;
++            layer->planes[0].pitch = fmt_width(fmt);
++            layer->planes[1].pitch = layer->planes[0].pitch;
+             break;
++#endif
+ 
+         case DRM_FORMAT_NV12:
+             layer->format = V4L2_PIX_FMT_NV12;
+@@ -1576,7 +1596,10 @@ static uint32_t desc_pixelformat(const AVDRMFrameDescriptor * const drm_desc)
+         return is_linear ? V4L2_PIX_FMT_YUV420 : 0;
+     case DRM_FORMAT_NV12:
+         return is_linear ? V4L2_PIX_FMT_NV12 :
+-            fourcc_mod_broadcom_mod(mod) == DRM_FORMAT_MOD_BROADCOM_SAND128 ? V4L2_PIX_FMT_NV12_COL128 : 0;
++#if CONFIG_SAND
++            fourcc_mod_broadcom_mod(mod) == DRM_FORMAT_MOD_BROADCOM_SAND128 ? V4L2_PIX_FMT_NV12_COL128 :
++#endif
++            0;
+     default:
+         break;
+     }
+-- 
+2.37.2
+

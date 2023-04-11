@@ -1,0 +1,25 @@
+From 06f1a97772016dc820dfd85452693a7f3d79eae0 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Wed, 12 Apr 2023 00:34:50 +0300
+Subject: [PATCH 2/2] init.rc: Add the HAL to the media group
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ android.hardware.media.c2@1.2-service-ffmpeg.rc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/android.hardware.media.c2@1.2-service-ffmpeg.rc b/android.hardware.media.c2@1.2-service-ffmpeg.rc
+index 779d05f5d299..4c2b364e535b 100644
+--- a/android.hardware.media.c2@1.2-service-ffmpeg.rc
++++ b/android.hardware.media.c2@1.2-service-ffmpeg.rc
+@@ -17,6 +17,6 @@
+ service android-hardware-media-c2-ffmpeg-hal-1-2 /vendor/bin/hw/android.hardware.media.c2@1.2-service-ffmpeg
+     class hal
+     user mediacodec
+-    group camera mediadrm drmrpc
++    group media mediadrm drmrpc
+     ioprio rt 4
+     task_profiles ProcessCapacityHigh
+-- 
+2.37.2
+
