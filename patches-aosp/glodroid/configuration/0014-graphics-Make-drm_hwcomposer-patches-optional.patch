@@ -1,0 +1,123 @@
+From 6b562d9d8c35a2a259f5088e863ef2dd2aeab927 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Fri, 14 Apr 2023 20:26:07 +0300
+Subject: [PATCH 14/14] graphics: Make drm_hwcomposer patches optional
+
+Upstream drm_hwcomposer is good enough for most devices.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ common/graphics/board.mk                                         | 1 -
+ .../0001-drm_hwcomposer-Introduce-YAGI-bufferinfo-supplier.patch | 0
+ ...02-drm_hwcomposer-Add-YAGI-implementation-for-minigbm-C.patch | 0
+ .../0003-drm_hwcomposer-CI-Prepare-for-hwc3.patch                | 0
+ .../0004-drm_hwcomposer-Add-hwc3-frontend-stub.patch             | 0
+ .../0005-drm_hwcomposer-GLODROID-Add-vscode-tasks-file.patch     | 0
+ .../0006-drm_hwcomposer-Make-compositor-frontend-agnostic.patch  | 0
+ ...07-drm_hwcomposer-Create-composition-related-frontend-a.patch | 0
+ ...08-drm_hwcomposer-Reduce-frontend-code-usage-by-the-com.patch | 0
+ ...09-drm_hwcomposer-Make-flattening-thread-based-instead-.patch | 0
+ .../0010-drM_hwcomposer-Squashed-improvements.patch              | 0
+ ...011-drm_hwcomposer-Enable-HWC2_CAPABILITY_SKIP_VALIDATE.patch | 0
+ ...12-drm_hwcomposer-Support-relaxed-requirements-for-the-.patch | 0
+ .../0013-drm_hwcomposer-Add-sunxi-drm-compositor.patch           | 0
+ ...14-drm_hwcomposer-Increase-chance-for-CLIENT-buffer-reu.patch | 0
+ ...15-drm_hwcomposer-Use-SharedFd-where-it-allows-to-reduc.patch | 0
+ .../0016-WIP-GLODROID-FIXES.patch                                | 0
+ 17 files changed, 1 deletion(-)
+ rename common/graphics/{patches-drm_hwcomposer => patches-drm_hwcomposer-experimental}/0001-drm_hwcomposer-Introduce-YAGI-bufferinfo-supplier.patch (100%)
+ rename common/graphics/{patches-drm_hwcomposer => patches-drm_hwcomposer-experimental}/0002-drm_hwcomposer-Add-YAGI-implementation-for-minigbm-C.patch (100%)
+ rename common/graphics/{patches-drm_hwcomposer => patches-drm_hwcomposer-experimental}/0003-drm_hwcomposer-CI-Prepare-for-hwc3.patch (100%)
+ rename common/graphics/{patches-drm_hwcomposer => patches-drm_hwcomposer-experimental}/0004-drm_hwcomposer-Add-hwc3-frontend-stub.patch (100%)
+ rename common/graphics/{patches-drm_hwcomposer => patches-drm_hwcomposer-experimental}/0005-drm_hwcomposer-GLODROID-Add-vscode-tasks-file.patch (100%)
+ rename common/graphics/{patches-drm_hwcomposer => patches-drm_hwcomposer-experimental}/0006-drm_hwcomposer-Make-compositor-frontend-agnostic.patch (100%)
+ rename common/graphics/{patches-drm_hwcomposer => patches-drm_hwcomposer-experimental}/0007-drm_hwcomposer-Create-composition-related-frontend-a.patch (100%)
+ rename common/graphics/{patches-drm_hwcomposer => patches-drm_hwcomposer-experimental}/0008-drm_hwcomposer-Reduce-frontend-code-usage-by-the-com.patch (100%)
+ rename common/graphics/{patches-drm_hwcomposer => patches-drm_hwcomposer-experimental}/0009-drm_hwcomposer-Make-flattening-thread-based-instead-.patch (100%)
+ rename common/graphics/{patches-drm_hwcomposer => patches-drm_hwcomposer-experimental}/0010-drM_hwcomposer-Squashed-improvements.patch (100%)
+ rename common/graphics/{patches-drm_hwcomposer => patches-drm_hwcomposer-experimental}/0011-drm_hwcomposer-Enable-HWC2_CAPABILITY_SKIP_VALIDATE.patch (100%)
+ rename common/graphics/{patches-drm_hwcomposer => patches-drm_hwcomposer-experimental}/0012-drm_hwcomposer-Support-relaxed-requirements-for-the-.patch (100%)
+ rename common/graphics/{patches-drm_hwcomposer => patches-drm_hwcomposer-experimental}/0013-drm_hwcomposer-Add-sunxi-drm-compositor.patch (100%)
+ rename common/graphics/{patches-drm_hwcomposer => patches-drm_hwcomposer-experimental}/0014-drm_hwcomposer-Increase-chance-for-CLIENT-buffer-reu.patch (100%)
+ rename common/graphics/{patches-drm_hwcomposer => patches-drm_hwcomposer-experimental}/0015-drm_hwcomposer-Use-SharedFd-where-it-allows-to-reduc.patch (100%)
+ rename common/graphics/{patches-drm_hwcomposer => patches-drm_hwcomposer-experimental}/0016-WIP-GLODROID-FIXES.patch (100%)
+
+diff --git a/common/graphics/board.mk b/common/graphics/board.mk
+index 6c0eac9..fc07c26 100644
+--- a/common/graphics/board.mk
++++ b/common/graphics/board.mk
+@@ -15,7 +15,6 @@ BOARD_MESA3D_BUILD_LIBGBM := true
+ ifeq ($(GD_USE_RS_HWCOMPOSER),)
+ BOARD_BUILD_AOSPEXT_DRMHWCOMPOSER := true
+ BOARD_DRMHWCOMPOSER_SRC_DIR := glodroid/vendor/drm_hwcomposer
+-BOARD_DRMHWCOMPOSER_PATCHES_DIRS += $(BCG_PATH)/patches-drm_hwcomposer
+ DEVICE_MANIFEST_FILE += $(BCG_PATH)/android.hardware.graphics.composer@2.4.xml
+ else
+ BOARD_BUILD_AOSPEXT_RSHWCOMPOSER := true
+diff --git a/common/graphics/patches-drm_hwcomposer/0001-drm_hwcomposer-Introduce-YAGI-bufferinfo-supplier.patch b/common/graphics/patches-drm_hwcomposer-experimental/0001-drm_hwcomposer-Introduce-YAGI-bufferinfo-supplier.patch
+similarity index 100%
+rename from common/graphics/patches-drm_hwcomposer/0001-drm_hwcomposer-Introduce-YAGI-bufferinfo-supplier.patch
+rename to common/graphics/patches-drm_hwcomposer-experimental/0001-drm_hwcomposer-Introduce-YAGI-bufferinfo-supplier.patch
+diff --git a/common/graphics/patches-drm_hwcomposer/0002-drm_hwcomposer-Add-YAGI-implementation-for-minigbm-C.patch b/common/graphics/patches-drm_hwcomposer-experimental/0002-drm_hwcomposer-Add-YAGI-implementation-for-minigbm-C.patch
+similarity index 100%
+rename from common/graphics/patches-drm_hwcomposer/0002-drm_hwcomposer-Add-YAGI-implementation-for-minigbm-C.patch
+rename to common/graphics/patches-drm_hwcomposer-experimental/0002-drm_hwcomposer-Add-YAGI-implementation-for-minigbm-C.patch
+diff --git a/common/graphics/patches-drm_hwcomposer/0003-drm_hwcomposer-CI-Prepare-for-hwc3.patch b/common/graphics/patches-drm_hwcomposer-experimental/0003-drm_hwcomposer-CI-Prepare-for-hwc3.patch
+similarity index 100%
+rename from common/graphics/patches-drm_hwcomposer/0003-drm_hwcomposer-CI-Prepare-for-hwc3.patch
+rename to common/graphics/patches-drm_hwcomposer-experimental/0003-drm_hwcomposer-CI-Prepare-for-hwc3.patch
+diff --git a/common/graphics/patches-drm_hwcomposer/0004-drm_hwcomposer-Add-hwc3-frontend-stub.patch b/common/graphics/patches-drm_hwcomposer-experimental/0004-drm_hwcomposer-Add-hwc3-frontend-stub.patch
+similarity index 100%
+rename from common/graphics/patches-drm_hwcomposer/0004-drm_hwcomposer-Add-hwc3-frontend-stub.patch
+rename to common/graphics/patches-drm_hwcomposer-experimental/0004-drm_hwcomposer-Add-hwc3-frontend-stub.patch
+diff --git a/common/graphics/patches-drm_hwcomposer/0005-drm_hwcomposer-GLODROID-Add-vscode-tasks-file.patch b/common/graphics/patches-drm_hwcomposer-experimental/0005-drm_hwcomposer-GLODROID-Add-vscode-tasks-file.patch
+similarity index 100%
+rename from common/graphics/patches-drm_hwcomposer/0005-drm_hwcomposer-GLODROID-Add-vscode-tasks-file.patch
+rename to common/graphics/patches-drm_hwcomposer-experimental/0005-drm_hwcomposer-GLODROID-Add-vscode-tasks-file.patch
+diff --git a/common/graphics/patches-drm_hwcomposer/0006-drm_hwcomposer-Make-compositor-frontend-agnostic.patch b/common/graphics/patches-drm_hwcomposer-experimental/0006-drm_hwcomposer-Make-compositor-frontend-agnostic.patch
+similarity index 100%
+rename from common/graphics/patches-drm_hwcomposer/0006-drm_hwcomposer-Make-compositor-frontend-agnostic.patch
+rename to common/graphics/patches-drm_hwcomposer-experimental/0006-drm_hwcomposer-Make-compositor-frontend-agnostic.patch
+diff --git a/common/graphics/patches-drm_hwcomposer/0007-drm_hwcomposer-Create-composition-related-frontend-a.patch b/common/graphics/patches-drm_hwcomposer-experimental/0007-drm_hwcomposer-Create-composition-related-frontend-a.patch
+similarity index 100%
+rename from common/graphics/patches-drm_hwcomposer/0007-drm_hwcomposer-Create-composition-related-frontend-a.patch
+rename to common/graphics/patches-drm_hwcomposer-experimental/0007-drm_hwcomposer-Create-composition-related-frontend-a.patch
+diff --git a/common/graphics/patches-drm_hwcomposer/0008-drm_hwcomposer-Reduce-frontend-code-usage-by-the-com.patch b/common/graphics/patches-drm_hwcomposer-experimental/0008-drm_hwcomposer-Reduce-frontend-code-usage-by-the-com.patch
+similarity index 100%
+rename from common/graphics/patches-drm_hwcomposer/0008-drm_hwcomposer-Reduce-frontend-code-usage-by-the-com.patch
+rename to common/graphics/patches-drm_hwcomposer-experimental/0008-drm_hwcomposer-Reduce-frontend-code-usage-by-the-com.patch
+diff --git a/common/graphics/patches-drm_hwcomposer/0009-drm_hwcomposer-Make-flattening-thread-based-instead-.patch b/common/graphics/patches-drm_hwcomposer-experimental/0009-drm_hwcomposer-Make-flattening-thread-based-instead-.patch
+similarity index 100%
+rename from common/graphics/patches-drm_hwcomposer/0009-drm_hwcomposer-Make-flattening-thread-based-instead-.patch
+rename to common/graphics/patches-drm_hwcomposer-experimental/0009-drm_hwcomposer-Make-flattening-thread-based-instead-.patch
+diff --git a/common/graphics/patches-drm_hwcomposer/0010-drM_hwcomposer-Squashed-improvements.patch b/common/graphics/patches-drm_hwcomposer-experimental/0010-drM_hwcomposer-Squashed-improvements.patch
+similarity index 100%
+rename from common/graphics/patches-drm_hwcomposer/0010-drM_hwcomposer-Squashed-improvements.patch
+rename to common/graphics/patches-drm_hwcomposer-experimental/0010-drM_hwcomposer-Squashed-improvements.patch
+diff --git a/common/graphics/patches-drm_hwcomposer/0011-drm_hwcomposer-Enable-HWC2_CAPABILITY_SKIP_VALIDATE.patch b/common/graphics/patches-drm_hwcomposer-experimental/0011-drm_hwcomposer-Enable-HWC2_CAPABILITY_SKIP_VALIDATE.patch
+similarity index 100%
+rename from common/graphics/patches-drm_hwcomposer/0011-drm_hwcomposer-Enable-HWC2_CAPABILITY_SKIP_VALIDATE.patch
+rename to common/graphics/patches-drm_hwcomposer-experimental/0011-drm_hwcomposer-Enable-HWC2_CAPABILITY_SKIP_VALIDATE.patch
+diff --git a/common/graphics/patches-drm_hwcomposer/0012-drm_hwcomposer-Support-relaxed-requirements-for-the-.patch b/common/graphics/patches-drm_hwcomposer-experimental/0012-drm_hwcomposer-Support-relaxed-requirements-for-the-.patch
+similarity index 100%
+rename from common/graphics/patches-drm_hwcomposer/0012-drm_hwcomposer-Support-relaxed-requirements-for-the-.patch
+rename to common/graphics/patches-drm_hwcomposer-experimental/0012-drm_hwcomposer-Support-relaxed-requirements-for-the-.patch
+diff --git a/common/graphics/patches-drm_hwcomposer/0013-drm_hwcomposer-Add-sunxi-drm-compositor.patch b/common/graphics/patches-drm_hwcomposer-experimental/0013-drm_hwcomposer-Add-sunxi-drm-compositor.patch
+similarity index 100%
+rename from common/graphics/patches-drm_hwcomposer/0013-drm_hwcomposer-Add-sunxi-drm-compositor.patch
+rename to common/graphics/patches-drm_hwcomposer-experimental/0013-drm_hwcomposer-Add-sunxi-drm-compositor.patch
+diff --git a/common/graphics/patches-drm_hwcomposer/0014-drm_hwcomposer-Increase-chance-for-CLIENT-buffer-reu.patch b/common/graphics/patches-drm_hwcomposer-experimental/0014-drm_hwcomposer-Increase-chance-for-CLIENT-buffer-reu.patch
+similarity index 100%
+rename from common/graphics/patches-drm_hwcomposer/0014-drm_hwcomposer-Increase-chance-for-CLIENT-buffer-reu.patch
+rename to common/graphics/patches-drm_hwcomposer-experimental/0014-drm_hwcomposer-Increase-chance-for-CLIENT-buffer-reu.patch
+diff --git a/common/graphics/patches-drm_hwcomposer/0015-drm_hwcomposer-Use-SharedFd-where-it-allows-to-reduc.patch b/common/graphics/patches-drm_hwcomposer-experimental/0015-drm_hwcomposer-Use-SharedFd-where-it-allows-to-reduc.patch
+similarity index 100%
+rename from common/graphics/patches-drm_hwcomposer/0015-drm_hwcomposer-Use-SharedFd-where-it-allows-to-reduc.patch
+rename to common/graphics/patches-drm_hwcomposer-experimental/0015-drm_hwcomposer-Use-SharedFd-where-it-allows-to-reduc.patch
+diff --git a/common/graphics/patches-drm_hwcomposer/0016-WIP-GLODROID-FIXES.patch b/common/graphics/patches-drm_hwcomposer-experimental/0016-WIP-GLODROID-FIXES.patch
+similarity index 100%
+rename from common/graphics/patches-drm_hwcomposer/0016-WIP-GLODROID-FIXES.patch
+rename to common/graphics/patches-drm_hwcomposer-experimental/0016-WIP-GLODROID-FIXES.patch
+-- 
+2.37.2
+

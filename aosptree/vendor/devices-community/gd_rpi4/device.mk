@@ -29,6 +29,11 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/etc/snd.rpi4.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/snd.rpi4.rc     \
     $(LOCAL_PATH)/etc/uevent.device.rc:$(TARGET_COPY_OUT_VENDOR)/etc/uevent.device.rc \
 
+# drm_hwcomposer
+# RPI4's hardware doesn't have hardware CTM support, while GPU is slow
+# to handle the whole composition. Ignore CTM instead.
+PRODUCT_VENDOR_PROPERTIES += vendor.hwc.drm.ctm=DRM_OR_IGNORE
+
 # Checked by android.opengl.cts.OpenGlEsVersionTest#testOpenGlEsVersion. Required to run correct set of dEQP tests.
 # 196609 == 0x00030001 == GLES v3.1
 PRODUCT_VENDOR_PROPERTIES += \
