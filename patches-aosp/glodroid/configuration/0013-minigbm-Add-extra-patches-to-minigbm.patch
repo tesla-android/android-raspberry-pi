@@ -1,0 +1,319 @@
+From a1f69dfde0bbfb36badd3e487a804fbe7a91f8d4 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Fri, 14 Apr 2023 20:13:22 +0300
+Subject: [PATCH 13/14] minigbm: Add extra patches to minigbm
+
+The last patch silences logcat verbose messages, while the
+remaining 2 improve dmabuf_heap backend support for rpi4.
+After this change, gbm_mesa remains as a backend.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ ...lpers-to-convert-use_flags-to-string.patch |  84 +++++++++++
+ .../0016-dma_heaps-Constraints-for-RPI4.patch | 135 ++++++++++++++++++
+ ...-t-print-verbose-messages-by-default.patch |  60 ++++++++
+ 3 files changed, 279 insertions(+)
+ create mode 100644 common/graphics/patches-minigbm/0015-helpers-Add-helpers-to-convert-use_flags-to-string.patch
+ create mode 100644 common/graphics/patches-minigbm/0016-dma_heaps-Constraints-for-RPI4.patch
+ create mode 100644 common/graphics/patches-minigbm/0017-Don-t-print-verbose-messages-by-default.patch
+
+diff --git a/common/graphics/patches-minigbm/0015-helpers-Add-helpers-to-convert-use_flags-to-string.patch b/common/graphics/patches-minigbm/0015-helpers-Add-helpers-to-convert-use_flags-to-string.patch
+new file mode 100644
+index 0000000..267af01
+--- /dev/null
++++ b/common/graphics/patches-minigbm/0015-helpers-Add-helpers-to-convert-use_flags-to-string.patch
+@@ -0,0 +1,84 @@
++From f60c937a492f2cc4b4ca0a07c9fc1632c42963f1 Mon Sep 17 00:00:00 2001
++From: Roman Stratiienko <r.stratiienko@gmail.com>
++Date: Sun, 25 Sep 2022 19:22:53 +0300
++Subject: [PATCH 2/2] helpers: Add helpers to convert use_flags to string
++
++Change-Id: Icce8164cde8da483d683c06a4936ffde05b6f515
++Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
++---
++ drv_helpers.c | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
++ drv_helpers.h |  3 +++
++ 2 files changed, 52 insertions(+)
++
++diff --git a/drv_helpers.c b/drv_helpers.c
++index 6ff1fc6..bb8cbd6 100644
++--- a/drv_helpers.c
+++++ b/drv_helpers.c
++@@ -614,3 +614,52 @@ uint32_t drv_get_inode(int dmabuf_fd)
++ 
++ 	return sb.st_ino;
++ }
+++
+++#define FLAG_TO_STR(flag, str)                                                                     \
+++	if (use_flags & (flag)) {                                                                  \
+++		int len = strlen(out);                                                             \
+++		snprintf(out + strlen(out), max_len - len, "%s%s", first ? "" : " ", (str));       \
+++		if (first < 2)                                                                     \
+++			first = 0;                                                                 \
+++	}
+++
+++int drv_use_flags_to_string(int use_flags, char *out, int max_len)
+++{
+++	int first = 1;
+++	FLAG_TO_STR(BO_USE_LINEAR, "LIN");
+++	FLAG_TO_STR(BO_USE_CURSOR, "CURSOR");
+++	FLAG_TO_STR(BO_USE_SCANOUT, "SCANOUT");
+++	FLAG_TO_STR(BO_USE_SW_MASK, "CPU");
+++	FLAG_TO_STR(BO_USE_RENDERING, "RENDER");
+++	FLAG_TO_STR(BO_USE_TEXTURE, "TEXTURE");
+++	FLAG_TO_STR(BO_USE_CAMERA_WRITE, "CAMOUT");
+++	FLAG_TO_STR(BO_USE_CAMERA_READ, "CAMIN");
+++	FLAG_TO_STR(BO_USE_PROTECTED, "PROT");
+++	FLAG_TO_STR(BO_USE_HW_VIDEO_ENCODER, "VIENC");
+++	FLAG_TO_STR(BO_USE_HW_VIDEO_DECODER, "VIDEC");
+++	FLAG_TO_STR(BO_USE_FRONT_RENDERING, "FRONT");
+++	FLAG_TO_STR(BO_USE_GPU_DATA_BUFFER, "GPUDATA");
+++	FLAG_TO_STR(BO_USE_SENSOR_DIRECT_DATA, "SENSDATA");
+++
+++	return 0;
+++}
+++
+++int drv_use_flags_to_string_short(int use_flags, char *out, int max_len)
+++{
+++	int first = 2;
+++	FLAG_TO_STR(BO_USE_LINEAR, "l");
+++	FLAG_TO_STR(BO_USE_CURSOR, "r");
+++	FLAG_TO_STR(BO_USE_SCANOUT, "D");
+++	FLAG_TO_STR(BO_USE_SW_MASK, "S");
+++	FLAG_TO_STR(BO_USE_RENDERING, "G");
+++	FLAG_TO_STR(BO_USE_TEXTURE, "g");
+++	FLAG_TO_STR(BO_USE_CAMERA_WRITE, "C");
+++	FLAG_TO_STR(BO_USE_CAMERA_READ, "c");
+++	FLAG_TO_STR(BO_USE_PROTECTED, "p");
+++	FLAG_TO_STR(BO_USE_HW_VIDEO_ENCODER | BO_USE_HW_VIDEO_DECODER, "V");
+++	FLAG_TO_STR(BO_USE_FRONT_RENDERING, "f");
+++	FLAG_TO_STR(BO_USE_GPU_DATA_BUFFER, "b");
+++	FLAG_TO_STR(BO_USE_SENSOR_DIRECT_DATA, "s");
+++
+++	return 0;
+++}
++diff --git a/drv_helpers.h b/drv_helpers.h
++index 7dad5bd..f492cf9 100644
++--- a/drv_helpers.h
+++++ b/drv_helpers.h
++@@ -50,4 +50,7 @@ void drv_resolve_format_and_use_flags_helper(struct driver *drv, uint32_t format
++ 
++ uint32_t drv_get_inode(int dmabuf_fd);
++ 
+++int drv_use_flags_to_string(int use_flags, char *out, int max_len);
+++int drv_use_flags_to_string_short(int use_flags, char *out, int max_len);
+++
++ #endif
++-- 
++2.37.2
++
+diff --git a/common/graphics/patches-minigbm/0016-dma_heaps-Constraints-for-RPI4.patch b/common/graphics/patches-minigbm/0016-dma_heaps-Constraints-for-RPI4.patch
+new file mode 100644
+index 0000000..c03c65e
+--- /dev/null
++++ b/common/graphics/patches-minigbm/0016-dma_heaps-Constraints-for-RPI4.patch
+@@ -0,0 +1,135 @@
++From 72d82dfe995b161ab9a9dd7da7cc76ca6fecbeac Mon Sep 17 00:00:00 2001
++From: Roman Stratiienko <r.stratiienko@gmail.com>
++Date: Sun, 25 Sep 2022 19:22:53 +0300
++Subject: [PATCH 1/2] dma_heaps: Constraints for RPI4
++
++Change-Id: Icce8164cde8da483d683c06a4936ffde05b6f515
++Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
++---
++ dmabuf_driver/dmabuf_internals.cpp | 75 +++++++++++++++++++++++++-----
++ 1 file changed, 64 insertions(+), 11 deletions(-)
++
++diff --git a/dmabuf_driver/dmabuf_internals.cpp b/dmabuf_driver/dmabuf_internals.cpp
++index 3c1e236..a426fe4 100644
++--- a/dmabuf_driver/dmabuf_internals.cpp
+++++ b/dmabuf_driver/dmabuf_internals.cpp
++@@ -63,11 +63,6 @@ static struct format_metadata linear_metadata = { 1, 0, DRM_FORMAT_MOD_LINEAR };
++ 
++ int dmabuf_driver_init(struct driver *drv)
++ {
++-	// TODO
++-	/*
++-	 * in case no allocation needed (Mapper HAL), we do not need to
++-	 * waste a time to initialize the internals of the driver.
++-	 */
++ 	drv_add_combinations(drv, scanout_render_formats, ARRAY_SIZE(scanout_render_formats),
++ 			     &linear_metadata, BO_USE_RENDER_MASK | BO_USE_SCANOUT);
++ 
++@@ -173,28 +168,74 @@ int dmabuf_bo_create(struct bo *bo, uint32_t width, uint32_t height, uint32_t fo
++ 		return -EINVAL;
++ 
++ 	int stride = drv_stride_from_format(format, width, 0);
++-	drv_bo_from_format(bo, stride, height, format);
++ 
++-	struct dma_heap_allocation_data heap_data {
++-		.len = bo->meta.total_size, .fd_flags = O_RDWR | O_CLOEXEC,
++-	};
+++	bool force_cma = false;
++ 
++ 	int heap_fd = drv->system_heap_fd.Get();
+++	uint32_t size_align = 4096;
++ 
++-	if (!(use_flags & BO_USE_SW_MASK))
++-		heap_fd = drv->system_heap_uncached_fd.Get();
+++	//	if (!(use_flags & BO_USE_SW_MASK))
+++//	heap_fd = drv->system_heap_uncached_fd.Get();
++ 
++ 	if (use_flags & BO_USE_SCANOUT)
+++		force_cma = true;
+++
+++	/* RPI4 camera over libcamera */
+++	if (use_flags & (BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE)) {
+++		force_cma = true;
+++		stride = ALIGN(stride, 32);
+++		if (height > 1)
+++			size_align = (ALIGN(width, 32) * ALIGN(height, 16) * 3) >> 1;
+++	}
+++
+++	/* RPI4 hwcodecs */
+++	if (use_flags & (BO_USE_HW_VIDEO_DECODER | BO_USE_HW_VIDEO_ENCODER)) {
+++		force_cma = true;
+++		stride = ALIGN(stride, 32);
+++		//				if (height > 1)
+++		//					height = ALIGN(height, 16);
+++		size_align = 4096;
+++	}
+++
+++	if (force_cma)
++ 		heap_fd = drv->cma_heap_fd.Get();
++ 
+++	if (!force_cma && !(use_flags & BO_USE_SW_MASK)) {
+++		// TODO: GPU-only buffers can be made tiled, but calculations are too complex
+++	}
+++
+++	drv_bo_from_format(bo, stride, height, format);
+++
+++	struct dma_heap_allocation_data heap_data {
+++		.len = ALIGN(bo->meta.total_size, size_align), .fd_flags = O_RDWR | O_CLOEXEC,
+++	};
+++
+++	char use_str[128];
+++	use_str[0] = 0;
+++
+++	drv_use_flags_to_string(use_flags, use_str, sizeof(use_str));
+++
+++	drv_logv("Allocate buffer, %dx%d, stride %d, total_size: %llu, use: %s", width, height,
+++		 stride, heap_data.len, use_str);
+++
++ 	int ret = ioctl(heap_fd, DMA_HEAP_IOCTL_ALLOC, &heap_data);
++ 	if (ret) {
++ 		drv_loge("Failed to allocate dmabuf: %s", strerror(errno));
++ 		return -errno;
++ 	}
++ 
+++	use_str[0] = 0;
+++	drv_use_flags_to_string_short(use_flags, use_str, sizeof(use_str));
++ 	auto buf_fd = UniqueFd(heap_data.fd);
++ 
+++	char dmabuf_name[128];
+++	snprintf(dmabuf_name, sizeof(dmabuf_name), "%dx%d %c%c%c%c %s", width, height,
+++		 format & 0x7f, (format >> 8) & 0x7f, (format >> 16) & 0x7f, (format >> 24) & 0x7f,
+++		 use_str);
+++	ret = ioctl(buf_fd.Get(), DMA_BUF_SET_NAME, dmabuf_name);
+++	if (ret)
+++		drv_loge("DMA_BUF_SET_NAME failed");
+++
++ 	auto priv = new DmabufBoPriv();
++ 	uint32_t inode = drv_get_inode(buf_fd.Get());
++ 	for (size_t plane = 0; plane < bo->meta.num_planes; plane++) {
++@@ -250,11 +291,23 @@ void *dmabuf_bo_map(struct bo *bo, struct vma *vma, size_t plane, uint32_t map_f
++ 		return buf;
++ 	}
++ 
+++	struct dma_buf_sync sync = { .flags = DMA_BUF_SYNC_START | DMA_BUF_SYNC_RW };
+++	int ret = ioctl(priv->fds[0].Get(), DMA_BUF_IOCTL_SYNC, &sync);
+++	if (ret)
+++		drv_loge("DMA_BUF_IOCTL_SYNC DMA_BUF_SYNC_START failed");
+++
++ 	return buf;
++ }
++ 
++ int dmabuf_bo_unmap(struct bo *bo, struct vma *vma)
++ {
+++	auto priv = (DmabufBoPriv *)bo->priv;
+++
+++	struct dma_buf_sync sync = { .flags = DMA_BUF_SYNC_END | DMA_BUF_SYNC_RW };
+++	int ret = ioctl(priv->fds[0].Get(), DMA_BUF_IOCTL_SYNC, &sync);
+++	if (ret)
+++		drv_loge("DMA_BUF_IOCTL_SYNC DMA_BUF_SYNC_END failed");
+++
++ 	return munmap(vma->addr, vma->length);
++ }
++ 
++-- 
++2.37.2
++
+diff --git a/common/graphics/patches-minigbm/0017-Don-t-print-verbose-messages-by-default.patch b/common/graphics/patches-minigbm/0017-Don-t-print-verbose-messages-by-default.patch
+new file mode 100644
+index 0000000..8aba3de
+--- /dev/null
++++ b/common/graphics/patches-minigbm/0017-Don-t-print-verbose-messages-by-default.patch
+@@ -0,0 +1,60 @@
++From 2c955be287362f3e4152c0723c8aa0c962424893 Mon Sep 17 00:00:00 2001
++From: Roman Stratiienko <r.stratiienko@gmail.com>
++Date: Fri, 14 Apr 2023 19:20:28 +0300
++Subject: [PATCH] Don't print verbose messages by default
++
++Change won't allow printimg verbose logcat messages by default.
++
++Change-Id: I311ccae73b2e7ef6bb633f5aef7666e3ecb7f26a
++Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
++---
++ drv.h       | 17 +++++++++++++++++
++ meson.build |  2 +-
++ 2 files changed, 18 insertions(+), 1 deletion(-)
++
++diff --git a/drv.h b/drv.h
++index 905f2a8..6a918fa 100644
++--- a/drv.h
+++++ b/drv.h
++@@ -229,8 +229,25 @@ enum drv_log_level {
++ 		drv_log_prefix(level, "minigbm", __FILE__, __LINE__, format, ##__VA_ARGS__);       \
++ 	} while (0)
++ 
+++/*
+++ * Normally we strip ALOGV (VERBOSE messages) from release builds.
+++ * You can modify this (for example with "#define LOG_NDEBUG 0"
+++ * at the top of your source file) to change that behavior.
+++ */
+++#ifndef LOG_NDEBUG
+++#ifdef NDEBUG
+++#define LOG_NDEBUG 1
+++#else
+++#define LOG_NDEBUG 0
+++#endif
+++#endif
+++
++ #define drv_loge(format, ...) _drv_log(DRV_LOGE, format, ##__VA_ARGS__)
+++#if LOG_NDEBUG
+++#define drv_logv(format, ...)
+++#else
++ #define drv_logv(format, ...) _drv_log(DRV_LOGV, format, ##__VA_ARGS__)
+++#endif
++ #define drv_logd(format, ...) _drv_log(DRV_LOGD, format, ##__VA_ARGS__)
++ #define drv_logi(format, ...) _drv_log(DRV_LOGI, format, ##__VA_ARGS__)
++ 
++diff --git a/meson.build b/meson.build
++index 351c71a..2292e6f 100644
++--- a/meson.build
+++++ b/meson.build
++@@ -3,7 +3,7 @@ project(
++     ['c', 'cpp'],
++     license : 'BSD?',
++     meson_version : '>= 0.56',
++-    default_options : ['buildtype=debugoptimized', 'b_ndebug=if-release', 'c_std=c11', 'cpp_std=c++17', 'cpp_rtti=false']
+++    default_options : ['buildtype=debugoptimized', 'b_ndebug=true', 'c_std=c11', 'cpp_std=c++17', 'cpp_rtti=false']
++ )
++ 
++ inc_include = [include_directories('.')]
++-- 
++2.37.2
++
+-- 
+2.37.2
+
