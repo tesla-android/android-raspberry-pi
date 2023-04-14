@@ -42,11 +42,8 @@ PRODUCT_VENDOR_PROPERTIES += \
 # Camera
 PRODUCT_PACKAGES += ipa_rpi.so ipa_rpi.so.sign
 
-LIBCAMERA_CFGS := \
-    imx219.json imx219_noir.json imx290.json imx378.json imx477.json imx477_noir.json \
-    ov5647.json ov5647_noir.json ov9281_mono.json se327m12.json uncalibrated.json
-
-PRODUCT_COPY_FILES += $(foreach cfg,$(LIBCAMERA_CFGS),glodroid/vendor/libcamera/src/ipa/raspberrypi/data/$(cfg):$(TARGET_COPY_OUT_VENDOR)/etc/libcamera/ipa/raspberrypi/$(cfg)$(space))
+LIBCAMERA_CFGS := $(wildcard glodroid/vendor/libcamera/src/ipa/raspberrypi/data/*json)
+PRODUCT_COPY_FILES += $(foreach cfg,$(LIBCAMERA_CFGS),$(cfg):$(TARGET_COPY_OUT_VENDOR)/etc/libcamera/ipa/raspberrypi/$(notdir $(cfg))$(space))
 
 # Codecs
 PRODUCT_VENDOR_PROPERTIES += \
