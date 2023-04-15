@@ -12,7 +12,7 @@
   <remove-project name="platform/external/drm_hwcomposer" />
 
   <project path="glodroid"                        remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="refs/tags/basedir-v0.9.0" />
-  <project path="glodroid/configuration"          remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="refs/tags/v0.9.0-rc3" />
+  <project path="glodroid/configuration"          remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="49e51be5e5215ee1260bd0531c420792adf3d080" />
 
   <project path="glodroid/apks"                   remote="glodroid" name="glodroid_external_apks.git" groups="glodroid" revision="refs/tags/apps-v0.8.2" />
 
