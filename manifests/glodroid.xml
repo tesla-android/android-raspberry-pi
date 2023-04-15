@@ -43,7 +43,7 @@
   <project path="glodroid/vendor/glib/subprojects/proxy-libintl" remote="github"  name="frida/proxy-libintl.git" groups="glodroid" revision="refs/tags/0.4" />
 
   <!-- other components (vendor) -->
-  <project path="glodroid/vendor/aospext"         remote="glodroid" name="aospext.git"        groups="glodroid" revision="03961ccc1e3be2734966225ef4b0db7166e19a26" />
+  <project path="glodroid/vendor/aospext"         remote="glodroid" name="aospext.git"        groups="glodroid" revision="11494cf67475d1fd5a55c406248d870def581d06" />
   <project path="glodroid/vendor/iio-sensors-hal" remote="glodroid" name="glodroid_forks.git" groups="glodroid" revision="refs/tags/iio-sensors-hal-v0.9.0" />
   <project path="glodroid/vendor/tinyhal"         remote="github"   name="CirrusLogic/tinyhal.git" groups="glodroid" revision="9c5df120b33ca51f05d4f997da659111ab63498e" />
   <project path="glodroid/vendor/libudev-zero"    remote="glodroid" name="glodroid_forks.git" groups="glodroid" revision="refs/tags/libudev_zero-v0.8.2" />
