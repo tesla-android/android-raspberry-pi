@@ -1,0 +1,99 @@
+From 6d6e03c5885822ae91bdc72fea7eb722f5b576ea Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
+Date: Fri, 28 Oct 2022 11:27:22 +0200
+Subject: [PATCH 7/8] Repackage BootHotspotReceiver
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Change-Id: I71b8ebcdc4bd9d47bf3096781118fe135727026f
+Signed-off-by: Michał Gapiński <mike@gapinski.eu>
+---
+ AndroidManifest.xml                           |  2 +-
+ .../BootBroadcastReceiver.java}               | 38 ++++++++++++-------
+ 2 files changed, 25 insertions(+), 15 deletions(-)
+ rename src/com/android/settings/{wifi/tether/BootHotspotReceiver.java => teslaandroid/BootBroadcastReceiver.java} (62%)
+
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index 36d94bf9dc..e6ced45080 100644
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -4546,7 +4546,7 @@
+         
+         
+         <!-- WTF! Hold my beer :D -->
+-        <receiver android:name=".wifi.tether.BootHotspotReceiver"
++        <receiver android:name=".teslaandroid.BootBroadcastReceiver"
+         	android:exported="true">
+             <intent-filter>
+                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
+diff --git a/src/com/android/settings/wifi/tether/BootHotspotReceiver.java b/src/com/android/settings/teslaandroid/BootBroadcastReceiver.java
+similarity index 62%
+rename from src/com/android/settings/wifi/tether/BootHotspotReceiver.java
+rename to src/com/android/settings/teslaandroid/BootBroadcastReceiver.java
+index 088f7d1740..7616b6cdad 100644
+--- a/src/com/android/settings/wifi/tether/BootHotspotReceiver.java
++++ b/src/com/android/settings/teslaandroid/BootBroadcastReceiver.java
+@@ -14,7 +14,7 @@
+  * limitations under the License.
+  */
+ 
+-package com.android.settings.wifi.tether;
++package com.android.settings.teslaandroid;
+ 
+ import static android.net.ConnectivityManager.TETHERING_WIFI;
+ 
+@@ -28,10 +28,8 @@ import android.os.HandlerExecutor;
+ import android.os.Looper;
+ import com.google.common.annotations.VisibleForTesting;
+ 
+-public class BootHotspotReceiver extends BroadcastReceiver {  
+-  
+-    private static final String TAG = "BootHotspotReceiver";  
+-  
++public class BootBroadcastReceiver extends BroadcastReceiver {  
++    
+     @VisibleForTesting  
+     final ConnectivityManager.OnStartTetheringCallback mOnStartTetheringCallback =  
+             new ConnectivityManager.OnStartTetheringCallback() {  
+@@ -43,15 +41,27 @@ public class BootHotspotReceiver extends BroadcastReceiver {
+   
+     @Override  
+     public void onReceive(Context context, Intent intent) {  
+-  
+-        if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {  
+-            Log.d(TAG,"BootHotspotReceiver");  
+-  
+-            ConnectivityManager mConnectivityManager =  
+-                    (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);  
+-            mConnectivityManager.startTethering(TETHERING_WIFI, true/* showProvisioningUi */,  
+-                    mOnStartTetheringCallback, new Handler(Looper.getMainLooper()));  
++        if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {    
++  			startWiFiHotspot(context);
++			launchTeslaAndroidServices(context);
+         }  
+     }  
++    
++    private void launchTeslaAndroidServices(Context context) {
++    	Intent launchIntent = context
++    		.getPackageManager()
++    		.getLaunchIntentForPackage("eu.gapinski.teslaandroid.audiocapture");
++	if (launchIntent != null) { 
++		launchIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
++		context.startActivity(launchIntent);
++	}
++    }
++    
++    private void startWiFiHotspot(Context context) {
++    	ConnectivityManager mConnectivityManager =  
++            (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);  
++        mConnectivityManager.startTethering(TETHERING_WIFI, true,
++            mOnStartTetheringCallback, new Handler(Looper.getMainLooper()));  
++    }
+   
+-}  
+\ No newline at end of file
++}  
+-- 
+2.34.1
+

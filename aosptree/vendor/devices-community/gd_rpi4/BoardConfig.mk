@@ -18,3 +18,6 @@ BOARD_LIBCAMERA_EXTRA_TARGETS := \
 
 BOARD_FFMPEG_ENABLE_REQUEST_API := true
 BOARD_FFMPEG_PATCHES_DIRS := $(BC_PATH)/codecs/ffmpeg-patches
+
+# FIXME = Remove prebuilt binaries with broken elf
+BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES := true

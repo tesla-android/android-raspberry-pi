@@ -1,0 +1,43 @@
+From 635c012a2b5db327859be5ae57ded13ed5394d87 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
+Date: Fri, 28 Oct 2022 13:27:40 +0200
+Subject: [PATCH 2/3] SystemUI: auto grant media projection permissions
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Michał Gapiński <mike@gapinski.eu>
+---
+ .../media/MediaProjectionPermissionActivity.java   | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/media/MediaProjectionPermissionActivity.java b/packages/SystemUI/src/com/android/systemui/media/MediaProjectionPermissionActivity.java
+index bfa67a89baca..df8cfbb8abdf 100644
+--- a/packages/SystemUI/src/com/android/systemui/media/MediaProjectionPermissionActivity.java
++++ b/packages/SystemUI/src/com/android/systemui/media/MediaProjectionPermissionActivity.java
+@@ -91,15 +91,15 @@ public class MediaProjectionPermissionActivity extends Activity
+         }
+ 
+         try {
+-            if (mService.hasProjectionPermission(mUid, mPackageName)) {
+-                setResult(RESULT_OK, getMediaProjectionIntent(mUid, mPackageName));
+-                finish();
+-                return;
+-            }
++            setResult(RESULT_OK, getMediaProjectionIntent(mUid, mPackageName));
+         } catch (RemoteException e) {
+-            Log.e(TAG, "Error checking projection permissions", e);
++            Log.e(TAG, "Error granting projection permission", e);
++            setResult(RESULT_CANCELED);
++        } finally {
++            if (mDialog != null) {
++                mDialog.dismiss();
++            }
+             finish();
+-            return;
+         }
+ 
+         TextPaint paint = new TextPaint();
+-- 
+2.34.1
+

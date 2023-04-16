@@ -1,0 +1,93 @@
+From 0498f9171913030c1a02e8afecb90643f53f5202 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Sun, 13 Nov 2022 20:13:42 +0100
+Subject: [PATCH] SurfaceFlinger: include secure layers in screen capture
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Change-Id: I2917bd819a083d9b0e93ceece893d5c64a193f25
+Signed-off-by: Michał Gapiński <mike@gapinski.eu>
+---
+ services/surfaceflinger/SurfaceFlinger.cpp | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
+index f6880ce1f3..1f166a5248 100644
+--- a/services/surfaceflinger/SurfaceFlinger.cpp
++++ b/services/surfaceflinger/SurfaceFlinger.cpp
+@@ -6442,7 +6442,7 @@ status_t SurfaceFlinger::captureDisplay(const DisplayCaptureArgs& args,
+ 
+     RenderAreaFuture renderAreaFuture = ftl::defer([=] {
+         return DisplayRenderArea::create(displayWeak, args.sourceCrop, reqSize, dataspace,
+-                                         args.useIdentityTransform, args.captureSecureLayers);
++                                         args.useIdentityTransform, true);
+     });
+ 
+     auto traverseLayers = [this, args, layerStack](const LayerVector::Visitor& visitor) {
+@@ -6450,7 +6450,7 @@ status_t SurfaceFlinger::captureDisplay(const DisplayCaptureArgs& args,
+     };
+ 
+     auto future = captureScreenCommon(std::move(renderAreaFuture), traverseLayers, reqSize,
+-                                      args.pixelFormat, args.allowProtected, args.grayscale,
++                                      args.pixelFormat, true, args.grayscale,
+                                       captureListener);
+     return fenceStatus(future.get());
+ }
+@@ -6480,7 +6480,7 @@ status_t SurfaceFlinger::captureDisplay(DisplayId displayId,
+     RenderAreaFuture renderAreaFuture = ftl::defer([=] {
+         return DisplayRenderArea::create(displayWeak, Rect(), size, dataspace,
+                                          false /* useIdentityTransform */,
+-                                         false /* captureSecureLayers */);
++                                         true /* captureSecureLayers */);
+     });
+ 
+     auto traverseLayers = [this, layerStack](const LayerVector::Visitor& visitor) {
+@@ -6492,7 +6492,7 @@ status_t SurfaceFlinger::captureDisplay(DisplayId displayId,
+         return BAD_VALUE;
+     }
+ 
+-    constexpr bool kAllowProtected = false;
++    constexpr bool kAllowProtected = true;
+     constexpr bool kGrayscale = false;
+ 
+     auto future = captureScreenCommon(std::move(renderAreaFuture), traverseLayers, size,
+@@ -6580,7 +6580,7 @@ status_t SurfaceFlinger::captureLayers(const LayerCaptureArgs& args,
+     RenderAreaFuture renderAreaFuture = ftl::defer([=]() -> std::unique_ptr<RenderArea> {
+         return std::make_unique<LayerRenderArea>(*this, parent, crop, reqSize, dataspace,
+                                                  childrenOnly, layerStackSpaceRect,
+-                                                 args.captureSecureLayers);
++                                                 true);
+     });
+ 
+     auto traverseLayers = [parent, args, excludeLayers](const LayerVector::Visitor& visitor) {
+@@ -6611,7 +6611,7 @@ status_t SurfaceFlinger::captureLayers(const LayerCaptureArgs& args,
+     }
+ 
+     auto future = captureScreenCommon(std::move(renderAreaFuture), traverseLayers, reqSize,
+-                                      args.pixelFormat, args.allowProtected, args.grayscale,
++                                      args.pixelFormat, true, args.grayscale,
+                                       captureListener);
+     return fenceStatus(future.get());
+ }
+@@ -6635,7 +6635,7 @@ ftl::SharedFuture<FenceResult> SurfaceFlinger::captureScreenCommon(
+     // application to avoid being screenshot or drawn via unsecure display.
+     const bool supportsProtected = getRenderEngine().supportsProtectedContent();
+     bool hasProtectedLayer = false;
+-    if (allowProtected && supportsProtected) {
++    if (supportsProtected) {
+         auto future = mScheduler->schedule([=]() {
+             bool protectedLayerFound = false;
+             traverseLayers([&](Layer* layer) {
+@@ -6649,7 +6649,7 @@ ftl::SharedFuture<FenceResult> SurfaceFlinger::captureScreenCommon(
+ 
+     const uint32_t usage = GRALLOC_USAGE_HW_COMPOSER | GRALLOC_USAGE_HW_RENDER |
+             GRALLOC_USAGE_HW_TEXTURE |
+-            (hasProtectedLayer && allowProtected && supportsProtected
++            (hasProtectedLayer && supportsProtected
+                      ? GRALLOC_USAGE_PROTECTED
+                      : GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN);
+     sp<GraphicBuffer> buffer =
+-- 
+2.34.1
+

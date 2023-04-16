@@ -7,6 +7,7 @@ pushd aosptree
 repo init -u https://github.com/LineageOS/android.git -b 757f405bf66c7d0ece0a1a5ccd474d0b543a10ad
 cd .repo/manifests
 mv default.xml lineage.xml
+cp ${LOCAL_PATH}/manifests/tesla-android.xml tesla-android.xml
 cp ${LOCAL_PATH}/manifests/glodroid.xml glodroid.xml
 cp ${LOCAL_PATH}/manifests/default_lineage.xml default.xml
 git add *

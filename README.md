@@ -1,18 +1,26 @@
-# Android 13 for the Raspberry PI 4 series based on the GloDroid project
+# Tesla Android for Raspberry Pi 4
 
-[![GloDroid](https://img.shields.io/badge/GLODROID-PROJECT-blue)](https://github.com/GloDroid/glodroid_manifest)
-[![ProjectStatus](https://img.shields.io/badge/PROJECT-STATUS-yellowgreen)](https://github.com/GloDroidCommunity/raspberry-pi/issues/1)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Discord](https://img.shields.io/discord/753603904406683670.svg?label=Discord&logo=discord&colorB=7289DA&style=flat-square)](https://discord.gg/5H8cW5xA)
+[![License](https://img.shields.io/badge/license-GPL-blue)](https://opensource.org/licenses/gpl-3-0/)
+
+This repository contains platform patches and manifest for Tesla Android on top of [GloDroidCommunity](https://github.com/GloDroidCommunity) AOSP.
+
+Please refer to https://teslaandroid.com for release notes, hardware requirements and the install guide.
+
+#### Please consider supporting the project: 
+
+[Donations](https://teslaandroid.com/donations)
+
+## Licenseing
+
+Tesla Android is published under the General Public License 3.0. All generic board-specific patches are regularly submitted to [GloDroidCommunity/raspberry-pi](https://github.com/GloDroidCommunity/raspberry-pi) where they can be obtained under the Apache License.   
 
 ## Warning!
 
-This project is a free and open-source initiative maintained by a group of volunteers. It is provided "as is" without any warranties or guarantees.
-The user is fully responsible for any issues arising from using the project.
+Tesla Android Project is a free and open-source initiative maintained by a group of volunteers. It is provided "as is" without any warranties or guarantees.
 
 ## Flashing images
 
-Find the sdcard image or archive with fastboot images [here](https://github.com/GloDroidCommunity/raspberry-pi/releases)
+Find the sdcard image or archive with fastboot images [here](https://github.com/tesla-android/android-raspberry-pi/releases)
 
 Use the SDCard raw image to flash the Android into SDCard.
 
@@ -37,7 +45,6 @@ Run .*/flash-sd.sh* utility for flashing Android to sdcard
 ## Building from sources
 
 Before building, ensure your system has at least 32GB of RAM, a swap file is at least 8GB, and 300GB of free disk space available.
-We recommend using the latest laptops to get good performance. E.g., the HP ENVY x360 model15-ds1083cl takes about 5 hours to build the project.  
 
 ### Install system packages
 (Ubuntu 22.04 LTS is only supported. Building on other distributions can be done using docker)
@@ -70,34 +77,20 @@ wget -P ~/bin http://commondatastorage.googleapis.com/git-repo-downloads/repo
 chmod a+x ~/bin/repo
 ```
 
-**NOTE: After this step, you may need to log out and log in to the system to make $HOME/bin added to the PATH environment variable.**
-
 ### Fetching the sources and building the project
 
 ```bash
-git clone https://github.com/GloDroidCommunity/raspberry-pi.git
-cd raspberry-pi
+git clone https://github.com/tesla-android/android-raspberry-pi.git
+cd android-raspberry-pi
 ```
 
-### Building AOSP
+### Building Tesla Android
 
 ```bash
 ./unfold_aosp.sh && ./build.sh
-```
-
-**NOTE: If you're using `git` for the first time, it may ask you to configure the user name and email address and confirm the colored terminal.
-Please follow the suggestion you see on the screen in this case.**
-
-### Building LineageOS
-
-To enable GMS (microg), set the environment variable `export WITH_GMS=true`.
-
-```bash
-./unfold_lineageos.sh && ./build.sh
 ```
 
 ### Notes
 
 - Depending on your hardware and internet connection, downloading and building may take 8h or more.  
 - After the successful build, find the fastboot images at `./out/images.tar.gz` or sdcard image at `./out/sdcard.img`.
-- To disable GloDroid's prebuild apps (like skytube, Firefox, etc.), set the environment variable before building `export GD_NO_DEFAULT_APPS=true`.

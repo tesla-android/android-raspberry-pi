@@ -1,0 +1,62 @@
+From 9783dfa58e9f2917d2e953557842f01ca9ceaf22 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
+Date: Mon, 4 Jul 2022 03:06:29 +0200
+Subject: [PATCH 3/8] Wi-Fi Hotspot: Remove auto off settings
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Change-Id: I3ebdb57646a48823eb1f2c47feb22f26fa9d99c9
+Signed-off-by: Michał Gapiński <mike@gapinski.eu>
+---
+ res/xml/wifi_tether_settings.xml                             | 5 -----
+ src/com/android/settings/wifi/tether/WifiTetherSettings.java | 5 -----
+ 2 files changed, 10 deletions(-)
+
+diff --git a/res/xml/wifi_tether_settings.xml b/res/xml/wifi_tether_settings.xml
+index 9669ea90b4..c634be791d 100644
+--- a/res/xml/wifi_tether_settings.xml
++++ b/res/xml/wifi_tether_settings.xml
+@@ -36,9 +36,4 @@
+         android:key="wifi_tether_network_password"
+         android:persistent="false"
+         android:title="@string/wifi_hotspot_password_title"/>
+-
+-    <SwitchPreference
+-        android:key="wifi_tether_auto_turn_off"
+-        android:title="@string/wifi_hotspot_auto_off_title"
+-        android:summary="@string/wifi_hotspot_auto_off_summary"/>
+ </PreferenceScreen>
+diff --git a/src/com/android/settings/wifi/tether/WifiTetherSettings.java b/src/com/android/settings/wifi/tether/WifiTetherSettings.java
+index 73618e28b6..177abc083a 100644
+--- a/src/com/android/settings/wifi/tether/WifiTetherSettings.java
++++ b/src/com/android/settings/wifi/tether/WifiTetherSettings.java
+@@ -64,8 +64,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+     static final String KEY_WIFI_TETHER_SECURITY = "wifi_tether_security";
+     @VisibleForTesting
+     static final String KEY_WIFI_TETHER_NETWORK_PASSWORD = "wifi_tether_network_password";
+-    @VisibleForTesting
+-    static final String KEY_WIFI_TETHER_AUTO_OFF = "wifi_tether_auto_turn_off";
+ 
+     private WifiTetherSwitchBarController mSwitchBarController;
+     private WifiTetherSSIDPreferenceController mSSIDPreferenceController;
+@@ -198,8 +196,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+         controllers.add(new WifiTetherSSIDPreferenceController(context, listener));
+         controllers.add(new WifiTetherSecurityPreferenceController(context, listener));
+         controllers.add(new WifiTetherPasswordPreferenceController(context, listener));
+-        controllers.add(
+-                new WifiTetherAutoOffPreferenceController(context, KEY_WIFI_TETHER_AUTO_OFF));
+         return controllers;
+     }
+ 
+@@ -273,7 +269,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+                 keys.add(KEY_WIFI_TETHER_NETWORK_NAME);
+                 keys.add(KEY_WIFI_TETHER_SECURITY);
+                 keys.add(KEY_WIFI_TETHER_NETWORK_PASSWORD);
+-                keys.add(KEY_WIFI_TETHER_AUTO_OFF);
+             }
+ 
+             // Remove duplicate
+-- 
+2.34.1
+

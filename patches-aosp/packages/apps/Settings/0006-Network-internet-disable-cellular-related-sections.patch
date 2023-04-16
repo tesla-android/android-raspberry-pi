@@ -1,0 +1,111 @@
+From 67d899b9dd2c08df0330deaffea7365c035a498d Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
+Date: Mon, 4 Jul 2022 06:40:13 +0200
+Subject: [PATCH 6/8] Network & internet: disable cellular related sections
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Change-Id: I45d9be7d66d152d4237aa5d5c18115415e9e7c51
+Signed-off-by: Michał Gapiński <mike@gapinski.eu>
+---
+ res/xml/network_provider_internet.xml         | 40 -------------------
+ .../network/NetworkDashboardFragment.java     |  8 ----
+ 2 files changed, 48 deletions(-)
+
+diff --git a/res/xml/network_provider_internet.xml b/res/xml/network_provider_internet.xml
+index 994509a168..35dd089897 100644
+--- a/res/xml/network_provider_internet.xml
++++ b/res/xml/network_provider_internet.xml
+@@ -20,46 +20,6 @@
+     android:key="network_provider_and_internet_screen"
+     android:title="@string/network_dashboard_title">
+ 
+-    <com.android.settingslib.RestrictedPreference
+-        android:key="calls_and_sms"
+-        android:title="@string/calls_and_sms"
+-        android:icon="@drawable/ic_calls_sms"
+-        android:order="-20"
+-        android:summary="@string/summary_placeholder"
+-        settings:isPreferenceVisible="@bool/config_show_sim_info"
+-        settings:allowDividerBelow="true"
+-        settings:keywords="@string/calls_and_sms"
+-        settings:useAdminDisabledSummary="true" />
+-
+-    <com.android.settings.widget.AddPreference
+-        android:key="mobile_network_list"
+-        android:title="@string/provider_network_settings_title"
+-        android:summary="@string/summary_placeholder"
+-        android:icon="@drawable/ic_sim_card"
+-        android:order="-15"
+-        settings:keywords="@string/keywords_more_mobile_networks"
+-        settings:userRestriction="no_config_mobile_networks"
+-        settings:isPreferenceVisible="@bool/config_show_sim_info"
+-        settings:allowDividerAbove="true"
+-        settings:useAdminDisabledSummary="true" />
+-
+-    <com.android.settingslib.RestrictedSwitchPreference
+-        android:key="airplane_mode"
+-        android:title="@string/airplane_mode"
+-        android:icon="@drawable/ic_airplanemode_active"
+-        android:order="-5"
+-        settings:controller="com.android.settings.network.AirplaneModePreferenceController"
+-        settings:userRestriction="no_airplane_mode"/>
+-
+-    <com.android.settingslib.RestrictedPreference
+-        android:key="manage_mobile_plan"
+-        android:title="@string/manage_mobile_plan_title"
+-        android:persistent="false"
+-        android:order="19"
+-        settings:userRestriction="no_config_mobile_networks"
+-        settings:isPreferenceVisible="@bool/config_show_sim_info"
+-        settings:useAdminDisabledSummary="true" />
+-
+     <com.android.settingslib.RestrictedPreference
+         android:fragment="com.android.settings.TetherSettings"
+         android:key="tether_settings"
+diff --git a/src/com/android/settings/network/NetworkDashboardFragment.java b/src/com/android/settings/network/NetworkDashboardFragment.java
+index d62fd6004c..4849d87140 100644
+--- a/src/com/android/settings/network/NetworkDashboardFragment.java
++++ b/src/com/android/settings/network/NetworkDashboardFragment.java
+@@ -69,7 +69,6 @@ public class NetworkDashboardFragment extends DashboardFragment implements
+     public void onAttach(Context context) {
+         super.onAttach(context);
+ 
+-        use(AirplaneModePreferenceController.class).setFragment(this);
+         getSettingsLifecycle().addObserver(use(AllInOneTetherPreferenceController.class));
+     }
+ 
+@@ -93,29 +92,22 @@ public class NetworkDashboardFragment extends DashboardFragment implements
+     private static List<AbstractPreferenceController> buildPreferenceControllers(Context context,
+             Lifecycle lifecycle, MetricsFeatureProvider metricsFeatureProvider, Fragment fragment,
+             MobilePlanPreferenceHost mobilePlanHost) {
+-        final MobilePlanPreferenceController mobilePlanPreferenceController =
+-                new MobilePlanPreferenceController(context, mobilePlanHost);
+-
+         final VpnPreferenceController vpnPreferenceController =
+                 new VpnPreferenceController(context);
+         final PrivateDnsPreferenceController privateDnsPreferenceController =
+                 new PrivateDnsPreferenceController(context);
+ 
+         if (lifecycle != null) {
+-            lifecycle.addObserver(mobilePlanPreferenceController);
+             lifecycle.addObserver(vpnPreferenceController);
+             lifecycle.addObserver(privateDnsPreferenceController);
+         }
+ 
+         final List<AbstractPreferenceController> controllers = new ArrayList<>();
+ 
+-        controllers.add(new MobileNetworkSummaryController(context, lifecycle));
+         controllers.add(new TetherPreferenceController(context, lifecycle));
+         controllers.add(vpnPreferenceController);
+         controllers.add(new ProxyPreferenceController(context));
+-        controllers.add(mobilePlanPreferenceController);
+         controllers.add(privateDnsPreferenceController);
+-        controllers.add(new NetworkProviderCallsSmsController(context, lifecycle));
+         return controllers;
+     }
+ 
+-- 
+2.34.1
+

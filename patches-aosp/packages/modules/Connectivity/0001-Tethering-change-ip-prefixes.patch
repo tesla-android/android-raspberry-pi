@@ -1,0 +1,104 @@
+From b5baf0aa5b3da3146039fd96d83da45cc02c5798 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
+Date: Mon, 17 Oct 2022 02:00:02 +0200
+Subject: [PATCH] Tethering: change ip prefixes
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Change-Id: I4946469ee5fa230848b5e16ebe42cfbd31e086bc
+Signed-off-by: Michał Gapiński <mike@gapinski.eu>
+---
+ .../tethering/PrivateAddressCoordinator.java  | 32 +++----------------
+ .../PrivateAddressCoordinator.java.rej        | 14 ++++++++
+ 2 files changed, 19 insertions(+), 27 deletions(-)
+ create mode 100644 Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java.rej
+
+diff --git a/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java b/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java
+index cc2422f877..e587cfe325 100644
+--- a/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java
++++ b/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java
+@@ -71,8 +71,8 @@ public class PrivateAddressCoordinator {
+     // mUpstreamPrefixMap when tethering is starting. See #maybeRemoveDeprecatedUpstreams().
+     private final ArrayMap<Network, List<IpPrefix>> mUpstreamPrefixMap;
+     private final ArraySet<IpServer> mDownstreams;
+-    private static final String LEGACY_WIFI_P2P_IFACE_ADDRESS = "192.168.49.1/24";
+-    private static final String LEGACY_BLUETOOTH_IFACE_ADDRESS = "192.168.44.1/24";
++    private static final String LEGACY_WIFI_P2P_IFACE_ADDRESS = "9.9.49.1/24";
++    private static final String LEGACY_BLUETOOTH_IFACE_ADDRESS = "9.9.44.1/24";
+     private final List<IpPrefix> mTetheringPrefixes;
+     private final ConnectivityManager mConnectivityMgr;
+     private final TetheringConfiguration mConfig;
+@@ -90,8 +90,7 @@ public class PrivateAddressCoordinator {
+         mCachedAddresses.put(TETHERING_BLUETOOTH, new LinkAddress(LEGACY_BLUETOOTH_IFACE_ADDRESS));
+         mCachedAddresses.put(TETHERING_WIFI_P2P, new LinkAddress(LEGACY_WIFI_P2P_IFACE_ADDRESS));
+ 
+-        mTetheringPrefixes = new ArrayList<>(Arrays.asList(new IpPrefix("192.168.0.0/16"),
+-            new IpPrefix("172.16.0.0/12"), new IpPrefix("10.0.0.0/8")));
++        mTetheringPrefixes = new ArrayList<>(Arrays.asList(new IpPrefix("9.9.0.0/16")));
+     }
+ 
+     /**
+@@ -255,12 +254,9 @@ public class PrivateAddressCoordinator {
+         // is less than 127.0.0.0 = 0x7f000000 = 2130706432.
+         //
+         // Additionally, it makes debug output easier to read by making the numbers smaller.
+-        final int randomPrefixStart = getRandomInt() & ~prefixRangeMask & prefixMask;
++        final int randomPrefixStart = 1;
+ 
+-        // A random offset within the prefix. Used to determine the local address once the prefix
+-        // is selected. It does not result in an IPv4 address ending in .0, .1, or .255
+-        // For a PREFIX_LENGTH of 255, this is a number between 2 and 254.
+-        final int subAddress = getSanitizedSubAddr(~prefixMask);
++        final int subAddress = 1;
+ 
+         // Find a prefix length PREFIX_LENGTH between randomPrefixStart and the end of the block,
+         // such that the prefix does not conflict with any upstream.
+@@ -305,24 +301,6 @@ public class PrivateAddressCoordinator {
+         return (new Random()).nextInt();
+     }
+ 
+-    /** Get random subAddress and avoid selecting x.x.x.0, x.x.x.1 and x.x.x.255 address. */
+-    private int getSanitizedSubAddr(final int subAddrMask) {
+-        final int randomSubAddr = getRandomInt() & subAddrMask;
+-        // If prefix length > 30, the selecting speace would be less than 4 which may be hard to
+-        // avoid 3 consecutive address.
+-        if (PREFIX_LENGTH > 30) return randomSubAddr;
+-
+-        // TODO: maybe it is not necessary to avoid .0, .1 and .255 address because tethering
+-        // address would not be conflicted. This code only works because PREFIX_LENGTH is not longer
+-        // than 24
+-        final int candidate = randomSubAddr & 0xff;
+-        if (candidate == 0 || candidate == 1 || candidate == 255) {
+-            return (randomSubAddr & 0xfffffffc) + 2;
+-        }
+-
+-        return randomSubAddr;
+-    }
+-
+     /** Release downstream record for IpServer. */
+     public void releaseDownstream(final IpServer ipServer) {
+         mDownstreams.remove(ipServer);
+diff --git a/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java.rej b/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java.rej
+new file mode 100644
+index 0000000000..3965ccb586
+--- /dev/null
++++ b/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java.rej
+@@ -0,0 +1,14 @@
++diff a/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java b/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java	(rejected hunks)
++@@ -90,11 +90,7 @@ public PrivateAddressCoordinator(Context context, TetheringConfiguration config)
++         mCachedAddresses.put(TETHERING_BLUETOOTH, new LinkAddress(LEGACY_BLUETOOTH_IFACE_ADDRESS));
++         mCachedAddresses.put(TETHERING_WIFI_P2P, new LinkAddress(LEGACY_WIFI_P2P_IFACE_ADDRESS));
++ 
++-        mTetheringPrefixes = new ArrayList<>(Arrays.asList(new IpPrefix("192.168.0.0/16")));
++-        if (config.isSelectAllPrefixRangeEnabled()) {
++-            mTetheringPrefixes.add(new IpPrefix("172.16.0.0/12"));
++-            mTetheringPrefixes.add(new IpPrefix("10.0.0.0/8"));
++-        }
+++        mTetheringPrefixes = new ArrayList<>(Arrays.asList(new IpPrefix("9.9.0.0/16")));
++     }
++ 
++     /**
+-- 
+2.34.1
+
