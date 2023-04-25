@@ -93,3 +93,7 @@ PRODUCT_VENDOR_PROPERTIES +=    \
     bluetooth.profile.ccp.server.enabled=true \
     bluetooth.profile.vcp.controller.enabled=true \
     persist.bluetooth.a2dp_aac.vbr_supported=true
+    
+# HACK virtual display size == virtual touchscreen size == phisical display size
+PRODUCT_VENDOR_PROPERTIES +=    \
+    debug.drm.mode.force=1024x768
