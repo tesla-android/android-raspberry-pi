@@ -22,3 +22,15 @@ display_auto_detect=1
 
 dtoverlay=cma,cma-512
 dtoverlay=rpivid-v4l2
+
+# USB
+dtoverlay=dwc2,dr_mode=peripheral
+[cm4]
+dtoverlay=dwc2,dr_mode=host
+[all]
+
+# Fan
+dtoverlay=gpio-fan,gpiopin=18,temp=50000
+
+# CM4 external Wi-Fi antenna
+dtparam=ant2
