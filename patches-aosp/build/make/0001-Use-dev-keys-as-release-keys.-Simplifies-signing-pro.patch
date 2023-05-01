@@ -1,0 +1,27 @@
+From 909a37c27fd5b06806e06c16aa3c713dff5b0303 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Mon, 1 May 2023 14:56:12 +0200
+Subject: [PATCH 1/1] Use dev keys as release keys. Simplifies signing process
+ without compromising on security
+
+Change-Id: Ie8afd2b5dc19623f6c1f551acc88f4afc74fc698
+---
+ core/sysprop.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/core/sysprop.mk b/core/sysprop.mk
+index 570702a679..556c83e425 100644
+--- a/core/sysprop.mk
++++ b/core/sysprop.mk
+@@ -159,7 +159,7 @@ endif
+ ifeq ($(DEFAULT_SYSTEM_DEV_CERTIFICATE),build/make/target/product/security/testkey)
+ BUILD_KEYS := test-keys
+ else
+-BUILD_KEYS := dev-keys
++BUILD_KEYS := release-keys
+ endif
+ BUILD_VERSION_TAGS += $(BUILD_KEYS)
+ BUILD_VERSION_TAGS := $(subst $(space),$(comma),$(sort $(BUILD_VERSION_TAGS)))
+-- 
+2.34.1
+
