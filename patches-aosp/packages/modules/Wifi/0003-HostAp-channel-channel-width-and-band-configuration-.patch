@@ -1,0 +1,284 @@
+From 71b0f6f372b5fdb5ad94d610e2e1c37e82b3e921 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Sun, 14 May 2023 16:03:01 +0000
+Subject: [PATCH 1/2] HostAp channel, channel width and band configuration with
+ system properties
+
+Change-Id: I80dd4cf775ef1eff5a6eac18de8c083b69827e14
+---
+ .../android/net/wifi/SoftApConfiguration.java |  7 +-
+ .../wifi/TeslaAndroidSoftApConfiguration.java | 64 +++++++++++++++++++
+ .../android/server/wifi/SoftApManager.java    | 40 ++++++------
+ .../server/wifi/WifiApConfigStore.java        | 10 +--
+ .../com/android/server/wifi/WifiNative.java   |  6 +-
+ .../server/wifi/util/ApConfigUtil.java        | 21 +++---
+ 6 files changed, 107 insertions(+), 41 deletions(-)
+ create mode 100644 framework/java/android/net/wifi/TeslaAndroidSoftApConfiguration.java
+
+diff --git a/framework/java/android/net/wifi/SoftApConfiguration.java b/framework/java/android/net/wifi/SoftApConfiguration.java
+index 5a5818da4f..042ac29288 100644
+--- a/framework/java/android/net/wifi/SoftApConfiguration.java
++++ b/framework/java/android/net/wifi/SoftApConfiguration.java
+@@ -26,6 +26,7 @@ import android.compat.annotation.ChangeId;
+ import android.compat.annotation.EnabledAfter;
+ import android.net.MacAddress;
+ import android.net.wifi.util.HexEncoding;
++import android.net.wifi.TeslaAndroidSoftApConfiguration;
+ import android.os.Build;
+ import android.os.Parcel;
+ import android.os.Parcelable;
+@@ -464,7 +465,7 @@ public final class SoftApConfiguration implements Parcelable {
+             mChannels = channels.clone();
+         } else {
+             mChannels = new SparseIntArray(1);
+-            mChannels.put(BAND_2GHZ, 0);
++            mChannels.put(TeslaAndroidSoftApConfiguration.getSoftApBandType(), 0);
+         }
+         mSecurityType = securityType;
+         mMaxNumberOfClients = maxNumberOfClients;
+@@ -1251,7 +1252,7 @@ public final class SoftApConfiguration implements Parcelable {
+             mPassphrase = null;
+             mHiddenSsid = false;
+             mChannels = new SparseIntArray(1);
+-            mChannels.put(BAND_2GHZ, 0);
++            mChannels.put(TeslaAndroidSoftApConfiguration.getSoftApBandType(), 0);
+             mMaxNumberOfClients = 0;
+             mSecurityType = SECURITY_TYPE_OPEN;
+             mAutoShutdownEnabled = false; // disabled by default.
+@@ -1274,7 +1275,7 @@ public final class SoftApConfiguration implements Parcelable {
+             mAllowedAcsChannels2g = new HashSet<>();
+             mAllowedAcsChannels5g = new HashSet<>();
+             mAllowedAcsChannels6g = new HashSet<>();
+-            mMaxChannelBandwidth = SoftApInfo.CHANNEL_WIDTH_AUTO;
++            mMaxChannelBandwidth = TeslaAndroidSoftApConfiguration.getSoftApChannelWidth();
+         }
+ 
+         /**
+diff --git a/framework/java/android/net/wifi/TeslaAndroidSoftApConfiguration.java b/framework/java/android/net/wifi/TeslaAndroidSoftApConfiguration.java
+new file mode 100644
+index 0000000000..ec7dd94ded
+--- /dev/null
++++ b/framework/java/android/net/wifi/TeslaAndroidSoftApConfiguration.java
+@@ -0,0 +1,64 @@
++/*
++ * Copyright (C) 2023 The Tesla Android Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package android.net.wifi;
++
++import android.util.Log;
++
++import android.annotation.SystemApi;
++import android.annotation.SystemService;
++
++import android.net.wifi.SoftApConfiguration;
++import android.net.wifi.SoftApConfiguration.BandType;
++import android.net.wifi.SoftApInfo;
++
++import android.os.SystemProperties;
++
++/**
++ * Provide utility functions used to fetch Tesla Android SoftAp configuration.
++ */
++public class TeslaAndroidSoftApConfiguration {
++    private static final String TAG = "TeslaAndroidSoftApConfiguration";
++
++    private static final String BAND_TYPE_SYSTEM_PROPERTY_KEY = "persist.tesla-android.softap.band_type";
++    private static final int DEFAULT_BAND_TYPE = SoftApConfiguration.BAND_5GHZ;
++
++    private static final String CHANNEL_SYSTEM_PROPERTY_KEY = "persist.tesla-android.softap.channel";
++    private static final int DEFAULT_CHANNEL = 36;
++
++    private static final String CHANNEL_WIDTH_SYSTEM_PROPERTY_KEY = "persist.tesla-android.softap.channel_width";
++    private static final int DEFAULT_CHANNEL_WIDTH = SoftApInfo.CHANNEL_WIDTH_40MHZ;
++
++    private TeslaAndroidSoftApConfiguration() {}
++
++    public static int getSoftApBandType() {
++        final int bandType = SystemProperties.getInt(BAND_TYPE_SYSTEM_PROPERTY_KEY, DEFAULT_BAND_TYPE);
++        Log.d(TAG, "getSoftApBandType: " + bandType);
++        return bandType;
++    }
++
++    public static int getSoftApChannel() {
++        final int channel = SystemProperties.getInt(CHANNEL_SYSTEM_PROPERTY_KEY, DEFAULT_CHANNEL);
++        Log.d(TAG, "getSoftApChannel: " + channel);
++        return channel;
++    }
++
++    public static int getSoftApChannelWidth() {
++        final int channelWidth = SystemProperties.getInt(CHANNEL_WIDTH_SYSTEM_PROPERTY_KEY, DEFAULT_CHANNEL_WIDTH);
++        Log.d(TAG, "getSoftApChannelWidth: " + channelWidth);
++        return channelWidth;
++    }
++}
+diff --git a/service/java/com/android/server/wifi/SoftApManager.java b/service/java/com/android/server/wifi/SoftApManager.java
+index a15ebae421..4a244f1905 100644
+--- a/service/java/com/android/server/wifi/SoftApManager.java
++++ b/service/java/com/android/server/wifi/SoftApManager.java
+@@ -680,28 +680,28 @@ public class SoftApManager implements ActiveModeManager {
+     }
+ 
+     private int setCountryCode() {
+-        int band = mCurrentSoftApConfiguration.getBand();
+-        if (TextUtils.isEmpty(mCountryCode)) {
+-            if (band == SoftApConfiguration.BAND_5GHZ || band == SoftApConfiguration.BAND_6GHZ) {
+-                // Country code is mandatory for 5GHz/6GHz band.
+-                Log.e(getTag(), "Invalid country code, "
+-                        + "required for setting up soft ap in band:" + band);
+-                return ERROR_GENERIC;
+-            }
+-            // Absence of country code is not fatal for 2Ghz & Any band options.
+-            return SUCCESS;
+-        }
+-        if (!mWifiNative.setApCountryCode(
+-                mApInterfaceName, mCountryCode.toUpperCase(Locale.ROOT))) {
+-            if (band == SoftApConfiguration.BAND_5GHZ || band == SoftApConfiguration.BAND_6GHZ) {
++        //int band = mCurrentSoftApConfiguration.getBand();
++        //if (TextUtils.isEmpty(mCountryCode)) {
++        //    if (band == SoftApConfiguration.BAND_5GHZ || band == SoftApConfiguration.BAND_6GHZ) {
++        //        // Country code is mandatory for 5GHz/6GHz band.
++        //        Log.e(getTag(), "Invalid country code, "
++        //                + "required for setting up soft ap in band:" + band);
++        //        return ERROR_GENERIC;
++        //    }
++        //    // Absence of country code is not fatal for 2Ghz & Any band options.
++        //    return SUCCESS;
++        //}
++        //if (!mWifiNative.setApCountryCode(
++        //        mApInterfaceName, mCountryCode.toUpperCase(Locale.ROOT))) {
++        //    if (band == SoftApConfiguration.BAND_5GHZ || band == SoftApConfiguration.BAND_6GHZ) {
+                 // Return an error if failed to set country code when AP is configured for
+                 // 5GHz/6GHz band.
+-                Log.e(getTag(), "Failed to set country code, "
+-                        + "required for setting up soft ap in band: " + band);
+-                return ERROR_GENERIC;
+-            }
+-            // Failure to set country code is not fatal for other band options.
+-        }
++        //        Log.e(getTag(), "Failed to set country code, "
++        //                + "required for setting up soft ap in band: " + band);
++        //        return ERROR_GENERIC;
++        //    }
++        //    // Failure to set country code is not fatal for other band options.
++        //}
+         return SUCCESS;
+     }
+ 
+diff --git a/service/java/com/android/server/wifi/WifiApConfigStore.java b/service/java/com/android/server/wifi/WifiApConfigStore.java
+index b0e5e0149a..884ba9a8f4 100644
+--- a/service/java/com/android/server/wifi/WifiApConfigStore.java
++++ b/service/java/com/android/server/wifi/WifiApConfigStore.java
+@@ -344,11 +344,11 @@ public class WifiApConfigStore {
+             }
+             newChannels.put(newBand, channel);
+         }
+-        if (SdkLevel.isAtLeastS()) {
+-            convertedConfigBuilder.setChannels(newChannels);
+-        } else if (bands.length > 0 && newChannels.valueAt(0) == 0) {
+-            convertedConfigBuilder.setBand(newChannels.keyAt(0));
+-        }
++        //if (SdkLevel.isAtLeastS()) {
++        //    convertedConfigBuilder.setChannels(newChannels);
++        //} else if (bands.length > 0 && newChannels.valueAt(0) == 0) {
++        //    convertedConfigBuilder.setBand(newChannels.keyAt(0));
++        //}
+         return convertedConfigBuilder.build();
+     }
+ 
+diff --git a/service/java/com/android/server/wifi/WifiNative.java b/service/java/com/android/server/wifi/WifiNative.java
+index dd00171ab6..348c0c60d4 100644
+--- a/service/java/com/android/server/wifi/WifiNative.java
++++ b/service/java/com/android/server/wifi/WifiNative.java
+@@ -3606,7 +3606,8 @@ public class WifiNative {
+             }
+             return true;
+         }
+-        return false;
++	// Raspberry Pi 4 does not support changing the country code
++        return true;
+     }
+ 
+     /**
+@@ -3621,7 +3622,8 @@ public class WifiNative {
+             }
+             return true;
+         }
+-        return false;
++	// Raspberry Pi 4 does not support changing the country code
++        return true;
+     }
+ 
+     //---------------------------------------------------------------------------------
+diff --git a/service/java/com/android/server/wifi/util/ApConfigUtil.java b/service/java/com/android/server/wifi/util/ApConfigUtil.java
+index f94eb51b4a..24b4d4ae95 100644
+--- a/service/java/com/android/server/wifi/util/ApConfigUtil.java
++++ b/service/java/com/android/server/wifi/util/ApConfigUtil.java
+@@ -31,6 +31,7 @@ import android.net.wifi.WifiClient;
+ import android.net.wifi.WifiConfiguration;
+ import android.net.wifi.WifiManager;
+ import android.net.wifi.WifiScanner;
++import android.net.wifi.TeslaAndroidSoftApConfiguration;
+ import android.text.TextUtils;
+ import android.util.Log;
+ import android.util.SparseArray;
+@@ -62,8 +63,6 @@ public class ApConfigUtil {
+     private static final String TAG = "ApConfigUtil";
+ 
+     public static final int INVALID_VALUE_FOR_BAND_OR_CHANNEL = -1;
+-    public static final int DEFAULT_AP_BAND = SoftApConfiguration.BAND_2GHZ;
+-    public static final int DEFAULT_AP_CHANNEL = 6;
+     public static final int HIGHEST_2G_AP_CHANNEL = 14;
+ 
+     /* Return code for updateConfiguration. */
+@@ -569,9 +568,9 @@ public class ApConfigUtil {
+         }
+ 
+         // If all available channels are hard unsafe, select the default AP channel.
+-        if (containsBand(apBand, DEFAULT_AP_BAND)) {
+-            final int defaultChannelFreq = convertChannelToFrequency(DEFAULT_AP_CHANNEL,
+-                    DEFAULT_AP_BAND);
++        if (containsBand(apBand, TeslaAndroidSoftApConfiguration.getSoftApBandType())) {
++            final int defaultChannelFreq = convertChannelToFrequency(TeslaAndroidSoftApConfiguration.getSoftApChannel(),
++                    TeslaAndroidSoftApConfiguration.getSoftApBandType());
+             Log.e(TAG, "Allowed channel list not specified, selecting default channel");
+             if (isHardUnsafe && unsafeFreqs.contains(defaultChannelFreq)) {
+                 Log.e(TAG, "Default channel is hard restricted due to coex");
+@@ -722,16 +721,16 @@ public class ApConfigUtil {
+             SoftApCapability capability) {
+         /* Use default band and channel for device without HAL. */
+         if (!wifiNative.isHalStarted()) {
+-            configBuilder.setChannel(DEFAULT_AP_CHANNEL, DEFAULT_AP_BAND);
++            configBuilder.setChannel(TeslaAndroidSoftApConfiguration.getSoftApChannel(), TeslaAndroidSoftApConfiguration.getSoftApBandType());
+             return SUCCESS;
+         }
+ 
+         /* Country code is mandatory for 5GHz band. */
+-        if (config.getBand() == SoftApConfiguration.BAND_5GHZ
+-                && countryCode == null) {
+-            Log.e(TAG, "5GHz band is not allowed without country code");
+-            return ERROR_GENERIC;
+-        }
++        //if (config.getBand() == SoftApConfiguration.BAND_5GHZ
++        //        && countryCode == null) {
++        //    Log.e(TAG, "5GHz band is not allowed without country code");
++        //    return ERROR_GENERIC;
++        //}
+         if (!capability.areFeaturesSupported(SoftApCapability.SOFTAP_FEATURE_ACS_OFFLOAD)) {
+             /* Select a channel if it is not specified and ACS is not enabled */
+             if (config.getChannel() == 0) {
+-- 
+2.34.1
+

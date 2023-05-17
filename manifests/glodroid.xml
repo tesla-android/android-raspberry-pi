@@ -55,7 +55,7 @@
   <project path="glodroid/bootloader/raspberry-fw"  remote="github"  name="raspberrypi/firmware.git" groups="glodroid" revision="0d3395d1e065f5e9f9b081c90bc3b73100ea8698" clone-depth="1" />
 
   <!-- kernel/firmware components (platform) -->
-  <project path="glodroid/kernel/broadcom"        remote="glodroid" name="glodroid_forks.git" groups="glodroid" revision="refs/tags/kernel-broadcom-v0.9.0" />
+  <project path="glodroid/kernel/broadcom"        remote="glodroid" name="glodroid_forks.git" groups="glodroid" revision="ba0dea48c79b5ebf13b7b4214669bbd427248aec" />
 
   <!-- drm -->
   <project path="vendor/brcm/rpi4" remote="github" name="tesla-android/android-vendor-brcm-rpi4.git" revision="74c1e0cef599c83ef4549b2560e16e93f7dd6714" /> 

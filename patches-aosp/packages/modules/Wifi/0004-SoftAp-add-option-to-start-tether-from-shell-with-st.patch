@@ -1,0 +1,56 @@
+From a8b45e1593023a24255841d63dc3bff1e08d4434 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Tue, 16 May 2023 17:06:03 +0000
+Subject: [PATCH 2/2] SoftAp: add option to start tether from shell with stored
+ configuration
+
+Change-Id: I22908c9b6b515100f427182948ffb927ff001a9e
+---
+ .../android/server/wifi/WifiShellCommand.java   | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/service/java/com/android/server/wifi/WifiShellCommand.java b/service/java/com/android/server/wifi/WifiShellCommand.java
+index 367979f3c0..30684987b8 100644
+--- a/service/java/com/android/server/wifi/WifiShellCommand.java
++++ b/service/java/com/android/server/wifi/WifiShellCommand.java
+@@ -157,6 +157,7 @@ public class WifiShellCommand extends BasicShellCommandHandler {
+             "set-multi-internet-state",
+             "start-scan",
+             "start-softap",
++            "start-softap-with-existing-config",
+             "status",
+             "stop-softap",
+             "query-interface",
+@@ -735,6 +736,20 @@ public class WifiShellCommand extends BasicShellCommandHandler {
+                     mWifiService.unregisterSoftApCallback(softApCallback);
+                     return 0;
+                 }
++                case "start-softap-with-existing-config": {
++                    CountDownLatch countDownLatch = new CountDownLatch(1);
++                    SoftApConfiguration config = mWifiApConfigStore.getApConfiguration();
++                    SoftApCallbackProxy softApCallback =
++                            new SoftApCallbackProxy(pw, countDownLatch);
++                    mWifiService.registerSoftApCallback(softApCallback);
++                    if (!mWifiService.startTetheredHotspot(config, SHELL_PACKAGE_NAME)) {
++                        pw.println("Soft AP failed to start. Please check config parameters");
++                    }
++                    // Wait for softap to start and complete callback
++                    countDownLatch.await(10000, TimeUnit.MILLISECONDS);
++                    mWifiService.unregisterSoftApCallback(softApCallback);
++                    return 0;
++                }
+                 case "stop-lohs": {
+                     mWifiService.stopLocalOnlyHotspot();
+                     pw.println("Lohs stopped successfully");
+@@ -2259,6 +2274,8 @@ public class WifiShellCommand extends BasicShellCommandHandler {
+         pw.println("  reset-connected-score");
+         pw.println("    Turns on the default connected scorer.");
+         pw.println("    Note: Will clear any external scorer set.");
++        pw.println("  start-softap-with-current-config");
++        pw.println("    Start softap with current/default params");
+         pw.println("  start-softap <ssid> (open|wpa2|wpa3|wpa3_transition|owe|owe_transition) "
+                 + "<passphrase> [-b 2|5|6|any|bridged]");
+         pw.println("    Start softap with provided params");
+-- 
+2.34.1
+

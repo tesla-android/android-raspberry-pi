@@ -2,3 +2,6 @@ aosptree/**
 !aosptree/vendor
 !aosptree/vendor/devices-community
 !aosptree/vendor/devices-community/**
+
+._*
+.DS_Store

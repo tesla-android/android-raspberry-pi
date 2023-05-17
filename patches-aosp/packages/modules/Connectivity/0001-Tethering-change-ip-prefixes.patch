@@ -1,7 +1,7 @@
-From b5baf0aa5b3da3146039fd96d83da45cc02c5798 Mon Sep 17 00:00:00 2001
+From 988ad0a005031ad1587763d033f53f9fb688793d Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
 Date: Mon, 17 Oct 2022 02:00:02 +0200
-Subject: [PATCH] Tethering: change ip prefixes
+Subject: [PATCH 1/1] Tethering: change ip prefixes
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -10,12 +10,10 @@ Change-Id: I4946469ee5fa230848b5e16ebe42cfbd31e086bc
 Signed-off-by: Michał Gapiński <mike@gapinski.eu>
 ---
  .../tethering/PrivateAddressCoordinator.java  | 32 +++----------------
- .../PrivateAddressCoordinator.java.rej        | 14 ++++++++
- 2 files changed, 19 insertions(+), 27 deletions(-)
- create mode 100644 Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java.rej
+ 1 file changed, 5 insertions(+), 27 deletions(-)
 
 diff --git a/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java b/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java
-index cc2422f877..e587cfe325 100644
+index cc2422f877..33a7c3cea8 100644
 --- a/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java
 +++ b/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java
 @@ -71,8 +71,8 @@ public class PrivateAddressCoordinator {
@@ -24,8 +22,8 @@ index cc2422f877..e587cfe325 100644
      private final ArraySet<IpServer> mDownstreams;
 -    private static final String LEGACY_WIFI_P2P_IFACE_ADDRESS = "192.168.49.1/24";
 -    private static final String LEGACY_BLUETOOTH_IFACE_ADDRESS = "192.168.44.1/24";
-+    private static final String LEGACY_WIFI_P2P_IFACE_ADDRESS = "9.9.49.1/24";
-+    private static final String LEGACY_BLUETOOTH_IFACE_ADDRESS = "9.9.44.1/24";
++    private static final String LEGACY_WIFI_P2P_IFACE_ADDRESS = "100.64.49.1/24";
++    private static final String LEGACY_BLUETOOTH_IFACE_ADDRESS = "100.64.44.1/24";
      private final List<IpPrefix> mTetheringPrefixes;
      private final ConnectivityManager mConnectivityMgr;
      private final TetheringConfiguration mConfig;
@@ -35,7 +33,7 @@ index cc2422f877..e587cfe325 100644
  
 -        mTetheringPrefixes = new ArrayList<>(Arrays.asList(new IpPrefix("192.168.0.0/16"),
 -            new IpPrefix("172.16.0.0/12"), new IpPrefix("10.0.0.0/8")));
-+        mTetheringPrefixes = new ArrayList<>(Arrays.asList(new IpPrefix("9.9.0.0/16")));
++        mTetheringPrefixes = new ArrayList<>(Arrays.asList(new IpPrefix("100.64.255.0/24")));
      }
  
      /**
@@ -79,26 +77,6 @@ index cc2422f877..e587cfe325 100644
      /** Release downstream record for IpServer. */
      public void releaseDownstream(final IpServer ipServer) {
          mDownstreams.remove(ipServer);
-diff --git a/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java.rej b/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java.rej
-new file mode 100644
-index 0000000000..3965ccb586
---- /dev/null
-+++ b/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java.rej
-@@ -0,0 +1,14 @@
-+diff a/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java b/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java	(rejected hunks)
-+@@ -90,11 +90,7 @@ public PrivateAddressCoordinator(Context context, TetheringConfiguration config)
-+         mCachedAddresses.put(TETHERING_BLUETOOTH, new LinkAddress(LEGACY_BLUETOOTH_IFACE_ADDRESS));
-+         mCachedAddresses.put(TETHERING_WIFI_P2P, new LinkAddress(LEGACY_WIFI_P2P_IFACE_ADDRESS));
-+ 
-+-        mTetheringPrefixes = new ArrayList<>(Arrays.asList(new IpPrefix("192.168.0.0/16")));
-+-        if (config.isSelectAllPrefixRangeEnabled()) {
-+-            mTetheringPrefixes.add(new IpPrefix("172.16.0.0/12"));
-+-            mTetheringPrefixes.add(new IpPrefix("10.0.0.0/8"));
-+-        }
-++        mTetheringPrefixes = new ArrayList<>(Arrays.asList(new IpPrefix("9.9.0.0/16")));
-+     }
-+ 
-+     /**
 -- 
 2.34.1
 
