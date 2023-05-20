@@ -1,0 +1,33 @@
+From e0a9dd4fa758fde1508df9b75d46d4512626c3ee Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Thu, 18 May 2023 17:33:28 +0000
+Subject: [PATCH 1/1] Block Tesla telemetry and firmware distribution CDN
+
+Change-Id: I49087d6daf1185a9ceb0cc45ff84a6c89b845738
+---
+ rootdir/etc/hosts | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/rootdir/etc/hosts b/rootdir/etc/hosts
+index 48367aa88..f7bc662db 100644
+--- a/rootdir/etc/hosts
++++ b/rootdir/etc/hosts
+@@ -6,6 +6,15 @@
+ 100.64.255.1		www.tesla.cn
+ 100.64.255.1		hermes-prd.vn.cloud.tesla.cn
+ 
++100.64.255.1		telemetry-prd.vn.tesla.services
++100.64.255.1		telemetry-prd.ap.tesla.services
++100.64.255.1		va.teslamotors.com
++100.64.255.1		apf-api.prd.vn.cloud.tesla.com
++100.64.255.1		x1.ap.tesla.services	
++100.64.255.1		s3.ap.tesla.services
++100.64.255.1		tesla-hermes-snapshot-eu.s3-eu-central-1.amazonaws.com
++100.64.255.1		tesla-hermes-snapshot.s3-us-west-2.amazonaws.com
++
+ 100.64.255.1		www.youtu.be
+ 100.64.255.1		fullscreen.app.teslaandroid.com
+ 100.64.255.1		www.fullscreen.app.teslaandroid.com
+-- 
+2.34.1
+
