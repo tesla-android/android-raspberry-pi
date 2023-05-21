@@ -1,0 +1,29 @@
+From 01daa7236225d6e714bcf2572cd7003345d98d39 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Sun, 21 May 2023 00:44:46 +0300
+Subject: [PATCH] GLODROID: Don't use clang-tidy
+
+It's pointless, time, and energy inefficient to run it globally.
+
+Change-Id: I12b94488c6f9e273786e099670a0610830ba024a
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ cc/tidy.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/cc/tidy.go b/cc/tidy.go
+index 750e9de1e..63f525e00 100644
+--- a/cc/tidy.go
++++ b/cc/tidy.go
+@@ -74,7 +74,7 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
+ 	// If not explicitly disabled, set flags.Tidy to generate .tidy rules.
+ 	// Note that libraries and binaries will depend on .tidy files ONLY if
+ 	// the global WITH_TIDY or module 'tidy' property is true.
+-	flags.Tidy = true
++	flags.Tidy = false
+ 
+ 	// If explicitly enabled, by global default or local tidy property,
+ 	// set flags.NeedTidyFiles to make this module depend on .tidy files.
+-- 
+2.39.2
+
