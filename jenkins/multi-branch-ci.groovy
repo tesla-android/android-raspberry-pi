@@ -18,7 +18,9 @@ def getBuildNumber() {
 
 def getVersion(file) {
     def version = file =~ /ro\.tesla-android\.build\.version\s*=\s*([0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?)/;
-    return version[0][0]
+    def fullVersion = version[0][0];
+    def versionNumber = fullVersion.split('=')[1].trim()
+    return versionNumber;
 }
 
 void setBuildStatus(String message, String state) {
@@ -72,14 +74,14 @@ pipeline {
         stage('Capture artifacts') {
             steps {
                 script {
-                	file = readFile('aosptree/vendor/tesla-android/vendor.mk');
+                    file = readFile('aosptree/vendor/tesla-android/vendor.mk');
                     VERSION = getVersion(file);
                     ARTIFACT_NAME = 'TeslaAndroid-' + VERSION + '-CI-' + getCurrentBranch()  + '-' + getCommitSha() + '-BUILD-' + getBuildNumber() + '-rpi4'
                 }
                 dir("out") {
-                    sh 'mv tesla_android_rpi4-ota-' + getBuildNumber() + '.zip ' + ARTIFACT_NAME + '-OTA.zip'
-                    sh 'mv sdcard.img ' + ARTIFACT_NAME + '-single-image-installer.img'
-                    sh 'zip ' + ARTIFACT_NAME + '-single-image-installer.img.zip ' + ARTIFACT_NAME + '-single-image-installer.img'
+                    sh('mv tesla_android_rpi4-ota-' + getBuildNumber() + '.zip ' + ARTIFACT_NAME + '-OTA.zip')
+                    sh('mv sdcard.img ' + ARTIFACT_NAME + '-single-image-installer.img')
+                    sh('zip ' + ARTIFACT_NAME + '-single-image-installer.img.zip ' + ARTIFACT_NAME + '-single-image-installer.img')
                     archiveArtifacts artifacts: ARTIFACT_NAME + '-single-image-installer.img.zip', fingerprint: true
                     archiveArtifacts artifacts: ARTIFACT_NAME + '-OTA.zip', fingerprint: true
                 }
