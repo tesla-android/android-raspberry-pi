@@ -52,7 +52,7 @@ pipeline {
             steps {
                 sh('mkdir -p patches-aosp/vendor || true')
                 sh('mkdir -p patches-aosp/vendor/tesla-android || true') 
-                sh('cp -R jenkins/0001-CI-Disable-release-keys-switch-to-beta-channel.patch patches-aosp/vendor/tesla-android') 
+                sh('cp -R jenkins/0001-CI-Disable-release-keys-switch-to-beta-channel.patch patches-aosp/vendor/tesla-android/0001-CI-Disable-release-keys-switch-to-beta-channel.patch') 
 
             }
         }
