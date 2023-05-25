@@ -51,7 +51,7 @@ pipeline {
         stage('Enable BETA channel') {
             steps {
                 sh('mkdir -p patches-aosp/vendor')
-                sh('mkdir -p patches-aosp/tesla-android') 
+                sh('mkdir -p patches-aosp/vendor/tesla-android') 
                 sh('cp -R jenkins/0001-CI-Disable-release-keys-switch-to-beta-channel.patch patches-aosp/vendor/tesla-android') 
 
             }
