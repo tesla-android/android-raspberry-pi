@@ -1,6 +1,6 @@
-From cac28443fcecbab460b1ce35effb871b7162ba9c Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
-Date: Thu, 18 May 2023 14:23:18 +0000
+From aa2647947c81d475e8538a7673d03696c3a61186 Mon Sep 17 00:00:00 2001
+From: Jenkins <jenkins@tesla-android.com>
+Date: Fri, 26 May 2023 09:18:26 +0200
 Subject: [PATCH 1/1] CI: Disable release keys, switch to beta channel
 
 ---
@@ -21,20 +21,15 @@ index 4035496..27eddbf 100755
  
  GD_LCD_DENSITY = 200
 diff --git a/vendor.mk b/vendor.mk
-index 15021b5..3808b2f 100755
+index 6b56d49..39add2b 100755
 --- a/vendor.mk
 +++ b/vendor.mk
-@@ -7,16 +7,16 @@ PRODUCT_PACKAGES += \
+@@ -10,11 +10,11 @@ PRODUCT_PROPERTY_OVERRIDES += \
+ # Flavor and signing
  
  PRODUCT_PROPERTY_OVERRIDES += \
-     ro.tesla-android.build.version=2023.20.0.5 \
 -    ro.tesla-android.releasetype=RELEASE \
 +    ro.tesla-android.releasetype=BETA \
-     tesla-android.updater.allow_downgrading=true \
- 
- ################################################################################
- 
- # Release keys
  
 -PRODUCT_DEFAULT_DEV_CERTIFICATE := $(LOCAL_PATH)/signing/releasekey
 -PRODUCT_OTA_PUBLIC_KEYS := $(LOCAL_PATH)/signing/platform
@@ -47,4 +42,3 @@ index 15021b5..3808b2f 100755
  
 -- 
 2.34.1
-
