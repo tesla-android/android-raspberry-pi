@@ -12,10 +12,10 @@
   <project path="external/libws" remote="tesla-android" name="android-external-libws.git" revision="main" />
   <project path="external/usb-modeswitch" remote="tesla-android" name="android-external-usb-modeswitch.git" revision="main" />
   <project path="external/tesla-android-virtual-gnss" remote="tesla-android" name="android-external-tesla-android-virtual-gnss.git" revision="main" />
-  <project path="external/tesla-android-virtual-display" remote="tesla-android" name="android-external-tesla-android-virtual-display.git" revision="responsive-display" />
+  <project path="external/tesla-android-virtual-display" remote="tesla-android" name="android-external-tesla-android-virtual-display.git" revision="main" />
   <project path="external/tesla-android-virtual-touchscreen" remote="tesla-android" name="android-external-tesla-android-virtual-touchscreen.git" revision="main" />
   <project path="external/tesla-android-usb-networking-initialiser" remote="tesla-android" name="android-external-tesla-android-usb-networking-initialiser.git" revision="main" />
-  <project path="external/tesla-android-configuration-manager" remote="tesla-android" name="android-external-tesla-android-configuration-manager.git" revision="reponsive-display" />
+  <project path="external/tesla-android-configuration-manager" remote="tesla-android" name="android-external-tesla-android-configuration-manager.git" revision="main" />
   <project path="vendor/tesla-android" remote="tesla-android" name="android-vendor-tesla-android.git" revision="gps" />
   <project path="packages/apps/Updater" remote="tesla-android" name="android-packages-apps-updater.git" revision="main" />
   <project path="packages/apps/Jelly" remote="github" name="LineageOS/android_packages_apps_Jelly" revision="lineage-20.0"/>

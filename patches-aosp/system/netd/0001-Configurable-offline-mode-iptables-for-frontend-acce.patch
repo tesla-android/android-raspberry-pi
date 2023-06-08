@@ -1,0 +1,114 @@
+From 7b888b537ba46545c211eeb3f8c72293d8792390 Mon Sep 17 00:00:00 2001
+From: Jenkins <jenkins@tesla-android.com>
+Date: Thu, 8 Jun 2023 13:35:55 +0000
+Subject: [PATCH 1/1] Configurable offline mode + iptables for frontend access
+
+Change-Id: Ie0fac3b9e3012265d4c6d696a073055e73cb12e5
+---
+ server/TetherController.cpp | 69 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 69 insertions(+)
+
+diff --git a/server/TetherController.cpp b/server/TetherController.cpp
+index 7919357..2b2ae28 100644
+--- a/server/TetherController.cpp
++++ b/server/TetherController.cpp
+@@ -125,6 +125,15 @@ bool inBpToolsMode() {
+     return !strcmp(BP_TOOLS_MODE, bootmode);
+ }
+ 
++int get_system_property_int(const char* prop_name) {
++  char prop_value[PROPERTY_VALUE_MAX];
++  if (property_get(prop_name, prop_value, nullptr) > 0) {
++    return atoi(prop_value);
++  } else {
++    return -1;
++  }
++}
++
+ }  // namespace
+ 
+ auto TetherController::iptablesRestoreFunction = execIptablesRestoreWithOutput;
+@@ -223,6 +232,10 @@ int TetherController::startTethering(bool usingLegacyDnsProxy, int num_addrs, ch
+         return -res;
+     }
+ 
++    int offlineModeEnabled = get_system_property_int("persist.tesla-android.offline-mode.is_enabled");
++    int offlineModeTelemetryEnabled = get_system_property_int("persist.tesla-android.offline-mode.telemetry.is_enabled");
++    int offlineModeTeslaFirmwareDownload = get_system_property_int("persist.tesla-android.offline-mode.tesla-firmware-downloads");
++
+     // Set parameters
+     Fwmark fwmark;
+     fwmark.netId = NetworkController::LOCAL_NET_ID;
+@@ -257,6 +270,42 @@ int TetherController::startTethering(bool usingLegacyDnsProxy, int num_addrs, ch
+                                          dhcp_ranges[addrIndex + 1]));
+     }
+ 
++    argVector.push_back("--address=/www.youtu.be/104.248.101.213");
++    argVector.push_back("--address=/fullscreen.device.teslaandroid.com/104.248.101.213");
++    argVector.push_back("--address=/www.fullscreen.device.teslaandroid.com/104.248.101.213");
++    argVector.push_back("--address=/device.teslaandroid.com/104.248.101.213");
++    argVector.push_back("--address=/www.device.teslaandroid.com/104.248.101.213");
++
++    // FIXME: Remove deprecated endpoints in Sept 2023
++    argVector.push_back("--address=/fullscreen.app.teslaandroid.com/104.248.101.213");
++    argVector.push_back("--address=/www.fullscreen.app.teslaandroid.com/104.248.101.213");
++    argVector.push_back("--address=/app.teslaandroid.com/104.248.101.213");
++    argVector.push_back("--address=/www.app.teslaandroid.com/104.248.101.213");
++
++
++    if(offlineModeEnabled == 1) {
++	argVector.push_back("--address=/connman.vn.tesla.services/104.248.101.213");
++        argVector.push_back("--address=/www.teslamotors.com/104.248.101.213");
++        argVector.push_back("--address=/hermes-prd.vn.tesla.services/104.248.101.213");
++        argVector.push_back("--address=/connman.vn.cloud.tesla.cn/104.248.101.213");
++        argVector.push_back("--address=/www.tesla.cn/104.248.101.213");
++        argVector.push_back("--address=/hermes-prd.vn.cloud.tesla.cn/104.248.101.213");
++    }
++
++    if(offlineModeTelemetryEnabled == 0) {
++	argVector.push_back("--address=/telemetry-prd.vn.tesla.services/104.248.101.213");
++        argVector.push_back("--address=/telemetry-prd.ap.tesla.services/104.248.101.213");
++	argVector.push_back("--address=/apf-api.prd.vn.cloud.tesla.com/104.248.101.213");
++	argVector.push_back("--address=/x1.ap.tesla.services/104.248.101.213");
++	argVector.push_back("--address=/s3.ap.tesla.services/104.248.101.213");
++	argVector.push_back("--address=/tesla-hermes-snapshot-eu.s3-eu-central-1.amazonaws.com/104.248.101.213");
++	argVector.push_back("--address=/tesla-hermes-snapshot.s3-us-west-2.amazonaws.com/104.248.101.213");
++    }
++
++    if(offlineModeTeslaFirmwareDownload == 0) {
++	argVector.push_back("--address=/va.teslamotors.com/104.248.101.213");
++    }
++
+     std::vector<char*> args(argVector.size() + 1);
+     for (unsigned i = 0; i < argVector.size(); i++) {
+         args[i] = (char*)argVector[i].c_str();
+@@ -557,6 +606,26 @@ int TetherController::setDefaults() {
+         return res;
+     }
+ 
++    std::string sourceIp = "172.16.0.1";
++    std::string destinationIp = "104.248.101.213";
++    std::string interface = "wlan0";
++
++    std::vector<std::string> natCommands = {
++        "*nat",
++        StringPrintf("-A PREROUTING -d %s -i %s -p tcp -j DNAT --to-destination %s", destinationIp.c_str(), interface.c_str(), sourceIp.c_str()),
++        StringPrintf("-A PREROUTING -d %s -i %s -p udp -j DNAT --to-destination %s", destinationIp.c_str(), interface.c_str(), sourceIp.c_str()),
++        StringPrintf("-A POSTROUTING -s %s -p tcp -j SNAT --to-source %s", sourceIp.c_str(), destinationIp.c_str()),
++        StringPrintf("-A POSTROUTING -s %s -p udp -j SNAT --to-source %s", sourceIp.c_str(), destinationIp.c_str()),
++	"COMMIT\n"
++    };
++
++
++    std::string natCommandString = Join(natCommands, '\n');
++    res = iptablesRestoreFunction(V4, natCommandString, nullptr);
++    if (res < 0) {
++        return res;
++    }
++
+     return 0;
+ }
+ 
+-- 
+2.34.1
+

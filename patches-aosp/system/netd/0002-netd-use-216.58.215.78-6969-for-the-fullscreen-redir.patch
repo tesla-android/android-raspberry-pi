@@ -1,0 +1,52 @@
+From e02a577703dea90caceed4c68b49e69e6d00aad2 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Sat, 24 Jun 2023 15:21:34 +0000
+Subject: [PATCH 1/1] netd: use 216.58.215.78:6969 for the fullscreen redirect
+
+Change-Id: I6c94ea9f8d0f4d9ea23dd00e41530c42d65df8fd
+---
+ server/TetherController.cpp | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/server/TetherController.cpp b/server/TetherController.cpp
+index 2b2ae28..b6b03a5 100644
+--- a/server/TetherController.cpp
++++ b/server/TetherController.cpp
+@@ -270,7 +270,8 @@ int TetherController::startTethering(bool usingLegacyDnsProxy, int num_addrs, ch
+                                          dhcp_ranges[addrIndex + 1]));
+     }
+ 
+-    argVector.push_back("--address=/www.youtu.be/104.248.101.213");
++    argVector.push_back("--address=/youtu.be/216.58.215.78");
++    argVector.push_back("--address=/www.youtu.be/216.58.215.78");
+     argVector.push_back("--address=/fullscreen.device.teslaandroid.com/104.248.101.213");
+     argVector.push_back("--address=/www.fullscreen.device.teslaandroid.com/104.248.101.213");
+     argVector.push_back("--address=/device.teslaandroid.com/104.248.101.213");
+@@ -610,16 +611,23 @@ int TetherController::setDefaults() {
+     std::string destinationIp = "104.248.101.213";
+     std::string interface = "wlan0";
+ 
++    int sourcePort = 80;
++    std::string youtubeIp = "216.58.215.78";
++    int destinationPort = 6969;
++
+     std::vector<std::string> natCommands = {
+         "*nat",
+         StringPrintf("-A PREROUTING -d %s -i %s -p tcp -j DNAT --to-destination %s", destinationIp.c_str(), interface.c_str(), sourceIp.c_str()),
+         StringPrintf("-A PREROUTING -d %s -i %s -p udp -j DNAT --to-destination %s", destinationIp.c_str(), interface.c_str(), sourceIp.c_str()),
+         StringPrintf("-A POSTROUTING -s %s -p tcp -j SNAT --to-source %s", sourceIp.c_str(), destinationIp.c_str()),
+         StringPrintf("-A POSTROUTING -s %s -p udp -j SNAT --to-source %s", sourceIp.c_str(), destinationIp.c_str()),
++	StringPrintf("-A PREROUTING -d %s -i %s -p tcp --dport %d -j DNAT --to-destination %s:%d", youtubeIp.c_str(), interface.c_str(), destinationPort, sourceIp.c_str(), sourcePort),
++	StringPrintf("-A PREROUTING -d %s -i %s -p udp --dport %d -j DNAT --to-destination %s:%d", youtubeIp.c_str(), interface.c_str(), destinationPort, sourceIp.c_str(), sourcePort),
++	StringPrintf("-A POSTROUTING -s %s -p tcp --dport %d -j SNAT --to-source %s:%d", sourceIp.c_str(), sourcePort, youtubeIp.c_str(), destinationPort),
++	StringPrintf("-A POSTROUTING -s %s -p udp --dport %d -j SNAT --to-source %s:%d", sourceIp.c_str(), sourcePort, youtubeIp.c_str(), destinationPort),
+ 	"COMMIT\n"
+     };
+ 
+-
+     std::string natCommandString = Join(natCommands, '\n');
+     res = iptablesRestoreFunction(V4, natCommandString, nullptr);
+     if (res < 0) {
+-- 
+2.34.1
+

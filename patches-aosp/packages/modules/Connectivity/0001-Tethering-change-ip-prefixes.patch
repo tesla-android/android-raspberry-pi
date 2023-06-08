@@ -1,4 +1,4 @@
-From 988ad0a005031ad1587763d033f53f9fb688793d Mon Sep 17 00:00:00 2001
+From 35bcbd35b64bc403e1470f4591c22db4b7f2a7f7 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
 Date: Mon, 17 Oct 2022 02:00:02 +0200
 Subject: [PATCH 1/1] Tethering: change ip prefixes
@@ -22,8 +22,8 @@ index cc2422f877..33a7c3cea8 100644
      private final ArraySet<IpServer> mDownstreams;
 -    private static final String LEGACY_WIFI_P2P_IFACE_ADDRESS = "192.168.49.1/24";
 -    private static final String LEGACY_BLUETOOTH_IFACE_ADDRESS = "192.168.44.1/24";
-+    private static final String LEGACY_WIFI_P2P_IFACE_ADDRESS = "100.64.49.1/24";
-+    private static final String LEGACY_BLUETOOTH_IFACE_ADDRESS = "100.64.44.1/24";
++    private static final String LEGACY_WIFI_P2P_IFACE_ADDRESS = "172.16.49.1/24";
++    private static final String LEGACY_BLUETOOTH_IFACE_ADDRESS = "172.16.44.1/24";
      private final List<IpPrefix> mTetheringPrefixes;
      private final ConnectivityManager mConnectivityMgr;
      private final TetheringConfiguration mConfig;
@@ -33,7 +33,7 @@ index cc2422f877..33a7c3cea8 100644
  
 -        mTetheringPrefixes = new ArrayList<>(Arrays.asList(new IpPrefix("192.168.0.0/16"),
 -            new IpPrefix("172.16.0.0/12"), new IpPrefix("10.0.0.0/8")));
-+        mTetheringPrefixes = new ArrayList<>(Arrays.asList(new IpPrefix("100.64.255.0/24")));
++        mTetheringPrefixes = new ArrayList<>(Arrays.asList(new IpPrefix("172.16.0.0/24")));
      }
  
      /**

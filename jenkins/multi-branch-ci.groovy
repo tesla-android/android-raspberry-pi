@@ -58,12 +58,17 @@ pipeline {
         }
         stage('Unfold AOSP repo') {
             steps {
-                sh('./unfold_aosp.sh')
-            }
+               sh('./unfold_aosp.sh')
+           }
         }
         stage('Copy signing keys') {
             steps {
                 sh('cp -R /home/jenkins/tesla-android/signing aosptree/vendor/tesla-android/signing')
+            }
+        }
+        stage('Copy SSL certificates') {
+            steps {
+                sh('cp -R /home/jenkins/tesla-android/certificates aosptree/vendor/tesla-android/services/lighttpd/certificates')
             }
         }
         stage('Compile') {
