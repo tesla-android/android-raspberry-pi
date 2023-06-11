@@ -1,3 +1,6 @@
+def SHARED_WORKSPACE_PATH = "/mnt/bx500/workspaces/tesla_android-rpi4"
+def BASE_PATH = "/mnt/bx500/overlays/tesla_android-rpi4"
+
 def getRepoURL() {
     sh "git config --get remote.origin.url > .git/remote-url"
     return readFile(".git/remote-url").trim()
@@ -43,58 +46,115 @@ pipeline {
     }
 
     stages {
+        stage('Setup OverlayFS') {
+            steps {
+                sh "mkdir -p ${BASE_PATH}/upper ${BASE_PATH}/work ${BASE_PATH}/merged ${SHARED_WORKSPACE_PATH}"
+                sh """
+					if ! mountpoint -q ${BASE_PATH}/merged; then
+    					sudo mount -t overlay overlay -olowerdir=${SHARED_WORKSPACE_PATH},upperdir=${BASE_PATH}/upper,workdir=${BASE_PATH}/work ${BASE_PATH}/merged
+					fi
+				"""
+            }
+        }
         stage('Checkout') {
             steps {
-                checkout scm
+                dir("${BASE_PATH}/merged") {
+                    checkout scm
+                }
             }
         }
         stage('Enable BETA channel') {
             steps {
-                sh('mkdir -p patches-aosp/vendor || true')
-                sh('mkdir -p patches-aosp/vendor/tesla-android || true') 
-                sh('cp -R jenkins/0001-CI-Disable-release-keys-switch-to-beta-channel.patch patches-aosp/vendor/tesla-android/0001-CI-Disable-release-keys-switch-to-beta-channel.patch') 
-
+                dir("${BASE_PATH}/merged") {
+                    sh '''
+                        mkdir -p patches-aosp/vendor || true
+                        mkdir -p patches-aosp/vendor/tesla-android || true
+                        cp -R jenkins/0001-CI-Disable-release-keys-switch-to-beta-channel.patch patches-aosp/vendor/tesla-android/0001-CI-Disable-release-keys-switch-to-beta-channel.patch
+                    '''
+                }
             }
         }
         stage('Unfold AOSP repo') {
             steps {
-                sh('./unfold_aosp.sh')
+                dir("${BASE_PATH}/merged") {
+                    sh './unfold_aosp.sh'
+                }
             }
         }
         stage('Copy signing keys') {
             steps {
-                sh('cp -R /home/jenkins/tesla-android/signing aosptree/vendor/tesla-android/signing')
+                dir("${BASE_PATH}/merged") {
+                    sh 'cp -R /home/jenkins/tesla-android/signing aosptree/vendor/tesla-android/signing'
+                }
+            }
+        }
+        stage('Copy SSL certificates') {
+            steps {
+                dir("${BASE_PATH}/merged") {
+                    sh 'cp -R /home/jenkins/tesla-android/certificates aosptree/vendor/tesla-android/services/lighttpd/certificates'
+                }
             }
         }
         stage('Compile') {
             steps {
-                sh('./build.sh')
+                dir("${BASE_PATH}/merged") {
+                    sh './build.sh'
+                }
             }
         }
         stage('Capture artifacts') {
             steps {
                 script {
-                    file = readFile('aosptree/vendor/tesla-android/vendor.mk');
+                    file = readFile("${BASE_PATH}/merged/aosptree/vendor/tesla-android/vendor.mk");
                     VERSION = getVersion(file);
                     ARTIFACT_NAME = 'TeslaAndroid-' + VERSION + '-CI-' + getCurrentBranch()  + '-' + getCommitSha() + '-BUILD-' + getBuildNumber() + '-rpi4'
                 }
-                dir("out") {
-                    sh('mv tesla_android_rpi4-ota-' + getBuildNumber() + '.zip ' + ARTIFACT_NAME + '-OTA.zip')
-                    sh('mv sdcard.img ' + ARTIFACT_NAME + '-single-image-installer.img')
-                    sh('zip ' + ARTIFACT_NAME + '-single-image-installer.img.zip ' + ARTIFACT_NAME + '-single-image-installer.img')
-                    archiveArtifacts artifacts: ARTIFACT_NAME + '-single-image-installer.img.zip', fingerprint: true
-                    archiveArtifacts artifacts: ARTIFACT_NAME + '-OTA.zip', fingerprint: true
+                dir("${BASE_PATH}/merged/out") {
+                    sh """
+                        mv tesla_android_rpi4-ota-${env.BUILD_NUMBER}.zip ${ARTIFACT_NAME}-OTA.zip
+                        mv sdcard.img ${ARTIFACT_NAME}-single-image-installer.img
+                        zip ${ARTIFACT_NAME}-single-image-installer.img.zip ${ARTIFACT_NAME}-single-image-installer.img
+                    """
+                    archiveArtifacts artifacts: "${ARTIFACT_NAME}-single-image-installer.img.zip", fingerprint: true
+                    archiveArtifacts artifacts: "${ARTIFACT_NAME}-OTA.zip", fingerprint: true
+                }
+            }
+        }
+        stage('Remove artifacts') {
+            steps {
+                dir("${BASE_PATH}/merged/out") {
+                    sh '''
+                        rm -f *.img
+                        rm -f *.zip
+                    '''
                 }
             }
         }
     }
     post {
         success {
-            setBuildStatus("Build succeeded", "SUCCESS");
+            script {
+                setBuildStatus("Build succeeded", "SUCCESS");
+                sh "sudo fuser -km ${BASE_PATH}/merged || true"
+                sh "sudo umount -l ${BASE_PATH}/merged"
+                if (getCurrentBranch() == 'main') {
+                    sh "sudo rsync -a --delete ${BASE_PATH}/upper/ ${SHARED_WORKSPACE_PATH}"
+                }
+                sh "sudo rm -rf ${BASE_PATH}/upper ${BASE_PATH}/work"
+            }
         }
         failure {
-            setBuildStatus("Build failed", "FAILURE");
-            //cleanWs();
+            script {
+                setBuildStatus("Build failed", "FAILURE");
+                sh "sudo fuser -km ${BASE_PATH}/merged || true"
+                sh "sudo umount -l ${BASE_PATH}/merged"
+                sh "sudo rm -rf ${BASE_PATH}/upper ${BASE_PATH}/work"
+                if (getCurrentBranch() == 'main') {
+                    sh "sudo rm -rf ${SHARED_WORKSPACE_PATH}"
+                    build job: env.JOB_NAME, wait: false
+                }
+            }
         }
-    }
+}
+
 }
