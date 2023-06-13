@@ -4,7 +4,7 @@ LOCAL_PATH=$(pwd)
 
 echo Init repo tree using AOSP manifest
 pushd aosptree
-repo init -u https://android.googlesource.com/platform/manifest -b refs/tags/android-13.0.0_r43
+repo init -u https://android.googlesource.com/platform/manifest -b refs/tags/android-platform-13.0.0_r8
 cd .repo/manifests
 mv default.xml aosp.xml
 cp ${LOCAL_PATH}/manifests/glodroid.xml glodroid.xml
