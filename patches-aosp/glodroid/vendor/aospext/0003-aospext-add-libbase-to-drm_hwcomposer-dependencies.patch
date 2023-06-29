@@ -1,0 +1,26 @@
+From 39c1c1d3e977b680804b26d219768f6ba066a18e Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Wed, 14 Jun 2023 21:19:54 +0000
+Subject: [PATCH 1/1] aospext: add libbase to drm_hwcomposer dependencies
+
+---
+ meson_drmhwcomposer.mk | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/meson_drmhwcomposer.mk b/meson_drmhwcomposer.mk
+index c86f1de..0e56118 100644
+--- a/meson_drmhwcomposer.mk
++++ b/meson_drmhwcomposer.mk
+@@ -14,8 +14,8 @@ LOCAL_PATH := $(call my-dir)
+ include $(CLEAR_VARS)
+ 
+ LOCAL_HEADER_LIBRARIES :=
+-LOCAL_SHARED_LIBRARIES := libcutils libdrm libhardware libhidlbase liblog libsync libui libutils
+-MESON_GEN_PKGCONFIGS := cutils drm hardware hidlbase log sync ui utils
++LOCAL_SHARED_LIBRARIES := libbase libcutils libdrm libhardware libhidlbase liblog libsync libui libutils
++MESON_GEN_PKGCONFIGS := base cutils drm hardware hidlbase log sync ui utils
+ 
+ MESON_BUILD_ARGUMENTS := \
+ 
+-- 
+2.34.1

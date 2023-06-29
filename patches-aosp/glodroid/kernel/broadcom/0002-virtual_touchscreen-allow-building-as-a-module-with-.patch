@@ -1,0 +1,139 @@
+From ab94e4bd9cc40770b0b079d17ae7156f5576d851 Mon Sep 17 00:00:00 2001
+From: Jenkins <jenkins@tesla-android.com>
+Date: Sun, 11 Jun 2023 11:55:32 +0000
+Subject: [PATCH 1/1] virtual_touchscreen: allow building as a module with
+ configurable size(ABS_MAX_X, ABS_MAX_Y)
+
+---
+ drivers/input/touchscreen/Kconfig             |  3 +-
+ .../input/touchscreen/virtual_touchscreen.c   | 36 ++++++++++---------
+ 2 files changed, 21 insertions(+), 18 deletions(-)
+
+diff --git a/drivers/input/touchscreen/Kconfig b/drivers/input/touchscreen/Kconfig
+index 1e0c30e40..78074a190 100644
+--- a/drivers/input/touchscreen/Kconfig
++++ b/drivers/input/touchscreen/Kconfig
+@@ -13,8 +13,7 @@ menuconfig INPUT_TOUCHSCREEN
+ if INPUT_TOUCHSCREEN
+ 
+ config TOUCHSCREEN_VIRTUAL
+-	bool "Enable TOUCHSCREEN_VIRTUAL"
+-	default y
++	tristate "Virtual touchscreen"
+ 	help
+ 	  Simple virtual input device for testing things in Linux. Creates a character device and an input device.
+ 
+diff --git a/drivers/input/touchscreen/virtual_touchscreen.c b/drivers/input/touchscreen/virtual_touchscreen.c
+index 360992ec2..3a12f8625 100644
+--- a/drivers/input/touchscreen/virtual_touchscreen.c
++++ b/drivers/input/touchscreen/virtual_touchscreen.c
+@@ -1,6 +1,7 @@
+ #include <linux/input.h>
+ #include <linux/input/mt.h>
+ #include <linux/module.h>
++#include <linux/moduleparam.h>
+ #include <linux/init.h>
+ #include <linux/interrupt.h>
+ #include <linux/uaccess.h>
+@@ -11,9 +12,7 @@
+ #define MODNAME "virtual_touchscreen"
+ 
+ #define ABS_X_MIN	0
+-#define ABS_X_MAX	1024
+ #define ABS_Y_MIN	0
+-#define ABS_Y_MAX	768
+ 
+ #define MAX_CONTACTS 10    // 10 fingers is it
+ 
+@@ -26,15 +25,20 @@ static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
+ static int Major;            /* Major number assigned to our device driver */
+ static int Device_Open = 0;  /* Is device open?  Used to prevent multiple access to the device */
+ 
++#define INT_MODULE_PARM(n, v) static int n = v; module_param(n, int, 0)
++
++INT_MODULE_PARM(abs_x_max_param, 1024);
++INT_MODULE_PARM(abs_y_max_param, 768);
++
+ struct class * cl;
+-struct device * dev; 
++struct device * dev;
+ 
+-struct file_operations fops __attribute__((__section__(".text"))) = {
++struct file_operations fops = {
+        read: device_read,
+        write: device_write,
+        open: device_open,
+        release: device_release
+-};			
++};
+ 
+ static struct input_dev *virt_ts_dev;
+ 
+@@ -49,16 +53,16 @@ static int __init virt_ts_init(void)
+ 	virt_ts_dev->evbit[0] = BIT_MASK(EV_ABS) | BIT_MASK(EV_KEY);
+ 	virt_ts_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
+ 
+-	input_set_abs_params(virt_ts_dev, ABS_X, ABS_X_MIN, ABS_X_MAX, 0, 0);
+-	input_set_abs_params(virt_ts_dev, ABS_Y, ABS_Y_MIN, ABS_Y_MAX, 0, 0);
++	input_set_abs_params(virt_ts_dev, ABS_X, ABS_X_MIN, abs_x_max_param, 0, 0);
++	input_set_abs_params(virt_ts_dev, ABS_Y, ABS_Y_MIN, abs_y_max_param, 0, 0);
+ 
+ 	virt_ts_dev->name = "Virtual touchscreen";
+ 	virt_ts_dev->phys = "virtual_ts/input0";
+ 
+-    input_mt_init_slots(virt_ts_dev, MAX_CONTACTS, INPUT_MT_DIRECT);
++        input_mt_init_slots(virt_ts_dev, MAX_CONTACTS, INPUT_MT_DIRECT);
+ 
+-	input_set_abs_params(virt_ts_dev, ABS_MT_POSITION_X, ABS_X_MIN, ABS_X_MAX, 0, 0);
+-	input_set_abs_params(virt_ts_dev, ABS_MT_POSITION_Y, ABS_Y_MIN, ABS_Y_MAX, 0, 0);
++	input_set_abs_params(virt_ts_dev, ABS_MT_POSITION_X, ABS_X_MIN, abs_x_max_param, 0, 0);
++	input_set_abs_params(virt_ts_dev, ABS_MT_POSITION_Y, ABS_Y_MIN, abs_y_max_param, 0, 0);
+ 
+ 	err = input_register_device(virt_ts_dev);
+ 	if (err)
+@@ -67,7 +71,7 @@ static int __init virt_ts_init(void)
+ 
+     /* Above is evdev part. Below is character device part */
+ 
+-    Major = register_chrdev(0, DEVICE_NAME, &fops);	
++    Major = register_chrdev(0, DEVICE_NAME, &fops);
+     if (Major < 0) {
+ 	printk ("Registering the character device failed with %d\n", Major);
+ 	    goto fail1;
+@@ -91,14 +95,14 @@ static int device_open(struct inode *inode, struct file *file) {
+     ++Device_Open;
+     return 0;
+ }
+-	
++
+ static int device_release(struct inode *inode, struct file *file) {
+     --Device_Open;
+     return 0;
+ }
+-	
++
+ static ssize_t device_read(struct file *filp, char *buffer, size_t length, loff_t *offset) {
+-    const char* message = 
++    const char* message =
+         "Usage: write the following commands to /dev/virtual_touchscreen:\n"
+         "    x num  - move to (x, ...)\n"
+         "    y num  - move to (..., y)\n"
+@@ -132,7 +136,7 @@ static ssize_t device_read(struct file *filp, char *buffer, size_t length, loff_
+     *offset+=length;
+     return length;
+ }
+-	
++
+ static void execute_command(char command, int arg1) {
+     switch(command) {
+         case 'x':
+@@ -229,6 +233,6 @@ static void __exit virt_ts_exit(void)
+ module_init(virt_ts_init);
+ module_exit(virt_ts_exit);
+ 
+-MODULE_AUTHOR("Vitaly Shukela, vi0oss@gmail.com");
++MODULE_AUTHOR("Vitaly Shukela(vi0oss@gmail.com, Michał Gapiński (Tesla Android Project)");
+ MODULE_DESCRIPTION("Virtual touchscreen driver");
+ MODULE_LICENSE("GPL");
+-- 
+2.34.1
