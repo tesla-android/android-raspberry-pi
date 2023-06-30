@@ -2,8 +2,10 @@
 <manifest>
   <remote name="tesla-android" fetch="https://github.com/tesla-android/" />
   <remote name="github" fetch="https://github.com/" />  
-  <remote name="gapps-gitlab" fetch="https://gitlab.com/MindTheGapps"  />
-
+  <remote  name="blobs-gitlab"
+           fetch="https://gitlab.com/ThankYouMario"
+           revision="topaz" />
+  
   <remove-project name="device/generic/car" />
   <remove-project name="platform/packages/apps/Camera2" />
   <remove-project name="platform/packages/apps/LegacyCamera" />
@@ -21,5 +23,5 @@
   <project path="packages/apps/Updater" remote="tesla-android" name="android-packages-apps-updater.git" revision="main" />
   <project path="packages/apps/Jelly" remote="github" name="LineageOS/android_packages_apps_Jelly" revision="lineage-20.0"/>
   <project path="packages/apps/Launcher3" remote="github" name="AOSPA/android_packages_apps_Launcher3" revision="topaz"/>
-  <project path="vendor/gapps" remote="gapps-gitlab" name="vendor_gapps.git" revision="tau"/> 
+  <project path="vendor/google/gms" name="android_vendor_google_gms" remote="blobs-gitlab" />
 </manifest>
