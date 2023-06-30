@@ -9,6 +9,7 @@
   <remove-project name="platform/packages/apps/LegacyCamera" />
   <remove-project name="platform/packages/apps/Browser2" />
   <remove-project name="platform/packages/apps/QuickSearchBox" />
+  <remove-project name="platform/packages/apps/Launcher3" />
   <project path="external/libws" remote="tesla-android" name="android-external-libws.git" revision="main" />
   <project path="external/usb-modeswitch" remote="tesla-android" name="android-external-usb-modeswitch.git" revision="main" />
   <project path="external/tesla-android-virtual-gnss" remote="tesla-android" name="android-external-tesla-android-virtual-gnss.git" revision="main" />
@@ -19,5 +20,6 @@
   <project path="vendor/tesla-android" remote="tesla-android" name="android-vendor-tesla-android.git" revision="main" />
   <project path="packages/apps/Updater" remote="tesla-android" name="android-packages-apps-updater.git" revision="main" />
   <project path="packages/apps/Jelly" remote="github" name="LineageOS/android_packages_apps_Jelly" revision="lineage-20.0"/>
+  <project path="packages/apps/Launcher3" remote="github" name="AOSPA/android_packages_apps_Launcher3" revision="topaz"/>
   <project path="vendor/gapps" remote="gapps-gitlab" name="vendor_gapps.git" revision="tau"/> 
 </manifest>
