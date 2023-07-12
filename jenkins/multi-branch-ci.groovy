@@ -95,6 +95,11 @@ pipeline {
                 }
             }
         }
+        stage('Copy SSL certificates') {
+            steps {
+                sh('cp -R /home/jenkins/tesla-android/certificates aosptree/vendor/tesla-android/services/lighttpd/certificates')
+            }
+        }
         stage('Compile') {
             steps {
                 dir("${BASE_PATH}/merged") {
