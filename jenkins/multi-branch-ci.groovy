@@ -48,12 +48,19 @@ pipeline {
     stages {
         stage('Setup OverlayFS') {
             steps {
-                sh "mkdir -p ${BASE_PATH}/upper ${BASE_PATH}/work ${BASE_PATH}/merged ${SHARED_WORKSPACE_PATH}"
-                sh """
-					if ! mountpoint -q ${BASE_PATH}/merged; then
-    					sudo mount -t overlay overlay -olowerdir=${SHARED_WORKSPACE_PATH},upperdir=${BASE_PATH}/upper,workdir=${BASE_PATH}/work ${BASE_PATH}/merged
-					fi
-				"""
+                script {
+                    if (getCurrentBranch() == 'main') {
+                        sh "mkdir -p ${SHARED_WORKSPACE_PATH}"
+                        sh "sudo mount --bind ${SHARED_WORKSPACE_PATH} ${BASE_PATH}/merged"
+                    } else {
+                        sh "mkdir -p ${BASE_PATH}/upper ${BASE_PATH}/work ${BASE_PATH}/merged"
+                        sh """
+                            if ! mountpoint -q ${BASE_PATH}/merged; then
+                                sudo mount -t overlay overlay -olowerdir=${SHARED_WORKSPACE_PATH},upperdir=${BASE_PATH}/upper,workdir=${BASE_PATH}/work ${BASE_PATH}/merged
+                            fi
+                        """
+                    }
+                }
             }
         }
         stage('Checkout') {
@@ -132,29 +139,32 @@ pipeline {
         }
     }
     post {
-        success {
-            script {
-                setBuildStatus("Build succeeded", "SUCCESS");
-                sh "sudo fuser -km ${BASE_PATH}/merged || true"
-                sh "sudo umount -l ${BASE_PATH}/merged"
-                if (getCurrentBranch() == 'main') {
-                    sh "sudo rsync -a --delete ${BASE_PATH}/upper/ ${SHARED_WORKSPACE_PATH}"
-                }
-                sh "sudo rm -rf ${BASE_PATH}/upper ${BASE_PATH}/work"
-            }
-        }
-        failure {
-            script {
-                setBuildStatus("Build failed", "FAILURE");
-                sh "sudo fuser -km ${BASE_PATH}/merged || true"
-                sh "sudo umount -l ${BASE_PATH}/merged"
-                sh "sudo rm -rf ${BASE_PATH}/upper ${BASE_PATH}/work"
-                if (getCurrentBranch() == 'main') {
-                    sh "sudo rm -rf ${SHARED_WORKSPACE_PATH}"
-                    build job: env.JOB_NAME, wait: false
-                }
-            }
-        }
-}
-
+	    success {
+	        script {
+	            setBuildStatus("Build succeeded", "SUCCESS");
+	            if (getCurrentBranch() == 'main') {
+	                sh "sudo umount -l ${BASE_PATH}/merged"
+	            } else {
+	                sh "sudo fuser -km ${BASE_PATH}/merged || true"
+	                sh "sudo umount -l ${BASE_PATH}/merged"
+	                sh "sudo rsync -a --delete ${BASE_PATH}/upper/ ${SHARED_WORKSPACE_PATH}"
+	                sh "sudo rm -rf ${BASE_PATH}/upper ${BASE_PATH}/work"
+	            }
+	        }
+	    }
+	    failure {
+	        script {
+	            setBuildStatus("Build failed", "FAILURE");
+	            if (getCurrentBranch() == 'main') {
+	                sh "sudo umount -l ${BASE_PATH}/merged"
+	                sh "sudo rm -rf ${SHARED_WORKSPACE_PATH}"
+	                build job: env.JOB_NAME, wait: false
+	            } else {
+	                sh "sudo fuser -km ${BASE_PATH}/merged || true"
+	                sh "sudo umount -l ${BASE_PATH}/merged"
+	                sh "sudo rm -rf ${BASE_PATH}/upper ${BASE_PATH}/work"
+	            }
+	        }
+	    }
+      }
 }
