@@ -147,7 +147,6 @@ pipeline {
 	            } else {
 	                sh "sudo fuser -km ${BASE_PATH}/merged || true"
 	                sh "sudo umount -l ${BASE_PATH}/merged"
-	                sh "sudo rsync -a --delete ${BASE_PATH}/upper/ ${SHARED_WORKSPACE_PATH}"
 	                sh "sudo rm -rf ${BASE_PATH}/upper ${BASE_PATH}/work"
 	            }
 	        }
