@@ -26,7 +26,7 @@ index 643ee26..97b64fc 100644
 +    std::thread([] {
 +        while (true) {
 +            sleep(1);
-+    	    ws_ping(NULL, 5);
++    	    ws_ping(NULL, 10);
 +        }
 +    }).detach();
 +
