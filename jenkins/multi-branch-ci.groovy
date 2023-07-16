@@ -50,8 +50,12 @@ pipeline {
             steps {
                 script {
                     if (getCurrentBranch() == 'main') {
-                        sh "mkdir -p ${SHARED_WORKSPACE_PATH}"
-                        sh "sudo mount --bind ${SHARED_WORKSPACE_PATH} ${BASE_PATH}/merged"
+                        sh "mkdir -p ${SHARED_WORKSPACE_PATH} ${BASE_PATH}/merged"
+                        sh """
+                            if ! mountpoint -q ${BASE_PATH}/merged; then
+                        		sudo mount --bind ${SHARED_WORKSPACE_PATH} ${BASE_PATH}/merged
+                            fi
+                        """
                     } else {
                         sh "mkdir -p ${BASE_PATH}/upper ${BASE_PATH}/work ${BASE_PATH}/merged"
                         sh """
@@ -142,11 +146,8 @@ pipeline {
 	    success {
 	        script {
 	            setBuildStatus("Build succeeded", "SUCCESS");
-	            if (getCurrentBranch() == 'main') {
 	                sh "sudo umount -l ${BASE_PATH}/merged"
-	            } else {
-	                sh "sudo fuser -km ${BASE_PATH}/merged || true"
-	                sh "sudo umount -l ${BASE_PATH}/merged"
+	            if (getCurrentBranch() != 'main') {
 	                sh "sudo rm -rf ${BASE_PATH}/upper ${BASE_PATH}/work"
 	            }
 	        }
@@ -157,9 +158,7 @@ pipeline {
 	            if (getCurrentBranch() == 'main') {
 	                sh "sudo umount -l ${BASE_PATH}/merged"
 	                sh "sudo rm -rf ${SHARED_WORKSPACE_PATH}"
-	                build job: env.JOB_NAME, wait: false
 	            } else {
-	                sh "sudo fuser -km ${BASE_PATH}/merged || true"
 	                sh "sudo umount -l ${BASE_PATH}/merged"
 	                sh "sudo rm -rf ${BASE_PATH}/upper ${BASE_PATH}/work"
 	            }
