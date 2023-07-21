@@ -1,0 +1,35 @@
+From 9b071e418ba08e7bebfd9585794ef6ee19ddc022 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Sat, 22 Jul 2023 21:13:05 +0200
+Subject: [PATCH 1/1] SurfaceFlinger: allow creation of secure displays from
+ outside of AID_SYSTEM
+
+Change-Id: I7654f105a3c65f4a79c1ef2951e245eb1f0e009c
+---
+ services/surfaceflinger/SurfaceFlinger.cpp | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
+index 494aa2c2cf..782bbba862 100644
+--- a/services/surfaceflinger/SurfaceFlinger.cpp
++++ b/services/surfaceflinger/SurfaceFlinger.cpp
+@@ -492,11 +492,11 @@ sp<IBinder> SurfaceFlinger::createDisplay(const String8& displayName, bool secur
+     // onTransact already checks for some permissions, but adding an additional check here.
+     // This is to ensure that only system and graphics can request to create a secure
+     // display. Secure displays can show secure content so we add an additional restriction on it.
+-    const int uid = IPCThreadState::self()->getCallingUid();
+-    if (secure && uid != AID_GRAPHICS && uid != AID_SYSTEM) {
+-        ALOGE("Only privileged processes can create a secure display");
+-        return nullptr;
+-    }
++    //const int uid = IPCThreadState::self()->getCallingUid();
++    //if (secure && uid != AID_GRAPHICS && uid != AID_SYSTEM) {
++    //    ALOGE("Only privileged processes can create a secure display");
++    //    return nullptr;
++    //}
+ 
+     class DisplayToken : public BBinder {
+         sp<SurfaceFlinger> flinger;
+-- 
+2.34.1
+
