@@ -12,12 +12,12 @@
   <remove-project name="platform/external/drm_hwcomposer" />
 
   <project path="glodroid"                        remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="refs/tags/basedir-v0.9.0" />
-  <project path="glodroid/configuration"          remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="49e51be5e5215ee1260bd0531c420792adf3d080" />
+  <project path="glodroid/configuration"          remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="1ba92aede3fccf6fb07ef3787a7bdd55f58e03fc" />
 
   <project path="glodroid/apks"                   remote="glodroid" name="glodroid_external_apks.git" groups="glodroid" revision="refs/tags/apps-v0.8.2" />
 
   <!-- gpu+display components (vendor) -->
-  <project path="glodroid/vendor/minigbm"         remote="aosp" name="platform/external/minigbm"        groups="glodroid" revision="dd9c86425b040a6f0795e4a27f788985d34ece66" />
+  <project path="glodroid/vendor/minigbm"         remote="aosp" name="platform/external/minigbm"        groups="glodroid" revision="84b3a09ef0e620c1b2ec19c7626c327e68a847bc" />
   <project path="glodroid/vendor/drm_hwcomposer"  remote="aosp" name="platform/external/drm_hwcomposer" groups="glodroid" revision="5de61b5e4fbf43b78b605dab68465aa6722930c4" />
   <project path="glodroid/vendor/mesa3d"          remote="aosp" name="platform/external/mesa3d"         groups="glodroid" revision="refs/tags/upstream-mesa-23.1.5" />
 

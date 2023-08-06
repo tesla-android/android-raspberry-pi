@@ -12,6 +12,9 @@ BOARD_MESA3D_VULKAN_DRIVERS := broadcom
 BOARD_KERNEL_CMDLINE += coherent_pool=1M 8250.nr_uarts=1 snd_bcm2835.enable_compat_alsa=0 snd_bcm2835.enable_hdmi=1 snd_bcm2835.enable_headphones=1 \
                         vc_mem.mem_base=0x3ec00000 vc_mem.mem_size=0x40000000 console=ttyS0,115200
 
+BOARD_LIBCAMERA_IPAS := raspberrypi
+BOARD_LIBCAMERA_PIPELINES := simple raspberrypi
+
 BOARD_LIBCAMERA_EXTRA_TARGETS := \
     libetc:libcamera/ipa_rpi.so:libcamera:ipa_rpi.so:           \
     libetc:libcamera/ipa_rpi.so.sign:libcamera:ipa_rpi.so.sign: \

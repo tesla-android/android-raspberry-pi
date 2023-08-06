@@ -1,0 +1,64 @@
+From 9c39a3ef781ab853bff1b6227ba05dc8428c0fc7 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Mon, 7 Aug 2023 23:07:16 +0300
+Subject: [PATCH 4/5] Fix images generation for broadcom after switching to new
+ parted.py
+
+Fixes: e88d29d667df ("platform: tools: Use custom parted.py instead of system sgdisk")
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ platform/tools/gensdimg.sh | 9 +++++++--
+ platform/tools/parted.py   | 4 ++--
+ 2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/platform/tools/gensdimg.sh b/platform/tools/gensdimg.sh
+index 8e32f7f..daebf7c 100755
+--- a/platform/tools/gensdimg.sh
++++ b/platform/tools/gensdimg.sh
+@@ -42,6 +42,11 @@ gen_image() {
+         BL_SIZE=$(( 1024 * 1024 * 2 - 128 * 1024 ))
+     fi
+ 
++    if [ "$PLATFORM" = "broadcom" ]; then
++        BL_START=128K
++        BL_SIZE=$(( 1024 * 1024 * 128 - 128 * 1024 ))
++    fi
++
+     if [ "$TYPE" != "SD" ]; then
+         ${PARTED_TOOL} create_empty  ${BASE_ARGS} --size=256M
+     else
+@@ -49,11 +54,11 @@ gen_image() {
+     fi
+ 
+     ${PARTED_TOOL} add_image     ${BASE_ARGS} --partition-name=bootloader --start=${BL_START} --size=${BL_SIZE} --img-file=bootloader-$SUFFIX.img
+-    ${PARTED_TOOL} add_image     ${BASE_ARGS} --partition-name=uboot-env  --start=3M          --size=512K       --img-file=env.img
++    ${PARTED_TOOL} add_image     ${BASE_ARGS} --partition-name=uboot-env                      --size=512K       --img-file=env.img
+ 
+     if [ "$PLATFORM" = "broadcom" ]; then
+         # Broadcom ROM code will look for a FAT16 partition on MBR (It doesn't support GPT). Therefore, create a hybrid MBR.
+-        ${PARTED_TOOL} set_as_mbr_partition ${BASE_ARGS} --partition-name=bootloader
++        ${PARTED_TOOL} set_as_mbr_partition ${BASE_ARGS} --partition-name=bootloader --part-type=0x4
+     fi
+ 
+     # Skip remaining for deploy images
+diff --git a/platform/tools/parted.py b/platform/tools/parted.py
+index d8a63fc..4f310d8 100755
+--- a/platform/tools/parted.py
++++ b/platform/tools/parted.py
+@@ -271,11 +271,11 @@ def create_empty_partition(disk_image, partition_name, start, size):
+             sys.exit(1)
+ 
+         if start + size > r[0] and start + size <= r[1]:
+-            print("FAIL: Partition end overlaps with an existing segment: {r[2]}")
++            print(f"FAIL: Partition end overlaps with an existing segment: {r[2]}")
+             sys.exit(1)
+ 
+         if start < r[0] and start + size > r[1]:
+-            print("FAIL: Partition overlaps with an existing segment: {r[2]}")
++            print(f"FAIL: Partition overlaps with an existing segment: {r[2]}")
+             sys.exit(1)
+ 
+     # Create a new partition entry
+-- 
+2.39.2
+
