@@ -1,0 +1,38 @@
+From 6feccfce0afd06aa97a4f80aeab02f42bd7acef1 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Mon, 7 Aug 2023 23:09:23 +0300
+Subject: [PATCH 5/5] broadcom: Fix wrong dependency to the kernel for the rpi
+ boot partition
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ platform/uboot/uboot.mk | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/platform/uboot/uboot.mk b/platform/uboot/uboot.mk
+index e116c91..9aef625 100644
+--- a/platform/uboot/uboot.mk
++++ b/platform/uboot/uboot.mk
+@@ -190,7 +190,9 @@ $(PRODUCT_OUT)/bootloader-deploy-emmc.img $(PRODUCT_OUT)/bootloader-sd.img $(PRO
+ endif
+ 
+ ifeq ($(PRODUCT_BOARD_PLATFORM),broadcom)
+-DTBS_DIR := $(PRODUCT_OUT)/obj/GLODROID/KERNEL/install/dtbs
++KERNEL_OUT    := $(PRODUCT_OUT)/obj/GLODROID/KERNEL
++KERNEL_TARGET := $(KERNEL_OUT)/install/kernel
++DTBS_DIR      := $(KERNEL_OUT)/install/dtbs
+ BOOT_FILES := \
+     $(RPI_FIRMWARE_DIR)/boot/bootcode.bin \
+     $(RPI_FIRMWARE_DIR)/boot/start_x.elf \
+@@ -203,7 +205,7 @@ BOOT_FILES := \
+ 
+ OVERLAY_FILES := $(sort $(shell find -L $(RPI_FIRMWARE_DIR)/boot/overlays))
+ 
+-$(PRODUCT_OUT)/bootloader-sd.img: $(UBOOT_BINARY) $(OVERLAY_FILES) $(ATF_BINARY) $(RPI_CONFIG) $(KERNEL_BINARY)
++$(PRODUCT_OUT)/bootloader-sd.img: $(UBOOT_BINARY) $(OVERLAY_FILES) $(ATF_BINARY) $(RPI_CONFIG) $(KERNEL_TARGET)
+ 	dd if=/dev/null of=$@ bs=1 count=1 seek=$$(( 128 * 1024 * 1024 - 256 * 512 ))
+ 	/sbin/mkfs.vfat -F 32 -n boot $@
+ 	/usr/bin/mcopy -i $@ $(UBOOT_BINARY) ::$(notdir $(UBOOT_BINARY))
+-- 
+2.39.2
+
