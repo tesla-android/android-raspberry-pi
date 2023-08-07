@@ -1,8 +1,8 @@
-From fac8e6b2f79e8299eec7d19eb8076aac47276042 Mon Sep 17 00:00:00 2001
+From a4ea998d367870d93120856c5d6f2b4937bdfdb3 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Sat, 3 Dec 2022 13:02:08 +0200
-Subject: [PATCH] GLODROID: Don't add -ljpeg argument when building libyuv as
- subproject
+Subject: [PATCH 2/3] GLODROID: Don't add -ljpeg argument when building libyuv
+ as subproject
 
 We don't have sysroot with libdir when building within AOSP.
 Instead all dependencies are linked directly as path/lib.so link argument.
@@ -13,7 +13,7 @@ Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
  1 file changed, 1 deletion(-)
 
 diff --git a/src/android/meson.build b/src/android/meson.build
-index 1bba54de..b1b5caa1 100644
+index 68646120..9b83acaa 100644
 --- a/src/android/meson.build
 +++ b/src/android/meson.build
 @@ -29,7 +29,6 @@ if not libyuv_dep.found()
@@ -25,5 +25,5 @@ index 1bba54de..b1b5caa1 100644
      libyuv_dep = libyuv.dependency('yuv')
  endif
 -- 
-2.37.2
+2.39.2
 
