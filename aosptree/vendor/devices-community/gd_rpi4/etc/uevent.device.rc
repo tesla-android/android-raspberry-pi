@@ -8,7 +8,7 @@
 
 # V4L2
 /dev/media0                                                                  0660   media      media
-/dev/media1                                                                  0660   media      media
+/dev/media3                                                                  0660   media      media
 /dev/video10                                                                 0660   media      media
 /dev/video11                                                                 0660   media      media
 /dev/video12                                                                 0660   media      media

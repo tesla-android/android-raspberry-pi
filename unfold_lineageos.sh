@@ -4,7 +4,7 @@ LOCAL_PATH=$(pwd)
 
 echo Init repo tree using AOSP manifest
 pushd aosptree
-repo init -u https://github.com/LineageOS/android.git -b 757f405bf66c7d0ece0a1a5ccd474d0b543a10ad
+repo init -u https://github.com/LineageOS/android.git -b 818f2ec7d489d484333bfdfb67d62400027233a4
 cd .repo/manifests
 mv default.xml lineage.xml
 cp ${LOCAL_PATH}/manifests/tesla-android.xml tesla-android.xml

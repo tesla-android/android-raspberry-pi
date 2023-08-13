@@ -1,0 +1,145 @@
+From f9269546bfb9a1ab50280bc9ef7a31ee75087f22 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Thu, 4 Nov 2021 14:42:00 +0200
+Subject: [PATCH 1/3] HACK: Use minigbm handle structure to obtain
+ strides/offsets/sizes
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ src/android/mm/cros_gralloc_handle.h     | 51 ++++++++++++++++++++++++
+ src/android/mm/generic_camera_buffer.cpp | 30 ++++++--------
+ 2 files changed, 64 insertions(+), 17 deletions(-)
+ create mode 100644 src/android/mm/cros_gralloc_handle.h
+
+diff --git a/src/android/mm/cros_gralloc_handle.h b/src/android/mm/cros_gralloc_handle.h
+new file mode 100644
+index 00000000..2b70d4ba
+--- /dev/null
++++ b/src/android/mm/cros_gralloc_handle.h
+@@ -0,0 +1,51 @@
++/*
++ * Copyright 2016 The Chromium OS Authors. All rights reserved.
++ * Use of this source code is governed by a BSD-style license that can be
++ * found in the LICENSE file.
++ */
++
++#ifndef CROS_GRALLOC_HANDLE_H
++#define CROS_GRALLOC_HANDLE_H
++
++#include <cstdint>
++#include <cutils/native_handle.h>
++
++#define DRV_MAX_PLANES 4
++#define DRV_MAX_FDS (DRV_MAX_PLANES + 1)
++
++struct cros_gralloc_handle : public native_handle_t {
++	/*
++	 * File descriptors must immediately follow the native_handle_t base and used file
++	 * descriptors must be packed at the beginning of this array to work with
++	 * native_handle_clone().
++	 *
++	 * This field contains 'num_planes' plane file descriptors followed by an optional metadata
++	 * reserved region file descriptor if 'reserved_region_size' is greater than zero.
++	 */
++	int32_t fds[DRV_MAX_FDS];
++	uint32_t strides[DRV_MAX_PLANES];
++	uint32_t offsets[DRV_MAX_PLANES];
++	uint32_t sizes[DRV_MAX_PLANES];
++	uint32_t id;
++	uint32_t width;
++	uint32_t height;
++	uint32_t format; /* DRM format */
++	uint32_t tiling;
++	uint64_t format_modifier;
++	uint64_t use_flags; /* Buffer creation flags */
++	uint32_t magic;
++	uint32_t pixel_stride;
++	int32_t droid_format;
++	int32_t usage; /* Android usage. */
++	uint32_t num_planes;
++	uint64_t reserved_region_size;
++	uint64_t total_size; /* Total allocation size */
++	/*
++	 * Name is a null terminated char array located at handle->base.data[handle->name_offset].
++	 */
++	uint32_t name_offset;
++} __attribute__((packed));
++
++typedef const struct cros_gralloc_handle *cros_gralloc_handle_t;
++
++#endif
+diff --git a/src/android/mm/generic_camera_buffer.cpp b/src/android/mm/generic_camera_buffer.cpp
+index 1bd7090d..dd78d5f0 100644
+--- a/src/android/mm/generic_camera_buffer.cpp
++++ b/src/android/mm/generic_camera_buffer.cpp
+@@ -10,6 +10,8 @@
+ #include <sys/mman.h>
+ #include <unistd.h>
+ 
++#include "cros_gralloc_handle.h"
++
+ #include <libcamera/base/log.h>
+ 
+ #include "libcamera/internal/formats.h"
+@@ -70,6 +72,8 @@ CameraBuffer::Private::Private([[maybe_unused]] CameraBuffer *cameraBuffer,
+ 		return;
+ 	}
+ 
++	auto cros_handle = reinterpret_cast<cros_gralloc_handle_t>(camera3Buffer);
++
+ 	/*
+ 	 * As Android doesn't offer an API to query buffer layouts, assume for
+ 	 * now that the buffer is backed by a single dmabuf, with planes being
+@@ -79,13 +83,7 @@ CameraBuffer::Private::Private([[maybe_unused]] CameraBuffer *cameraBuffer,
+ 		if (camera3Buffer->data[i] == -1 || camera3Buffer->data[i] == fd_)
+ 			continue;
+ 
+-		if (fd_ != -1) {
+-			error_ = -EINVAL;
+-			LOG(HAL, Error) << "Discontiguous planes are not supported";
+-			return;
+-		}
+-
+-		fd_ = camera3Buffer->data[i];
++		fd_ = camera3Buffer->data[0];
+ 	}
+ 
+ 	if (fd_ == -1) {
+@@ -101,26 +99,24 @@ CameraBuffer::Private::Private([[maybe_unused]] CameraBuffer *cameraBuffer,
+ 		return;
+ 	}
+ 
+-	const unsigned int numPlanes = info.numPlanes();
++	const unsigned int numPlanes = cros_handle->num_planes;
+ 	planeInfo_.resize(numPlanes);
+ 
+-	unsigned int offset = 0;
+ 	for (unsigned int i = 0; i < numPlanes; ++i) {
+-		const unsigned int planeSize = info.planeSize(size, i);
++		const unsigned int planeSize = cros_handle->sizes[i];
+ 
+-		planeInfo_[i].stride = info.stride(size.width, i, 1u);
+-		planeInfo_[i].offset = offset;
+-		planeInfo_[i].size = planeSize;
++		planeInfo_[i].stride = cros_handle->strides[i];
++		planeInfo_[i].offset = cros_handle->offsets[i];
++		planeInfo_[i].size = cros_handle->sizes[i];
+ 
+-		if (bufferLength_ < offset + planeSize) {
++		if (bufferLength_ < planeInfo_[i].offset + planeInfo_[i].size) {
+ 			LOG(HAL, Error) << "Plane " << i << " is out of buffer:"
+-					<< " plane offset=" << offset
+-					<< ", plane size=" << planeSize
++					<< " plane offset=" << planeInfo_[i].offset
++					<< ", plane size=" << planeInfo_[i].size
+ 					<< ", buffer length=" << bufferLength_;
+ 			return;
+ 		}
+ 
+-		offset += planeSize;
+ 	}
+ }
+ 
+-- 
+2.39.2
+

@@ -1,0 +1,42 @@
+From 402e4fd93cab0d1637f57fe200cc96df33c7e7f2 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Mon, 7 Aug 2023 16:13:56 +0300
+Subject: [PATCH 3/3] HACK: Support for RaspberryPI
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ src/android/camera_stream.cpp                       | 3 +++
+ src/libcamera/pipeline/rpi/common/pipeline_base.cpp | 3 ++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/android/camera_stream.cpp b/src/android/camera_stream.cpp
+index 045e6006..3600ec56 100644
+--- a/src/android/camera_stream.cpp
++++ b/src/android/camera_stream.cpp
+@@ -132,6 +132,9 @@ int CameraStream::configure()
+ 	mutex_ = std::make_unique<Mutex>();
+ 
+ 	camera3Stream_->max_buffers = configuration().bufferCount;
++	// Android requires at least one buffer
++	if (camera3Stream_->max_buffers == 0)
++		camera3Stream_->max_buffers = 1;
+ 
+ 	return 0;
+ }
+diff --git a/src/libcamera/pipeline/rpi/common/pipeline_base.cpp b/src/libcamera/pipeline/rpi/common/pipeline_base.cpp
+index 97acafbb..fcc7cf4a 100644
+--- a/src/libcamera/pipeline/rpi/common/pipeline_base.cpp
++++ b/src/libcamera/pipeline/rpi/common/pipeline_base.cpp
+@@ -292,7 +292,8 @@ CameraConfiguration::Status RPiCameraConfiguration::validate()
+ 		 * requested (which carefully included the YCbCr info)!
+ 		 */
+ 		if (cfg.colorSpace != format.colorSpace) {
+-			status = Adjusted;
++			// Android doesn't support color space. Don't report status as adjusted.
++			// status = Adjusted;
+ 			LOG(RPI, Debug)
+ 				<< "Color space changed from "
+ 				<< ColorSpace::toString(cfg.colorSpace) << " to "
+-- 
+2.39.2
+
