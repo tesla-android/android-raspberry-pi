@@ -1,4 +1,4 @@
-From 207d052c127ccf657320946e25111e62e84fe245 Mon Sep 17 00:00:00 2001
+From 32bde29d921925a9c8517e39e205afec7c418cc8 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Sun, 13 Aug 2023 22:23:14 +0300
 Subject: [PATCH 6/6] Allow overriding super partition size by product
@@ -9,10 +9,11 @@ LineageOS is heavier, so set its default size to 2500MB.
 Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
 ---
  common/base/board.mk          | 9 ++++++++-
+ platform/tools/gensdimg.sh    | 6 +++++-
  platform/uboot/bootscript.cpp | 2 +-
  platform/uboot/bootscript.h   | 3 +++
  platform/uboot/uboot.mk       | 3 ++-
- 4 files changed, 14 insertions(+), 3 deletions(-)
+ 5 files changed, 19 insertions(+), 4 deletions(-)
 
 diff --git a/common/base/board.mk b/common/base/board.mk
 index 33e9493..82c4292 100644
@@ -35,6 +36,23 @@ index 33e9493..82c4292 100644
  BOARD_BUILD_SUPER_IMAGE_BY_DEFAULT := true
  BOARD_SUPER_PARTITION_GROUPS := glodroid_dynamic_partitions
  BOARD_GLODROID_DYNAMIC_PARTITIONS_SIZE := $(shell echo $$(( $(BOARD_SUPER_PARTITION_SIZE) - (10 * 1024 * 1024) )))
+diff --git a/platform/tools/gensdimg.sh b/platform/tools/gensdimg.sh
+index daebf7c..bc46619 100755
+--- a/platform/tools/gensdimg.sh
++++ b/platform/tools/gensdimg.sh
+@@ -50,7 +50,11 @@ gen_image() {
+     if [ "$TYPE" != "SD" ]; then
+         ${PARTED_TOOL} create_empty  ${BASE_ARGS} --size=256M
+     else
+-        ${PARTED_TOOL} create_empty  ${BASE_ARGS} --size=4G
++        # Adjust SD card size to fit super.img and other partitions
++        SUPER_IMG_SIZE_MB=$(( $(stat -c%s super.img) / (1024 * 1024) ))
++        # Add 512M for remaining partitions. Align to 1G.
++        SD_SIZE_GB=$(( (SUPER_IMG_SIZE_MB + 512 + 1024 - 1) / 1024 ))
++        ${PARTED_TOOL} create_empty  ${BASE_ARGS} --size=${SD_SIZE_GB}G
+     fi
+ 
+     ${PARTED_TOOL} add_image     ${BASE_ARGS} --partition-name=bootloader --start=${BL_START} --size=${BL_SIZE} --img-file=bootloader-$SUFFIX.img
 diff --git a/platform/uboot/bootscript.cpp b/platform/uboot/bootscript.cpp
 index de60224..a9674a4 100644
 --- a/platform/uboot/bootscript.cpp
