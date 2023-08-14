@@ -1,0 +1,89 @@
+From 207d052c127ccf657320946e25111e62e84fe245 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Sun, 13 Aug 2023 22:23:14 +0300
+Subject: [PATCH 6/6] Allow overriding super partition size by product
+ makefiles
+
+LineageOS is heavier, so set its default size to 2500MB.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ common/base/board.mk          | 9 ++++++++-
+ platform/uboot/bootscript.cpp | 2 +-
+ platform/uboot/bootscript.h   | 3 +++
+ platform/uboot/uboot.mk       | 3 ++-
+ 4 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/common/base/board.mk b/common/base/board.mk
+index 33e9493..82c4292 100644
+--- a/common/base/board.mk
++++ b/common/base/board.mk
+@@ -101,8 +101,15 @@ BOARD_BUILD_SYSTEM_ROOT_IMAGE := false
+ 
+ BOARD_EXT4_SHARE_DUP_BLOCKS := true
+ 
++# Default suprt partition size
++ifeq ($(wildcard lineage),lineage)
++GD_SUPER_PARTITION_SIZE_MB ?= 2500
++else
++GD_SUPER_PARTITION_SIZE_MB ?= 2000
++endif
++
+ # Dynamic partition 1800 MiB
+-BOARD_SUPER_PARTITION_SIZE := $(shell echo $$(( 2000 * 1024 * 1024 )))
++BOARD_SUPER_PARTITION_SIZE := $(shell echo $$(( $(GD_SUPER_PARTITION_SIZE_MB) * 1024 * 1024 )))
+ BOARD_BUILD_SUPER_IMAGE_BY_DEFAULT := true
+ BOARD_SUPER_PARTITION_GROUPS := glodroid_dynamic_partitions
+ BOARD_GLODROID_DYNAMIC_PARTITIONS_SIZE := $(shell echo $$(( $(BOARD_SUPER_PARTITION_SIZE) - (10 * 1024 * 1024) )))
+diff --git a/platform/uboot/bootscript.cpp b/platform/uboot/bootscript.cpp
+index de60224..a9674a4 100644
+--- a/platform/uboot/bootscript.cpp
++++ b/platform/uboot/bootscript.cpp
+@@ -39,7 +39,7 @@ EXTENV(partitions, ";name=vbmeta_a,size=512K,uuid=\${uuid_gpt_vbmeta_a}")
+ EXTENV(partitions, ";name=vbmeta_b,size=512K,uuid=\${uuid_gpt_vbmeta_b}")
+ EXTENV(partitions, ";name=vbmeta_system_a,size=512K,uuid=\${uuid_gpt_vbmeta_system_a}")
+ EXTENV(partitions, ";name=vbmeta_system_b,size=512K,uuid=\${uuid_gpt_vbmeta_system_b}")
+-EXTENV(partitions, ";name=super,size=2000M,uuid=\${uuid_gpt_super}")
++EXTENV(partitions, ";name=super,size="STR(__GD_SUPER_PARTITION_SIZE_MB__)"M,uuid=\${uuid_gpt_super}")
+ EXTENV(partitions, ";name=metadata,size=16M,uuid=\${uuid_gpt_metadata}")
+ EXTENV(partitions, ";name=userdata,size=-,uuid=\${uuid_gpt_userdata}")
+ 
+diff --git a/platform/uboot/bootscript.h b/platform/uboot/bootscript.h
+index 6b12ad4..811620d 100644
+--- a/platform/uboot/bootscript.h
++++ b/platform/uboot/bootscript.h
+@@ -6,6 +6,8 @@
+ #define N(...) __VA_ARGS__
+ #define Q() \"
+ 
++#define q() "
++
+ #define BO() "${
+ #define BOQ() "\${
+ #define BC() }"
+@@ -16,5 +18,6 @@
+ #define FUNC_BEGIN(name) setenv name '
+ #define FUNC_END() '
+ 
++#define STR(...) q()N(__VA_ARGS__)q()
+ #define STRESC(...) Q()N(__VA_ARGS__)Q()
+ 
+diff --git a/platform/uboot/uboot.mk b/platform/uboot/uboot.mk
+index 9aef625..8f1338b 100644
+--- a/platform/uboot/uboot.mk
++++ b/platform/uboot/uboot.mk
+@@ -136,9 +136,10 @@ $(BOOTSCRIPT_GEN): $(GD_BOOTSCRIPT) $(BSP_UBOOT_PATH)/bootscript.h $(GD_BOOTSCRI
+ 	cp $(BSP_UBOOT_PATH)/bootscript.h $(dir $(BOOTSCRIPT_GEN))/
+ 	cp $(GD_BOOTSCRIPT_OVERLAY_PLATFORM) $(dir $(BOOTSCRIPT_GEN))/platform.h
+ 	cp $(GD_BOOTSCRIPT_OVERLAY_DEVICE) $(dir $(BOOTSCRIPT_GEN))/device.h
+-	$(CLANG) -E -P -Wno-invalid-pp-token $(dir $(BOOTSCRIPT_GEN))/$(notdir $<) -o $@ \
++	$(CLANG) -E -P -Wno-invalid-pp-token -Wno-reserved-user-defined-literal $(dir $(BOOTSCRIPT_GEN))/$(notdir $<) -o $@ \
+ 	    -D__SYSFS_MMC0_PATH__=$(SYSFS_MMC0_PATH) \
+ 	    -D__SYSFS_MMC1_PATH__=$(SYSFS_MMC1_PATH) \
++	    -D__GD_SUPER_PARTITION_SIZE_MB__=$(GD_SUPER_PARTITION_SIZE_MB) \
+ 
+ $(UBOOT_OUT)/boot.scr: $(BOOTSCRIPT_GEN) $(UBOOT_BINARY)
+ 	$(UBOOT_OUT)/tools/mkimage -A arm -O linux -T script -C none -a 0 -e 0 -d $< $@
+-- 
+2.39.2
+
