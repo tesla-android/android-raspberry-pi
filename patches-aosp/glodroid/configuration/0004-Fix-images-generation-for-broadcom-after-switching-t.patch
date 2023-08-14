@@ -1,15 +1,15 @@
-From 9c39a3ef781ab853bff1b6227ba05dc8428c0fc7 Mon Sep 17 00:00:00 2001
+From 378f1dc2732ecacfe0eda7dbef086b077b10617e Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Mon, 7 Aug 2023 23:07:16 +0300
-Subject: [PATCH 4/5] Fix images generation for broadcom after switching to new
+Subject: [PATCH 4/6] Fix images generation for broadcom after switching to new
  parted.py
 
 Fixes: e88d29d667df ("platform: tools: Use custom parted.py instead of system sgdisk")
 Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
 ---
- platform/tools/gensdimg.sh | 9 +++++++--
- platform/tools/parted.py   | 4 ++--
- 2 files changed, 9 insertions(+), 4 deletions(-)
+ platform/tools/gensdimg.sh |  9 +++++++--
+ platform/tools/parted.py   | 12 +++++++++---
+ 2 files changed, 16 insertions(+), 5 deletions(-)
 
 diff --git a/platform/tools/gensdimg.sh b/platform/tools/gensdimg.sh
 index 8e32f7f..daebf7c 100755
@@ -42,10 +42,32 @@ index 8e32f7f..daebf7c 100755
  
      # Skip remaining for deploy images
 diff --git a/platform/tools/parted.py b/platform/tools/parted.py
-index d8a63fc..4f310d8 100755
+index d8a63fc..a52c599 100755
 --- a/platform/tools/parted.py
 +++ b/platform/tools/parted.py
-@@ -271,11 +271,11 @@ def create_empty_partition(disk_image, partition_name, start, size):
+@@ -142,6 +142,12 @@ def lba_to_chs(lba, sectors_per_track, heads):
+     remainder = lba % sectors_per_cylinder
+     head = remainder // sectors_per_track
+     sector = (remainder % sectors_per_track) + 1  # Sectors are usually 1-indexed in CHS notation
++    if cylinder > 1023:
++        # We cannot represent more than 1023 cylinders in CHS notation
++        cylinder = 1023
++        head = heads
++        sector = sectors_per_track
++
+     return struct.pack("BBB", head, ((cylinder >> 8) << 6) | sector, cylinder & 0xff)
+ 
+ def store_protected_mbr(disk_image, hybrid_part_name, hybrid_part_type):
+@@ -218,7 +224,7 @@ def create_empty_gpt_header_and_table(disk_image):
+     num_part_entries = 128
+     part_entry_size = 128
+     part_entry_array_crc32 = 0
+-    first_usable_lba = div_round_up(gpt_offset + num_part_entries * part_entry_size, 512)
++    first_usable_lba = div_round_up(gpt_offset + 512 + num_part_entries * part_entry_size, 512)
+     last_usable_lba = backup_lba - 33
+ 
+     gpt_header = (signature, revision, header_size, crc32, reserved, current_lba, backup_lba, first_usable_lba, last_usable_lba, disk_guid, part_entry_start_lba, num_part_entries, part_entry_size, part_entry_array_crc32)
+@@ -271,11 +277,11 @@ def create_empty_partition(disk_image, partition_name, start, size):
              sys.exit(1)
  
          if start + size > r[0] and start + size <= r[1]:
