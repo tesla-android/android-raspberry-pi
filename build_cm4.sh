@@ -9,13 +9,3 @@ lunch tesla_android_cm4-userdebug
 make images -k || make images -j1
 make sdcard
 make otapackage
-lunch tesla_android_rpi4-userdebug
-make images -k || make images -j1
-make sdcard
-make otapackage
-lunch tesla_android_cm4-userdebug
-make images -k || make images -j1
-make sdcard
-make otapackage
-popd
-
