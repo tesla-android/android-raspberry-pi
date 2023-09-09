@@ -4,7 +4,7 @@ LOCAL_PATH=$(pwd)
 
 echo Init repo tree using AOSP manifest
 pushd aosptree
-repo init --depth=1 -u https://android.googlesource.com/platform/manifest -b refs/tags/android-platform-13.0.0_r10
+repo init --depth=1 -u https://android.googlesource.com/platform/manifest -b refs/tags/android-platform-13.0.0_r11
 cd .repo/manifests
 mv default.xml aosp.xml
 cp ${LOCAL_PATH}/manifests/tesla-android.xml tesla-android.xml

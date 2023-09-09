@@ -119,7 +119,6 @@ pipeline {
                     file = readFile("${BASE_PATH}/merged/aosptree/vendor/tesla-android/vendor.mk");
                     VERSION = getVersion(file);
                     ARTIFACT_NAME = 'TeslaAndroid-' + VERSION + '-CI-' + getCurrentBranch()  + '-' + getCommitSha() + '-BUILD-' + getBuildNumber() + '-rpi4'
-                    ARTIFACT_NAME_CM4 = 'TeslaAndroid-' + VERSION + '-CI-' + getCurrentBranch()  + '-' + getCommitSha() + '-BUILD-' + getBuildNumber() + '-cm4'
                 }
                 dir("${BASE_PATH}/merged/out") {
                     sh """
@@ -129,15 +128,6 @@ pipeline {
                     """
                     archiveArtifacts artifacts: "${ARTIFACT_NAME}-single-image-installer.img.zip", fingerprint: true
                     archiveArtifacts artifacts: "${ARTIFACT_NAME}-OTA.zip", fingerprint: true
-                }
-                dir("${BASE_PATH}/merged/out") {
-                    sh """
-                        mv tesla_android_cm4-ota-${env.BUILD_NUMBER}.zip ${ARTIFACT_NAME_CM4}-OTA.zip
-                        mv sdcard.img ${ARTIFACT_NAME_CM4}-single-image-installer.img
-                        zip ${ARTIFACT_NAME_CM4}-single-image-installer.img.zip ${ARTIFACT_NAME_CM4}-single-image-installer.img
-                    """
-                    archiveArtifacts artifacts: "${ARTIFACT_NAME_CM4}-single-image-installer.img.zip", fingerprint: true
-                    archiveArtifacts artifacts: "${ARTIFACT_NAME_CM4}-OTA.zip", fingerprint: true
                 }
             }
         }
@@ -169,6 +159,12 @@ pipeline {
         stage('Remove artifacts') {
             steps {
                 dir("${BASE_PATH}/merged/out") {
+                    sh '''
+                        rm -f *.img
+                        rm -f *.zip
+                    '''
+                }
+                dir("${BASE_PATH}/merged/aosptree/out/target/product/gd_cm4") {
                     sh '''
                         rm -f *.img
                         rm -f *.zip
