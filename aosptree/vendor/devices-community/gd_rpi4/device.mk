@@ -64,8 +64,8 @@ PRODUCT_COPY_FILES += \
 PRODUCT_VENDOR_PROPERTIES +=    \
     ro.hardware.vulkan=broadcom \
 
-# It is the only way to set ro.hwui.use_vulkan=true
-#TARGET_USES_VULKAN = true
+# Enable Vulkan backend for SKIA/HWUI
+TARGET_USES_VULKAN = true
 
 # Bluetooth
 PRODUCT_VENDOR_PROPERTIES +=    \
