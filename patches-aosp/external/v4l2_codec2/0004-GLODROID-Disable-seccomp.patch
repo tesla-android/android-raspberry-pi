@@ -1,0 +1,60 @@
+From 3b81d8dfa6d0077835eb51044579dfcaf6d28641 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Sun, 17 Sep 2023 12:14:08 +0300
+Subject: [PATCH 4/6] GLODROID: Disable seccomp
+
+From my understanding, the seccomp only makes sense when using
+proprietary codec libraries to ensure they are not doing anything
+unexpected.
+
+Change-Id: I90caac273ea51666f2ec51eb4ecaa02f76743f52
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ service/Android.bp  |  2 --
+ service/service.cpp | 13 -------------
+ 2 files changed, 15 deletions(-)
+
+diff --git a/service/Android.bp b/service/Android.bp
+index eaf5d3f..55818d3 100644
+--- a/service/Android.bp
++++ b/service/Android.bp
+@@ -31,8 +31,6 @@ cc_binary {
+         "libutils",
+     ],
+ 
+-    required: ["android.hardware.media.c2-default-seccomp_policy"],
+-
+     compile_multilib: "both",
+     multilib: {
+         lib32: {
+diff --git a/service/service.cpp b/service/service.cpp
+index 1fa9aae..25a612a 100644
+--- a/service/service.cpp
++++ b/service/service.cpp
+@@ -14,23 +14,10 @@
+ 
+ #include <v4l2_codec2/components/V4L2ComponentStore.h>
+ 
+-// This is the absolute on-device path of the prebuild_etc module
+-// "android.hardware.media.c2-default-seccomp_policy" in Android.bp.
+-static constexpr char kBaseSeccompPolicyPath[] =
+-        "/vendor/etc/seccomp_policy/"
+-        "android.hardware.media.c2-default-seccomp_policy";
+-
+-// Additional seccomp permissions can be added in this file.
+-// This file does not exist by default.
+-static constexpr char kExtSeccompPolicyPath[] =
+-        "/vendor/etc/seccomp_policy/"
+-        "android.hardware.media.c2-extended-seccomp_policy";
+-
+ int main(int /* argc */, char** /* argv */) {
+     ALOGD("Service starting...");
+ 
+     signal(SIGPIPE, SIG_IGN);
+-    android::SetUpMinijail(kBaseSeccompPolicyPath, kExtSeccompPolicyPath);
+ 
+     // Extra threads may be needed to handle a stacked IPC sequence that
+     // contains alternating binder and hwbinder calls. (See b/35283480.)
+-- 
+2.39.2
+

@@ -1,0 +1,28 @@
+From 8d5fc437c565cd898f80b092aff90d837f302f48 Mon Sep 17 00:00:00 2001
+From: Wonsik Kim <wonsik@google.com>
+Date: Fri, 8 Sep 2023 12:39:43 -0700
+Subject: [PATCH 2/6] fix seccomp dependency
+
+Bug: 251850069
+Test: presubmit
+Change-Id: I77efdcd0e1d458b81e5e560bb24ab8c1e8ed4055
+---
+ service/Android.bp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/service/Android.bp b/service/Android.bp
+index 2af2b65..eaf5d3f 100644
+--- a/service/Android.bp
++++ b/service/Android.bp
+@@ -31,7 +31,7 @@ cc_binary {
+         "libutils",
+     ],
+ 
+-    required: ["android.hardware.media.c2@1.2-default-seccomp_policy"],
++    required: ["android.hardware.media.c2-default-seccomp_policy"],
+ 
+     compile_multilib: "both",
+     multilib: {
+-- 
+2.39.2
+

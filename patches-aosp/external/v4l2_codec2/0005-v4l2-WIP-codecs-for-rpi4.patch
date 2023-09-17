@@ -1,0 +1,378 @@
+From c6c841b184bfaa2dba71a777ed9b6ec1f6d2b25b Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Sat, 8 Oct 2022 20:02:20 +0300
+Subject: [PATCH 5/6] v4l2: WIP codecs for rpi4
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+Change-Id: Idb6499ce47d4e2f585eb8fd84795ae95a315d5a7
+---
+ common/Fourcc.cpp                             |  9 +++++++++
+ common/V4L2Device.cpp                         |  2 +-
+ common/VideoPixelFormat.cpp                   |  7 +++++++
+ common/include/v4l2_codec2/common/Fourcc.h    |  2 ++
+ .../v4l2_codec2/common/VideoPixelFormat.h     |  1 +
+ components/V4L2Decoder.cpp                    | 13 ++++++++----
+ components/V4L2EncodeComponent.cpp            | 10 ++++++----
+ components/V4L2EncodeInterface.cpp            | 20 +++++++++----------
+ components/V4L2Encoder.cpp                    | 13 +++++++-----
+ plugin_store/Android.bp                       |  2 +-
+ plugin_store/C2VdaBqBlockPool.cpp             |  1 +
+ 11 files changed, 54 insertions(+), 26 deletions(-)
+
+diff --git a/common/Fourcc.cpp b/common/Fourcc.cpp
+index 11ea31e..7ff9249 100644
+--- a/common/Fourcc.cpp
++++ b/common/Fourcc.cpp
+@@ -25,6 +25,7 @@ std::optional<Fourcc> Fourcc::fromUint32(uint32_t fourcc) {
+     case XR24:
+     case XB24:
+     case RGB4:
++    case BGR4:
+     case YU12:
+     case YV12:
+     case YM12:
+@@ -58,6 +59,8 @@ std::optional<Fourcc> Fourcc::fromVideoPixelFormat(VideoPixelFormat pixelFormat,
+             return Fourcc(XB24);
+         case VideoPixelFormat::BGRA:
+             return Fourcc(RGB4);
++        case VideoPixelFormat::RGBA:
++            return Fourcc(BGR4);
+         case VideoPixelFormat::I420:
+             return Fourcc(YU12);
+         case VideoPixelFormat::YV12:
+@@ -124,6 +127,7 @@ std::optional<Fourcc> Fourcc::fromVideoPixelFormat(VideoPixelFormat pixelFormat,
+         case VideoPixelFormat::XR30:
+         case VideoPixelFormat::XB30:
+         case VideoPixelFormat::BGRA:
++        case VideoPixelFormat::RGBA:
+         case VideoPixelFormat::UNKNOWN:
+             break;
+         }
+@@ -145,6 +149,8 @@ VideoPixelFormat Fourcc::toVideoPixelFormat() const {
+         return VideoPixelFormat::XBGR;
+     case RGB4:
+         return VideoPixelFormat::BGRA;
++    case BGR4:
++        return VideoPixelFormat::RGBA;
+     case YU12:
+     case YM12:
+         return VideoPixelFormat::I420;
+@@ -200,6 +206,7 @@ std::optional<Fourcc> Fourcc::toSinglePlanar() const {
+     case XR24:
+     case XB24:
+     case RGB4:
++    case BGR4:
+     case YU12:
+     case YV12:
+     case YUYV:
+@@ -232,6 +239,7 @@ bool Fourcc::isMultiPlanar() const {
+     case XR24:
+     case XB24:
+     case RGB4:
++    case BGR4:
+     case YU12:
+     case YV12:
+     case YUYV:
+@@ -264,6 +272,7 @@ static_assert(Fourcc::XR24 == V4L2_PIX_FMT_XBGR32, "Mismatch Fourcc");
+ static_assert(Fourcc::XB24 == V4L2_PIX_FMT_RGBX32, "Mismatch Fourcc");
+ #endif  // V4L2_PIX_FMT_RGBX32
+ static_assert(Fourcc::RGB4 == V4L2_PIX_FMT_RGB32, "Mismatch Fourcc");
++static_assert(Fourcc::BGR4 == V4L2_PIX_FMT_BGR32, "Mismatch Fourcc");
+ static_assert(Fourcc::YU12 == V4L2_PIX_FMT_YUV420, "Mismatch Fourcc");
+ static_assert(Fourcc::YV12 == V4L2_PIX_FMT_YVU420, "Mismatch Fourcc");
+ static_assert(Fourcc::YM12 == V4L2_PIX_FMT_YUV420M, "Mismatch Fourcc");
+diff --git a/common/V4L2Device.cpp b/common/V4L2Device.cpp
+index 68a9dca..b3d3679 100644
+--- a/common/V4L2Device.cpp
++++ b/common/V4L2Device.cpp
+@@ -1850,7 +1850,7 @@ V4L2Device::SupportedEncodeProfiles V4L2Device::enumerateSupportedEncodeProfiles
+ 
+     for (const auto& pixelformat : supportedPixelformats) {
+         SupportedEncodeProfile profile;
+-        profile.max_framerate_numerator = 30;
++        profile.max_framerate_numerator = 60;
+         profile.max_framerate_denominator = 1;
+         ui::Size minResolution;
+         getSupportedResolution(pixelformat, &minResolution, &profile.max_resolution);
+diff --git a/common/VideoPixelFormat.cpp b/common/VideoPixelFormat.cpp
+index f175c26..661a5d8 100644
+--- a/common/VideoPixelFormat.cpp
++++ b/common/VideoPixelFormat.cpp
+@@ -82,6 +82,8 @@ std::string videoPixelFormatToString(VideoPixelFormat format) {
+         return "XB30";
+     case VideoPixelFormat::BGRA:
+         return "BGRA";
++    case VideoPixelFormat::RGBA:
++        return "BGRA";
+     case VideoPixelFormat::UNKNOWN:
+         return "UNKNOWN";
+     }
+@@ -116,6 +118,7 @@ size_t bitDepth(VideoPixelFormat format) {
+     case VideoPixelFormat::ABGR:
+     case VideoPixelFormat::XBGR:
+     case VideoPixelFormat::BGRA:
++    case VideoPixelFormat::RGBA:
+         return 8;
+     case VideoPixelFormat::YUV420P9:
+     case VideoPixelFormat::YUV422P9:
+@@ -153,6 +156,7 @@ static bool RequiresEvenSizeAllocation(VideoPixelFormat format) {
+     case VideoPixelFormat::XR30:
+     case VideoPixelFormat::XB30:
+     case VideoPixelFormat::BGRA:
++    case VideoPixelFormat::RGBA:
+         return false;
+     case VideoPixelFormat::NV12:
+     case VideoPixelFormat::NV21:
+@@ -185,6 +189,7 @@ size_t numPlanes(VideoPixelFormat format) {
+     case VideoPixelFormat::YUY2:
+     case VideoPixelFormat::ARGB:
+     case VideoPixelFormat::BGRA:
++    case VideoPixelFormat::RGBA:
+     case VideoPixelFormat::XRGB:
+     case VideoPixelFormat::RGB24:
+     case VideoPixelFormat::MJPEG:
+@@ -269,6 +274,7 @@ int bytesPerElement(VideoPixelFormat format, size_t plane) {
+     switch (format) {
+     case VideoPixelFormat::ARGB:
+     case VideoPixelFormat::BGRA:
++    case VideoPixelFormat::RGBA:
+     case VideoPixelFormat::XRGB:
+     case VideoPixelFormat::ABGR:
+     case VideoPixelFormat::XBGR:
+@@ -361,6 +367,7 @@ android::ui::Size SampleSize(VideoPixelFormat format, size_t plane) {
+         case VideoPixelFormat::XR30:
+         case VideoPixelFormat::XB30:
+         case VideoPixelFormat::BGRA:
++        case VideoPixelFormat::RGBA:
+             ALOGE("Invalid pixel format");
+         }
+     }
+diff --git a/common/include/v4l2_codec2/common/Fourcc.h b/common/include/v4l2_codec2/common/Fourcc.h
+index a0f5fc4..972a4a3 100644
+--- a/common/include/v4l2_codec2/common/Fourcc.h
++++ b/common/include/v4l2_codec2/common/Fourcc.h
+@@ -54,6 +54,8 @@ public:
+         // it as-is.
+         RGB4 = composeFourcc('R', 'G', 'B', '4'),
+ 
++        BGR4 = composeFourcc('B', 'G', 'R', '4'),
++
+         // YUV420 single-planar formats.
+         // https://linuxtv.org/downloads/v4l-dvb-apis/uapi/v4l/pixfmt-yuv420.html
+         // Maps to PIXEL_FORMAT_I420, V4L2_PIX_FMT_YUV420, VA_FOURCC_I420.
+diff --git a/common/include/v4l2_codec2/common/VideoPixelFormat.h b/common/include/v4l2_codec2/common/VideoPixelFormat.h
+index 2cfe910..9867c79 100644
+--- a/common/include/v4l2_codec2/common/VideoPixelFormat.h
++++ b/common/include/v4l2_codec2/common/VideoPixelFormat.h
+@@ -35,6 +35,7 @@ enum class VideoPixelFormat {
+     XR30,    // 32bpp BGRX, 10 bits per channel, 2 bits ignored, 1 plane
+     XB30,    // 32bpp RGBX, 10 bits per channel, 2 bits ignored, 1 plane
+     BGRA,    // 32bpp ARGB (byte-order), 1 plane.
++    RGBA,    // 32bpp ABGR (byte-order), 1 plane.
+     // The P* in the formats below designates the number of bits per pixel component. I.e. P9 is
+     // 9-bits per pixel component, P10 is 10-bits per pixel component, etc.
+     YUV420P9,
+diff --git a/components/V4L2Decoder.cpp b/components/V4L2Decoder.cpp
+index aa59e91..d7d8b55 100644
+--- a/components/V4L2Decoder.cpp
++++ b/components/V4L2Decoder.cpp
+@@ -23,15 +23,14 @@
+ namespace android {
+ namespace {
+ 
+-constexpr size_t kNumInputBuffers = 16;
++constexpr size_t kNumInputBuffers = 4;
+ // Extra buffers for transmitting in the whole video pipeline.
+ constexpr size_t kNumExtraOutputBuffers = 4;
+ 
+ // Currently we only support flexible pixel 420 format YCBCR_420_888 in Android.
+ // Here is the list of flexible 420 format.
+ constexpr std::initializer_list<uint32_t> kSupportedOutputFourccs = {
+-        Fourcc::YU12, Fourcc::YV12, Fourcc::YM12, Fourcc::YM21,
+-        Fourcc::NV12, Fourcc::NV21, Fourcc::NM12, Fourcc::NM21,
++        Fourcc::NV12,
+ };
+ 
+ uint32_t VideoCodecToV4L2PixFmt(VideoCodec codec) {
+@@ -94,7 +93,7 @@ V4L2Decoder::~V4L2Decoder() {
+ bool V4L2Decoder::start(const VideoCodec& codec, const size_t inputBufferSize,
+                         const size_t minNumOutputBuffers, GetPoolCB getPoolCb, OutputCB outputCb,
+                         ErrorCB errorCb) {
+-    ALOGV("%s(codec=%s, inputBufferSize=%zu, minNumOutputBuffers=%zu)", __func__,
++    ALOGE("%s(codec=%s, inputBufferSize=%zu, minNumOutputBuffers=%zu)", __func__,
+           VideoCodecToString(codec), inputBufferSize, minNumOutputBuffers);
+     ALOG_ASSERT(mTaskRunner->RunsTasksInCurrentSequence());
+ 
+@@ -557,6 +556,11 @@ bool V4L2Decoder::changeResolution() {
+ }
+ 
+ bool V4L2Decoder::setupOutputFormat(const ui::Size& size) {
++    for (const uint32_t& pixfmt :
++         mDevice->enumerateSupportedPixelformats(V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)) {
++        ALOGV("Available pixel format %s", fourccToString(pixfmt).c_str());
++    }
++
+     for (const uint32_t& pixfmt :
+          mDevice->enumerateSupportedPixelformats(V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)) {
+         if (std::find(kSupportedOutputFourccs.begin(), kSupportedOutputFourccs.end(), pixfmt) ==
+@@ -566,6 +570,7 @@ bool V4L2Decoder::setupOutputFormat(const ui::Size& size) {
+         }
+ 
+         if (mOutputQueue->setFormat(pixfmt, size, 0) != std::nullopt) {
++        ALOGV("Set pixel format %s", fourccToString(pixfmt).c_str());
+             return true;
+         }
+     }
+diff --git a/components/V4L2EncodeComponent.cpp b/components/V4L2EncodeComponent.cpp
+index c2a2679..06d6e1d 100644
+--- a/components/V4L2EncodeComponent.cpp
++++ b/components/V4L2EncodeComponent.cpp
+@@ -643,6 +643,8 @@ bool V4L2EncodeComponent::initializeEncoder() {
+     // the V4L2 encoder.
+     std::optional<uint32_t> stride =
+             getVideoFrameStride(kInputPixelFormat, mInterface->getInputVisibleSize());
++
++    stride = 32;
+     if (!stride) {
+         ALOGE("Failed to get video frame stride");
+         reportError(C2_CORRUPTED);
+@@ -677,7 +679,7 @@ bool V4L2EncodeComponent::initializeEncoder() {
+                                     V4L2Encoder::kInputBufferCount, mEncoder->codedSize());
+     if (!mInputFormatConverter) {
+         ALOGE("Failed to created input format convertor");
+-        return false;
++        //return false;
+     }
+ 
+     return true;
+@@ -691,7 +693,7 @@ bool V4L2EncodeComponent::updateEncodingParameters() {
+     // framework doesn't offer a parameter to configure the peak bitrate, so we'll use a multiple of
+     // the target bitrate here. The peak bitrate is only used if the bitrate mode is set to VBR.
+     uint32_t bitrate = mInterface->getBitrate();
+-    if (mBitrate != bitrate) {
++    //if (mBitrate != bitrate) {
+         ALOG_ASSERT(bitrate > 0u);
+         ALOGV("Setting bitrate to %u", bitrate);
+         if (!mEncoder->setBitrate(bitrate)) {
+@@ -706,13 +708,13 @@ bool V4L2EncodeComponent::updateEncodingParameters() {
+             // errors for now.
+             mEncoder->setPeakBitrate(bitrate * kPeakBitrateMultiplier);
+         }
+-    }
++    //}
+ 
+     // Ask device to change framerate if it's different from the currently configured framerate.
+     uint32_t framerate = static_cast<uint32_t>(std::round(mInterface->getFramerate()));
+     if (mFramerate != framerate) {
+         ALOG_ASSERT(framerate > 0u);
+-        ALOGV("Setting framerate to %u", framerate);
++        ALOGE("Setting framerate to %u", framerate);
+         if (!mEncoder->setFramerate(framerate)) {
+             ALOGE("Requesting framerate change failed");
+             reportError(C2_CORRUPTED);
+diff --git a/components/V4L2EncodeInterface.cpp b/components/V4L2EncodeInterface.cpp
+index 03d8c37..2e65cb8 100644
+--- a/components/V4L2EncodeInterface.cpp
++++ b/components/V4L2EncodeInterface.cpp
+@@ -382,17 +382,15 @@ void V4L2EncodeInterface::Initialize(const C2String& name) {
+                     .withConstValue(new C2StreamBufferTypeSetting::input(0u, C2BufferData::GRAPHIC))
+                     .build());
+ 
+-    // TODO(b/167640667) Add VIDEO_ENCODER flag once input convertor is not enabled by default.
+-    // When using the format convertor (which is currently always enabled) it's not useful to add
+-    // the VIDEO_ENCODER buffer flag for input buffers here. Currently zero-copy is not supported
+-    // yet, so when using this flag an additional buffer will be allocated on host side and a copy
+-    // will be performed between the guest and host buffer to keep them in sync. This is wasteful as
+-    // the buffer is only used on guest side by the format convertor which converts and copies the
+-    // buffer into another buffer.
+-    //addParameter(DefineParam(mInputMemoryUsage, C2_PARAMKEY_INPUT_STREAM_USAGE)
+-    //                     .withConstValue(new C2StreamUsageTuning::input(
+-    //                             0u, static_cast<uint64_t>(BufferUsage::VIDEO_ENCODER)))
+-    //                     .build());
++    addParameter(DefineParam(mInputMemoryUsage, C2_PARAMKEY_INPUT_STREAM_USAGE)
++                         .withConstValue(new C2StreamUsageTuning::input(
++                                 0u, static_cast<uint64_t>(BufferUsage::VIDEO_ENCODER)))
++                         .build());
++
++    addParameter(DefineParam(mInputMemoryUsage, C2_PARAMKEY_OUTPUT_STREAM_USAGE)
++                         .withConstValue(new C2StreamUsageTuning::input(
++                                 0u, static_cast<uint64_t>(BufferUsage::VIDEO_ENCODER)))
++                         .build());
+ 
+     addParameter(
+             DefineParam(mOutputFormat, C2_PARAMKEY_OUTPUT_STREAM_BUFFER_TYPE)
+diff --git a/components/V4L2Encoder.cpp b/components/V4L2Encoder.cpp
+index cd20cb5..bafb071 100644
+--- a/components/V4L2Encoder.cpp
++++ b/components/V4L2Encoder.cpp
+@@ -26,7 +26,8 @@ namespace android {
+ 
+ namespace {
+ 
+-const VideoPixelFormat kInputPixelFormat = VideoPixelFormat::NV12;
++const VideoPixelFormat kInputPixelFormat = VideoPixelFormat::RGBA;
++//const VideoPixelFormat kInputPixelFormat = VideoPixelFormat::NV12;
+ 
+ // The maximum size for output buffer, which is chosen empirically for a 1080p video.
+ constexpr size_t kMaxBitstreamBufferSizeInBytes = 2 * 1024 * 1024;  // 2MB
+@@ -463,7 +464,7 @@ bool V4L2Encoder::configureInputFormat(VideoPixelFormat inputFormat, uint32_t st
+ 
+     // First try to use the requested pixel format directly.
+     std::optional<struct v4l2_format> format;
+-    auto fourcc = Fourcc::fromVideoPixelFormat(inputFormat, false);
++    auto fourcc = Fourcc::fromVideoPixelFormat(inputFormat, true);
+     if (fourcc) {
+         format = mInputQueue->setFormat(fourcc->toV4L2PixFmt(), mVisibleSize, 0, stride);
+     }
+@@ -665,8 +666,8 @@ bool V4L2Encoder::configureBitrateMode(C2Config::bitrate_mode_t bitrateMode) {
+     ALOGV("%s()", __func__);
+     ALOG_ASSERT(mTaskRunner->RunsTasksInCurrentSequence());
+ 
+-    v4l2_mpeg_video_bitrate_mode v4l2BitrateMode =
+-            V4L2Device::C2BitrateModeToV4L2BitrateMode(bitrateMode);
++    v4l2_mpeg_video_bitrate_mode v4l2BitrateMode {};
++            //V4L2Device::C2BitrateModeToV4L2BitrateMode(bitrateMode);
+     if (!mDevice->setExtCtrls(V4L2_CTRL_CLASS_MPEG,
+                               {V4L2ExtCtrl(V4L2_CID_MPEG_VIDEO_BITRATE_MODE, v4l2BitrateMode)})) {
+         // TODO(b/190336806): Our stack doesn't support bitrate mode changes yet. We default to CBR
+@@ -737,9 +738,11 @@ bool V4L2Encoder::enqueueInputBuffer(std::unique_ptr<InputFrame> frame) {
+     ALOG_ASSERT(mInputQueue->freeBuffersCount() > 0);
+     ALOG_ASSERT(mState == State::ENCODING);
+     ALOG_ASSERT(frame);
+-    ALOG_ASSERT(mInputLayout->mFormat == frame->pixelFormat());
++//    ALOG_ASSERT(mInputLayout->mFormat == frame->pixelFormat());
+     ALOG_ASSERT(mInputLayout->mPlanes.size() == frame->planes().size());
+ 
++    ALOGI("InputLayout fmt: %s, FramePixFmt: %s", videoPixelFormatToString(mInputLayout->mFormat).c_str(), videoPixelFormatToString(frame->pixelFormat()).c_str());
++
+     auto format = frame->pixelFormat();
+     auto planes = frame->planes();
+     auto index = frame->index();
+diff --git a/plugin_store/Android.bp b/plugin_store/Android.bp
+index 621cbfc..ec44f13 100644
+--- a/plugin_store/Android.bp
++++ b/plugin_store/Android.bp
+@@ -9,7 +9,7 @@ package {
+ 
+ cc_library_shared {
+     name: "libc2plugin_store",
+-    vendor: true,
++    vendor_available: true,
+ 
+     defaults: [
+         "libcodec2-impl-defaults",
+diff --git a/plugin_store/C2VdaBqBlockPool.cpp b/plugin_store/C2VdaBqBlockPool.cpp
+index d53f4a0..2be0a0c 100644
+--- a/plugin_store/C2VdaBqBlockPool.cpp
++++ b/plugin_store/C2VdaBqBlockPool.cpp
+@@ -931,6 +931,7 @@ c2_status_t C2VdaBqBlockPool::requestNewBufferSet(int32_t bufferCount, uint32_t
+     if (mImpl) {
+         return mImpl->requestNewBufferSet(bufferCount, width, height, format, usage);
+     }
++    ALOGE("No init!!!");
+     return C2_NO_INIT;
+ }
+ 
+-- 
+2.39.2
+

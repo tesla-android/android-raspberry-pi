@@ -1,0 +1,96 @@
+From 8ba15bebb0073e35b71cadb3094cf6786cddaabf Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Thu, 8 Sep 2022 18:41:09 +0300
+Subject: [PATCH 07/21] minigbm: Add drv_bo_get_pixel_stride function
+
+Some drivers may copy/convert the buffer during mapping and
+in some cases stride of copied image can be different from
+original. Android uses pixel_stride for CPU access and need
+map_time stride instead of original stride in this cases.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ cros_gralloc/cros_gralloc_driver.cc |  4 +---
+ drv.c                               | 17 +++++++++++++++++
+ drv.h                               |  2 ++
+ drv_priv.h                          |  1 +
+ 4 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/cros_gralloc/cros_gralloc_driver.cc b/cros_gralloc/cros_gralloc_driver.cc
+index 3536306..3c093c7 100644
+--- a/cros_gralloc/cros_gralloc_driver.cc
++++ b/cros_gralloc/cros_gralloc_driver.cc
+@@ -266,7 +266,6 @@ int32_t cros_gralloc_driver::allocate(const struct cros_gralloc_buffer_descripto
+ 	size_t num_fds;
+ 	size_t num_ints;
+ 	uint32_t resolved_format;
+-	uint32_t bytes_per_pixel;
+ 	uint64_t resolved_use_flags;
+ 	struct bo *bo;
+ 	struct cros_gralloc_handle *hnd;
+@@ -328,8 +327,7 @@ int32_t cros_gralloc_driver::allocate(const struct cros_gralloc_buffer_descripto
+ 	hnd->tiling = drv_bo_get_tiling(bo);
+ 	hnd->format_modifier = drv_bo_get_format_modifier(bo);
+ 	hnd->use_flags = drv_bo_get_use_flags(bo);
+-	bytes_per_pixel = drv_bytes_per_pixel_from_format(hnd->format, 0);
+-	hnd->pixel_stride = DIV_ROUND_UP(hnd->strides[0], bytes_per_pixel);
++	hnd->pixel_stride = drv_bo_get_pixel_stride(bo);
+ 	hnd->magic = cros_gralloc_magic;
+ 	hnd->droid_format = descriptor->droid_format;
+ 	hnd->usage = descriptor->droid_usage;
+diff --git a/drv.c b/drv.c
+index 6e0d98e..8ac51ff 100644
+--- a/drv.c
++++ b/drv.c
+@@ -729,6 +729,23 @@ size_t drv_bo_get_total_size(struct bo *bo)
+ 	return bo->meta.total_size;
+ }
+ 
++uint32_t drv_bo_get_pixel_stride(struct bo *bo)
++{
++	struct driver *drv = bo->drv;
++	uint32_t bytes_per_pixel = 0;
++	uint32_t map_stride = 0;
++
++	bytes_per_pixel = drv_bytes_per_pixel_from_format(bo->meta.format, 0);
++
++	if ((bo->meta.use_flags & BO_USE_SW_MASK) && drv->backend->bo_get_map_stride)
++		map_stride = drv->backend->bo_get_map_stride(bo);
++
++	if (!map_stride)
++		map_stride = bo->meta.strides[0];
++
++	return DIV_ROUND_UP(map_stride, bytes_per_pixel);
++}
++
+ /*
+  * Map internal fourcc codes back to standard fourcc codes.
+  */
+diff --git a/drv.h b/drv.h
+index 24087f7..9852cf2 100644
+--- a/drv.h
++++ b/drv.h
+@@ -194,6 +194,8 @@ uint64_t drv_bo_get_use_flags(struct bo *bo);
+ 
+ size_t drv_bo_get_total_size(struct bo *bo);
+ 
++uint32_t drv_bo_get_pixel_stride(struct bo *bo);
++
+ uint32_t drv_get_standard_fourcc(uint32_t fourcc_internal);
+ 
+ uint32_t drv_bytes_per_pixel_from_format(uint32_t format, size_t plane);
+diff --git a/drv_priv.h b/drv_priv.h
+index fceffc0..db61583 100644
+--- a/drv_priv.h
++++ b/drv_priv.h
+@@ -98,6 +98,7 @@ struct backend {
+ 	int (*bo_invalidate)(struct bo *bo, struct mapping *mapping);
+ 	int (*bo_flush)(struct bo *bo, struct mapping *mapping);
+ 	int (*bo_get_plane_fd)(struct bo *bo, size_t plane);
++	uint32_t (*bo_get_map_stride)(struct bo *bo);
+ 	void (*resolve_format_and_use_flags)(struct driver *drv, uint32_t format,
+ 					     uint64_t use_flags, uint32_t *out_format,
+ 					     uint64_t *out_use_flags);
+-- 
+2.39.2
+

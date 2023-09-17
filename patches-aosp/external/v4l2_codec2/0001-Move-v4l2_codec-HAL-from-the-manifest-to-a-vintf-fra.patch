@@ -1,0 +1,83 @@
+From dbe1734078904d003635ab4d223a49a774b859b9 Mon Sep 17 00:00:00 2001
+From: Garfield Tan <xutan@google.com>
+Date: Thu, 13 Jul 2023 17:45:01 -0700
+Subject: [PATCH 1/6] Move v4l2_codec HAL from the manifest to a vintf fragment
+
+The code owner then owns the manifest the vintf fragment.
+
+Remove IConfigurable because it isn't declared in the compatibility
+matrix. It isn't registered to hwservice_manager either in the
+implementation.
+
+Bug: 291157411
+Test: ARC++ boots.
+Change-Id: I1616bf2ae90327e87bf13cc379e85927333eb0ed
+Merged-In: I1616bf2ae90327e87bf13cc379e85927333eb0ed
+---
+ README.md                                     | 20 -------------------
+ service/Android.bp                            |  1 +
+ ...oid.hardware.media.c2@1.2-service-v4l2.xml | 11 ++++++++++
+ 3 files changed, 12 insertions(+), 20 deletions(-)
+ create mode 100644 service/android.hardware.media.c2@1.2-service-v4l2.xml
+
+diff --git a/README.md b/README.md
+index aa59a40..7b4455d 100644
+--- a/README.md
++++ b/README.md
+@@ -74,26 +74,6 @@ PRODUCT_COPY_FILES += \
+     <path_to_policy>:$(TARGET_COPY_OUT_VENDOR)/etc/seccomp_policy/codec2.vendor.ext.policy
+ ```
+ 
+-Enable codec2 hidl in manifest.xml
+-
+-```xml
+-<manifest version="1.0" type="device">
+-    <hal format="hidl">
+-        <name>android.hardware.media.c2</name>
+-        <transport>hwbinder</transport>
+-        <version>1.0</version>
+-        <interface>
+-            <name>IComponentStore</name>
+-            <instance>default</instance>
+-        </interface>
+-        <interface>
+-            <name>IConfigurable</name>
+-            <instance>default</instance>
+-        </interface>
+-    </hal>
+-</manifest>
+-```
+-
+ Add decode and encode components in media\_codecs\_c2.xml
+ 
+ ```xml
+diff --git a/service/Android.bp b/service/Android.bp
+index c901a02..2af2b65 100644
+--- a/service/Android.bp
++++ b/service/Android.bp
+@@ -44,4 +44,5 @@ cc_binary {
+             init_rc: ["android.hardware.media.c2@1.0-service-v4l2-64.rc"],
+         },
+     },
++    vintf_fragments: ["android.hardware.media.c2@1.2-service-v4l2.xml"],
+ }
+diff --git a/service/android.hardware.media.c2@1.2-service-v4l2.xml b/service/android.hardware.media.c2@1.2-service-v4l2.xml
+new file mode 100644
+index 0000000..7976a59
+--- /dev/null
++++ b/service/android.hardware.media.c2@1.2-service-v4l2.xml
+@@ -0,0 +1,11 @@
++<manifest version="1.0" type="device">
++    <hal format="hidl">
++      <name>android.hardware.media.c2</name>
++      <transport>hwbinder</transport>
++      <version>1.2</version>
++      <interface>
++          <name>IComponentStore</name>
++          <instance>default</instance>
++      </interface>
++    </hal>
++</manifest>
+-- 
+2.39.2
+
