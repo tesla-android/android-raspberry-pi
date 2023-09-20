@@ -1,7 +1,7 @@
-From e02a577703dea90caceed4c68b49e69e6d00aad2 Mon Sep 17 00:00:00 2001
+From 61a4946bf6291683f5a53647bed4a484871d5be7 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Sat, 24 Jun 2023 15:21:34 +0000
-Subject: [PATCH 1/1] netd: use 216.58.215.78:6969 for the fullscreen redirect
+Subject: [PATCH 2/5] netd: use 216.58.215.78:6969 for the fullscreen redirect
 
 Change-Id: I6c94ea9f8d0f4d9ea23dd00e41530c42d65df8fd
 ---
