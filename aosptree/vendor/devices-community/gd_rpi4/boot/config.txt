@@ -34,3 +34,7 @@ dtoverlay=gpio-fan,gpiopin=18,temp=50000
 
 # CM4 external Wi-Fi antenna
 dtparam=ant2
+
+# I2C for argonfan
+dtparam=i2c1=on
+dtparam=i2c_arm=on
