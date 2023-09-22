@@ -1,0 +1,29 @@
+From 91ffc8109dd4116933210189aa5ed98c26591a60 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Wed, 20 Sep 2023 10:47:21 +0000
+Subject: [PATCH 4/5] Remove hermes dns spoof from offline mode. It is not
+ required anymore
+
+Change-Id: I84ef9ad2e6322041b946dbb45ac4913b6db42094
+---
+ server/TetherController.cpp | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/server/TetherController.cpp b/server/TetherController.cpp
+index 2534b0a..a294399 100644
+--- a/server/TetherController.cpp
++++ b/server/TetherController.cpp
+@@ -280,10 +280,8 @@ int TetherController::startTethering(bool usingLegacyDnsProxy, int num_addrs, ch
+     if(offlineModeEnabled == 1) {
+ 	argVector.push_back("--address=/connman.vn.tesla.services/104.248.101.213");
+         argVector.push_back("--address=/www.teslamotors.com/104.248.101.213");
+-        argVector.push_back("--address=/hermes-prd.vn.tesla.services/104.248.101.213");
+         argVector.push_back("--address=/connman.vn.cloud.tesla.cn/104.248.101.213");
+         argVector.push_back("--address=/www.tesla.cn/104.248.101.213");
+-        argVector.push_back("--address=/hermes-prd.vn.cloud.tesla.cn/104.248.101.213");
+     }
+ 
+     if(offlineModeTelemetryEnabled == 0) {
+-- 
+2.34.1
+
