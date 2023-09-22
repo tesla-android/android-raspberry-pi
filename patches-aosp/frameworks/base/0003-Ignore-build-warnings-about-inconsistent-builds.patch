@@ -1,7 +1,7 @@
-From 2efa7f56d96481d4cce0ba74ec2f298598166ef4 Mon Sep 17 00:00:00 2001
+From 4a756c1f2c91a55339f189bb99915942e26b3880 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Mon, 31 Oct 2022 19:24:53 +0100
-Subject: [PATCH 3/3] Ignore build warnings about inconsistent builds
+Subject: [PATCH 3/4] Ignore build warnings about inconsistent builds
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -12,7 +12,7 @@ Signed-off-by: Michał Gapiński <mike@gapinski.eu>
  1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/core/java/android/os/Build.java b/core/java/android/os/Build.java
-index 0b956f8bf9e0..380129734f59 100755
+index 0b956f8b..38012973 100755
 --- a/core/java/android/os/Build.java
 +++ b/core/java/android/os/Build.java
 @@ -1248,6 +1248,7 @@ public class Build {

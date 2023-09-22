@@ -1,0 +1,31 @@
+From 088cbc2343b83760a1797926fbdf21324068a992 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Wed, 20 Sep 2023 10:36:16 +0000
+Subject: [PATCH 3/5] Remove old TA endpoints
+
+Change-Id: I38d160d38f20d941b32c75126e462732c866a4a2
+---
+ server/TetherController.cpp | 7 -------
+ 1 file changed, 7 deletions(-)
+
+diff --git a/server/TetherController.cpp b/server/TetherController.cpp
+index b6b03a5..2534b0a 100644
+--- a/server/TetherController.cpp
++++ b/server/TetherController.cpp
+@@ -277,13 +277,6 @@ int TetherController::startTethering(bool usingLegacyDnsProxy, int num_addrs, ch
+     argVector.push_back("--address=/device.teslaandroid.com/104.248.101.213");
+     argVector.push_back("--address=/www.device.teslaandroid.com/104.248.101.213");
+ 
+-    // FIXME: Remove deprecated endpoints in Sept 2023
+-    argVector.push_back("--address=/fullscreen.app.teslaandroid.com/104.248.101.213");
+-    argVector.push_back("--address=/www.fullscreen.app.teslaandroid.com/104.248.101.213");
+-    argVector.push_back("--address=/app.teslaandroid.com/104.248.101.213");
+-    argVector.push_back("--address=/www.app.teslaandroid.com/104.248.101.213");
+-
+-
+     if(offlineModeEnabled == 1) {
+ 	argVector.push_back("--address=/connman.vn.tesla.services/104.248.101.213");
+         argVector.push_back("--address=/www.teslamotors.com/104.248.101.213");
+-- 
+2.34.1
+
