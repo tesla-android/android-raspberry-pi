@@ -1,0 +1,44 @@
+From f199f6f156abacc6a20d1579ea66d2ffc96eb49e Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Wed, 15 Feb 2023 20:26:29 +0200
+Subject: [PATCH 16/21] gbm_mesa: Obtain map time stride only on x86 platforms
+
+It doesn't make any sence on arm platforms and it crashes
+some drivers due to some race condition issues in the drivers.
+
+Change-Id: I1d400ecc57365b88bee173d226f9e0b838747147
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ gbm_mesa_driver/gbm_mesa_wrapper.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/gbm_mesa_driver/gbm_mesa_wrapper.c b/gbm_mesa_driver/gbm_mesa_wrapper.c
+index 6070431..0c45bdd 100644
+--- a/gbm_mesa_driver/gbm_mesa_wrapper.c
++++ b/gbm_mesa_driver/gbm_mesa_wrapper.c
+@@ -108,9 +108,12 @@ static int gbm_mesa_alloc(struct alloc_args *args)
+ 	/* Buffer is now handled through the system via out_fd, we can now destroy gbm_mesa bo */
+ 	gbm_bo_destroy(bo);
+ 
++#if defined(__x86_64__) || defined(__i386__)
+ 	if (args->needs_map_stride) {
+-		/* At least on Intel and nouveau map_stride after gbm_create is different from
+-		 * map_stride after gbm_import, We care only about map_stride after importing. */
++		/* At least on Intel and nouveau the map_stride after calling gbm_create is
++		 * different from map_stride after calling gbm_import, We care only about map_stride
++		 * after importing. Issue does not affect arm systems. */
++
+ 		struct gbm_import_fd_modifier_data data = {
+ 			.width = args->width,
+ 			.height = args->height,
+@@ -141,6 +144,7 @@ static int gbm_mesa_alloc(struct alloc_args *args)
+ 
+ 		gbm_bo_destroy(bo);
+ 	}
++#endif
+ 
+ 	return 0;
+ }
+-- 
+2.39.2
+

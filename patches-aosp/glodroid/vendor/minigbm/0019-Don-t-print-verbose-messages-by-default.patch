@@ -1,0 +1,60 @@
+From ac57fddbc5623917e2a9a52a9c4e2a02a964e7a8 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Fri, 14 Apr 2023 19:20:28 +0300
+Subject: [PATCH 19/21] Don't print verbose messages by default
+
+Change won't allow printimg verbose logcat messages by default.
+
+Change-Id: I311ccae73b2e7ef6bb633f5aef7666e3ecb7f26a
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ drv.h       | 17 +++++++++++++++++
+ meson.build |  2 +-
+ 2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/drv.h b/drv.h
+index 6fdd902..ef28183 100644
+--- a/drv.h
++++ b/drv.h
+@@ -230,8 +230,25 @@ enum drv_log_level {
+ 		drv_log_prefix(level, "minigbm", __FILE__, __LINE__, format, ##__VA_ARGS__);       \
+ 	} while (0)
+ 
++/*
++ * Normally we strip ALOGV (VERBOSE messages) from release builds.
++ * You can modify this (for example with "#define LOG_NDEBUG 0"
++ * at the top of your source file) to change that behavior.
++ */
++#ifndef LOG_NDEBUG
++#ifdef NDEBUG
++#define LOG_NDEBUG 1
++#else
++#define LOG_NDEBUG 0
++#endif
++#endif
++
+ #define drv_loge(format, ...) _drv_log(DRV_LOGE, format, ##__VA_ARGS__)
++#if LOG_NDEBUG
++#define drv_logv(format, ...)
++#else
+ #define drv_logv(format, ...) _drv_log(DRV_LOGV, format, ##__VA_ARGS__)
++#endif
+ #define drv_logd(format, ...) _drv_log(DRV_LOGD, format, ##__VA_ARGS__)
+ #define drv_logi(format, ...) _drv_log(DRV_LOGI, format, ##__VA_ARGS__)
+ 
+diff --git a/meson.build b/meson.build
+index 351c71a..2292e6f 100644
+--- a/meson.build
++++ b/meson.build
+@@ -3,7 +3,7 @@ project(
+     ['c', 'cpp'],
+     license : 'BSD?',
+     meson_version : '>= 0.56',
+-    default_options : ['buildtype=debugoptimized', 'b_ndebug=if-release', 'c_std=c11', 'cpp_std=c++17', 'cpp_rtti=false']
++    default_options : ['buildtype=debugoptimized', 'b_ndebug=true', 'c_std=c11', 'cpp_std=c++17', 'cpp_rtti=false']
+ )
+ 
+ inc_include = [include_directories('.')]
+-- 
+2.39.2
+
