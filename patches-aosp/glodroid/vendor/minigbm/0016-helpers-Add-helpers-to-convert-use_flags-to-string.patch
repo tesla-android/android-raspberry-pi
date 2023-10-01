@@ -1,0 +1,84 @@
+From 0511302473e9163fa9ed7eca1a374c1b07efa824 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Sun, 25 Sep 2022 19:22:53 +0300
+Subject: [PATCH 16/21] helpers: Add helpers to convert use_flags to string
+
+Change-Id: Icce8164cde8da483d683c06a4936ffde05b6f515
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ drv_helpers.c | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ drv_helpers.h |  3 +++
+ 2 files changed, 52 insertions(+)
+
+diff --git a/drv_helpers.c b/drv_helpers.c
+index 44f6e1d..2499cdc 100644
+--- a/drv_helpers.c
++++ b/drv_helpers.c
+@@ -624,3 +624,52 @@ uint32_t drv_get_inode(int dmabuf_fd)
+ 
+ 	return sb.st_ino;
+ }
++
++#define FLAG_TO_STR(flag, str)                                                                     \
++	if (use_flags & (flag)) {                                                                  \
++		int len = strlen(out);                                                             \
++		snprintf(out + strlen(out), max_len - len, "%s%s", first ? "" : " ", (str));       \
++		if (first < 2)                                                                     \
++			first = 0;                                                                 \
++	}
++
++int drv_use_flags_to_string(int use_flags, char *out, int max_len)
++{
++	int first = 1;
++	FLAG_TO_STR(BO_USE_LINEAR, "LIN");
++	FLAG_TO_STR(BO_USE_CURSOR, "CURSOR");
++	FLAG_TO_STR(BO_USE_SCANOUT, "SCANOUT");
++	FLAG_TO_STR(BO_USE_SW_MASK, "CPU");
++	FLAG_TO_STR(BO_USE_RENDERING, "RENDER");
++	FLAG_TO_STR(BO_USE_TEXTURE, "TEXTURE");
++	FLAG_TO_STR(BO_USE_CAMERA_WRITE, "CAMOUT");
++	FLAG_TO_STR(BO_USE_CAMERA_READ, "CAMIN");
++	FLAG_TO_STR(BO_USE_PROTECTED, "PROT");
++	FLAG_TO_STR(BO_USE_HW_VIDEO_ENCODER, "VIENC");
++	FLAG_TO_STR(BO_USE_HW_VIDEO_DECODER, "VIDEC");
++	FLAG_TO_STR(BO_USE_FRONT_RENDERING, "FRONT");
++	FLAG_TO_STR(BO_USE_GPU_DATA_BUFFER, "GPUDATA");
++	FLAG_TO_STR(BO_USE_SENSOR_DIRECT_DATA, "SENSDATA");
++
++	return 0;
++}
++
++int drv_use_flags_to_string_short(int use_flags, char *out, int max_len)
++{
++	int first = 2;
++	FLAG_TO_STR(BO_USE_LINEAR, "l");
++	FLAG_TO_STR(BO_USE_CURSOR, "r");
++	FLAG_TO_STR(BO_USE_SCANOUT, "D");
++	FLAG_TO_STR(BO_USE_SW_MASK, "S");
++	FLAG_TO_STR(BO_USE_RENDERING, "G");
++	FLAG_TO_STR(BO_USE_TEXTURE, "g");
++	FLAG_TO_STR(BO_USE_CAMERA_WRITE, "C");
++	FLAG_TO_STR(BO_USE_CAMERA_READ, "c");
++	FLAG_TO_STR(BO_USE_PROTECTED, "p");
++	FLAG_TO_STR(BO_USE_HW_VIDEO_ENCODER | BO_USE_HW_VIDEO_DECODER, "V");
++	FLAG_TO_STR(BO_USE_FRONT_RENDERING, "f");
++	FLAG_TO_STR(BO_USE_GPU_DATA_BUFFER, "b");
++	FLAG_TO_STR(BO_USE_SENSOR_DIRECT_DATA, "s");
++
++	return 0;
++}
+diff --git a/drv_helpers.h b/drv_helpers.h
+index 5286e8c..0684605 100644
+--- a/drv_helpers.h
++++ b/drv_helpers.h
+@@ -52,4 +52,7 @@ void drv_resolve_format_and_use_flags_helper(struct driver *drv, uint32_t format
+ 
+ uint32_t drv_get_inode(int dmabuf_fd);
+ 
++int drv_use_flags_to_string(int use_flags, char *out, int max_len);
++int drv_use_flags_to_string_short(int use_flags, char *out, int max_len);
++
+ #endif
+-- 
+2.39.2
+
