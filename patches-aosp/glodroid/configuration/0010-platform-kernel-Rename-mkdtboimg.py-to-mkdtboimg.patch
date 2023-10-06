@@ -1,0 +1,28 @@
+From fd603a41fb896f19960d406bbe8bcaa0e1efb5d2 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Fri, 6 Oct 2023 22:23:21 +0300
+Subject: [PATCH 10/12] platform/kernel: Rename mkdtboimg.py to mkdtboimg
+
+It was renamed in AOSP. Do the same here.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ platform/kernel/kernel.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/platform/kernel/kernel.mk b/platform/kernel/kernel.mk
+index b44808c..d49b729 100644
+--- a/platform/kernel/kernel.mk
++++ b/platform/kernel/kernel.mk
+@@ -66,7 +66,7 @@ ANDROID_DTS_OVERLAY	?= $(LOCAL_PATH)/empty.dts
+ 
+ ANDROID_DTBO		:= $(PRODUCT_OUT)/obj/GLODROID/DTBO/fstab-android-sdcard.dtbo
+ BOARD_PREBUILT_DTBOIMAGE := $(PRODUCT_OUT)/boot_dtbo.img
+-MKDTBOIMG		:= $(HOST_OUT_EXECUTABLES)/mkdtboimg.py
++MKDTBOIMG		:= $(HOST_OUT_EXECUTABLES)/mkdtboimg
+ GEN_DTBCFG		:= $(PRODUCT_OUT)/gen/DTBO/dtbo.cfg
+ 
+ $(TARGET_VENDOR_MODULES)/modules.dep: $(KERNEL_TARGET)
+-- 
+2.39.2
+

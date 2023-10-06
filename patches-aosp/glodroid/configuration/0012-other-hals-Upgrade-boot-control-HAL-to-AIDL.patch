@@ -1,0 +1,31 @@
+From 3d47f9824871fca0f8faba3b79f74a0e61f4e837 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Thu, 19 Oct 2023 03:23:37 +0300
+Subject: [PATCH 12/12] other-hals: Upgrade boot control HAL to AIDL
+
+Just an upgrade.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ common/other-hals/device.mk | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/common/other-hals/device.mk b/common/other-hals/device.mk
+index 29ebba7..87c4735 100644
+--- a/common/other-hals/device.mk
++++ b/common/other-hals/device.mk
+@@ -24,9 +24,8 @@ endif
+ 
+ ifeq ($(GD_NO_DEFAULT_BOOTCTL),)
+ PRODUCT_PACKAGES += \
+-    android.hardware.boot@1.2-impl \
+-    android.hardware.boot@1.2-impl.recovery \
+-    android.hardware.boot@1.2-service \
++    android.hardware.boot-service.default \
++    android.hardware.boot-service.default_recovery \
+ 
+ endif
+ 
+-- 
+2.39.2
+

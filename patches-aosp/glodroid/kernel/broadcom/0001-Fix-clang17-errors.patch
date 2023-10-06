@@ -1,0 +1,30 @@
+From 211afa3f4e09957540cdc2a837d8acc161d6c7e6 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Fri, 6 Oct 2023 22:25:30 +0300
+Subject: [PATCH] Fix clang17 errors
+
+Clang17 does not like signed bitfields
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ drivers/staging/vc04_services/vc-sm-cma/vc_sm.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/staging/vc04_services/vc-sm-cma/vc_sm.h b/drivers/staging/vc04_services/vc-sm-cma/vc_sm.h
+index f1c7b95b14ce..56fd8e9ad259 100644
+--- a/drivers/staging/vc04_services/vc-sm-cma/vc_sm.h
++++ b/drivers/staging/vc04_services/vc-sm-cma/vc_sm.h
+@@ -57,8 +57,8 @@ struct vc_sm_buffer {
+ 
+ 	char name[VC_SM_MAX_NAME_LEN];
+ 
+-	int in_use:1;	/* Kernel is still using this resource */
+-	int imported:1;	/* Imported dmabuf */
++	unsigned int in_use:1;	/* Kernel is still using this resource */
++	unsigned int imported:1;	/* Imported dmabuf */
+ 
+ 	enum vc_sm_vpu_mapping_state vpu_state;
+ 	u32 vc_handle;	/* VideoCore handle for this buffer */
+-- 
+2.39.2
+
