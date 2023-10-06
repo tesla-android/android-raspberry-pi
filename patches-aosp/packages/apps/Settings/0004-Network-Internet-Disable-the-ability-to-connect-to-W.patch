@@ -1,0 +1,64 @@
+From 5ad4aa172324cdaf19828f5465b6f3bc92d523d9 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
+Date: Mon, 4 Jul 2022 05:43:24 +0200
+Subject: [PATCH 4/4] Network & Internet: Disable the ability to connect to
+ Wi-Fi networks. It's a clear conflict with always on Hostspot
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Change-Id: I37cfa88c598762684cae5848cfb11f1aa5e9a106
+Signed-off-by: Michał Gapiński <mike@gapinski.eu>
+---
+ res/xml/network_provider_internet.xml                 | 11 -----------
+ .../settings/network/NetworkDashboardFragment.java    |  5 -----
+ 2 files changed, 16 deletions(-)
+
+diff --git a/res/xml/network_provider_internet.xml b/res/xml/network_provider_internet.xml
+index ef6ed16..873b228 100644
+--- a/res/xml/network_provider_internet.xml
++++ b/res/xml/network_provider_internet.xml
+@@ -20,17 +20,6 @@
+     android:key="network_provider_and_internet_screen"
+     android:title="@string/network_dashboard_title">
+ 
+-    <com.android.settingslib.RestrictedPreference
+-        android:fragment="com.android.settings.network.NetworkProviderSettings"
+-        android:key="internet_settings"
+-        android:title="@string/provider_internet_settings"
+-        android:summary="@string/summary_placeholder"
+-        android:icon="@drawable/ic_settings_wireless"
+-        android:order="-30"
+-        settings:allowDividerAbove="true"
+-        settings:keywords="@string/keywords_internet"
+-        settings:useAdminDisabledSummary="true" />
+-
+     <com.android.settingslib.RestrictedPreference
+         android:key="calls_and_sms"
+         android:title="@string/calls_and_sms"
+diff --git a/src/com/android/settings/network/NetworkDashboardFragment.java b/src/com/android/settings/network/NetworkDashboardFragment.java
+index 4ea3464..8621eaa 100644
+--- a/src/com/android/settings/network/NetworkDashboardFragment.java
++++ b/src/com/android/settings/network/NetworkDashboardFragment.java
+@@ -97,8 +97,6 @@ public class NetworkDashboardFragment extends DashboardFragment implements
+             MobilePlanPreferenceHost mobilePlanHost, LifecycleOwner lifecycleOwner) {
+         final MobilePlanPreferenceController mobilePlanPreferenceController =
+                 new MobilePlanPreferenceController(context, mobilePlanHost);
+-        final InternetPreferenceController internetPreferenceController =
+-                new InternetPreferenceController(context, lifecycle, lifecycleOwner);
+ 
+         final VpnPreferenceController vpnPreferenceController =
+                 new VpnPreferenceController(context);
+@@ -118,9 +116,6 @@ public class NetworkDashboardFragment extends DashboardFragment implements
+         controllers.add(vpnPreferenceController);
+         controllers.add(new ProxyPreferenceController(context));
+         controllers.add(mobilePlanPreferenceController);
+-        if (internetPreferenceController != null) {
+-            controllers.add(internetPreferenceController);
+-        }
+         controllers.add(privateDnsPreferenceController);
+         controllers.add(new NetworkProviderCallsSmsController(context, lifecycle, lifecycleOwner));
+ 
+-- 
+2.34.1
+

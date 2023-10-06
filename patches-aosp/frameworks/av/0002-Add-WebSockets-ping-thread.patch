@@ -1,7 +1,7 @@
-From 33441976cc13a4cdd8aa8e9af0100cc0ece16ff3 Mon Sep 17 00:00:00 2001
+From 184666ce543ddda14e38bbf4a8665b93eb566a42 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Sun, 9 Jul 2023 17:23:19 +0000
-Subject: [PATCH 1/1] Add WebSockets ping thread
+Subject: [PATCH 2/2] Add WebSockets ping thread
 
 Change-Id: I83473c93c703e521b3d72b51c1a3e068d3861d5d
 ---
@@ -9,10 +9,10 @@ Change-Id: I83473c93c703e521b3d72b51c1a3e068d3861d5d
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/services/audioflinger/AudioFlinger.cpp b/services/audioflinger/AudioFlinger.cpp
-index 643ee26..97b64fc 100644
+index c9b47fd..51a9485 100644
 --- a/services/audioflinger/AudioFlinger.cpp
 +++ b/services/audioflinger/AudioFlinger.cpp
-@@ -329,9 +329,17 @@ void AudioFlinger::instantiate() {
+@@ -339,9 +339,17 @@ void AudioFlinger::instantiate() {
                     IServiceManager::DUMP_FLAG_PRIORITY_DEFAULT);
      struct ws_events evs;
      evs.onopen    = &onopen;

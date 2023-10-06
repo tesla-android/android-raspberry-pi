@@ -1,0 +1,97 @@
+From eea0b48e5dc28fcee1e790da6da523c793153d3d Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
+Date: Mon, 4 Jul 2022 02:30:20 +0200
+Subject: [PATCH 1/4] Wi-Fi Hotspot: Remove maximize compatibility setting
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Change-Id: Iaa696757ce9164a1670cc927466b67542976e414
+Signed-off-by: Michał Gapiński <mike@gapinski.eu>
+---
+ res/xml/wifi_tether_settings.xml                      |  4 ----
+ .../settings/wifi/tether/WifiTetherSettings.java      | 11 -----------
+ 2 files changed, 15 deletions(-)
+
+diff --git a/res/xml/wifi_tether_settings.xml b/res/xml/wifi_tether_settings.xml
+index a85d9ea..a9fd4b4 100644
+--- a/res/xml/wifi_tether_settings.xml
++++ b/res/xml/wifi_tether_settings.xml
+@@ -49,10 +49,6 @@
+         android:title="@string/wifi_hotspot_auto_off_title"
+         android:summary="@string/wifi_hotspot_auto_off_summary"/>
+ 
+-    <SwitchPreference
+-        android:key="wifi_tether_maximize_compatibility"
+-        android:title="@string/wifi_hotspot_maximize_compatibility"/>
+-
+     <Preference
+         android:key="wifi_hotspot_speed"
+         android:title="@string/wifi_hotspot_speed_title"
+diff --git a/src/com/android/settings/wifi/tether/WifiTetherSettings.java b/src/com/android/settings/wifi/tether/WifiTetherSettings.java
+index 88d601a..00df61b 100644
+--- a/src/com/android/settings/wifi/tether/WifiTetherSettings.java
++++ b/src/com/android/settings/wifi/tether/WifiTetherSettings.java
+@@ -70,9 +70,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+     @VisibleForTesting
+     static final String KEY_WIFI_TETHER_AUTO_OFF = "wifi_tether_auto_turn_off";
+     @VisibleForTesting
+-    static final String KEY_WIFI_TETHER_MAXIMIZE_COMPATIBILITY =
+-            WifiTetherMaximizeCompatibilityPreferenceController.PREF_KEY;
+-    @VisibleForTesting
+     static final String KEY_WIFI_HOTSPOT_SECURITY = "wifi_hotspot_security";
+     @VisibleForTesting
+     static final String KEY_WIFI_HOTSPOT_SPEED = "wifi_hotspot_speed";
+@@ -87,8 +84,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+     @VisibleForTesting
+     WifiTetherSecurityPreferenceController mSecurityPreferenceController;
+     @VisibleForTesting
+-    WifiTetherMaximizeCompatibilityPreferenceController mMaxCompatibilityPrefController;
+-    @VisibleForTesting
+     WifiTetherAutoOffPreferenceController mWifiTetherAutoOffPreferenceController;
+ 
+     private boolean mUnavailable;
+@@ -171,8 +166,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+         mSSIDPreferenceController = use(WifiTetherSSIDPreferenceController.class);
+         mSecurityPreferenceController = use(WifiTetherSecurityPreferenceController.class);
+         mPasswordPreferenceController = use(WifiTetherPasswordPreferenceController.class);
+-        mMaxCompatibilityPrefController =
+-                use(WifiTetherMaximizeCompatibilityPreferenceController.class);
+         mWifiTetherAutoOffPreferenceController = use(WifiTetherAutoOffPreferenceController.class);
+     }
+ 
+@@ -256,7 +249,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+         controllers.add(new WifiTetherPasswordPreferenceController(context, listener));
+         controllers.add(
+                 new WifiTetherAutoOffPreferenceController(context, KEY_WIFI_TETHER_AUTO_OFF));
+-        controllers.add(new WifiTetherMaximizeCompatibilityPreferenceController(context, listener));
+         return controllers;
+     }
+ 
+@@ -289,7 +281,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+                         : mPasswordPreferenceController.getPasswordValidated(securityType);
+         configBuilder.setPassphrase(passphrase, securityType);
+         if (!mWifiTetherViewModel.isSpeedFeatureAvailable()) {
+-            mMaxCompatibilityPrefController.setupMaximizeCompatibility(configBuilder);
+         }
+         configBuilder.setAutoShutdownEnabled(
+                 mWifiTetherAutoOffPreferenceController.isEnabled());
+@@ -300,7 +291,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+         use(WifiTetherSSIDPreferenceController.class).updateDisplay();
+         use(WifiTetherSecurityPreferenceController.class).updateDisplay();
+         use(WifiTetherPasswordPreferenceController.class).updateDisplay();
+-        use(WifiTetherMaximizeCompatibilityPreferenceController.class).updateDisplay();
+     }
+ 
+     public static final SearchIndexProvider SEARCH_INDEX_DATA_PROVIDER =
+@@ -332,7 +322,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+                 keys.add(KEY_WIFI_TETHER_SECURITY);
+                 keys.add(KEY_WIFI_TETHER_NETWORK_PASSWORD);
+                 keys.add(KEY_WIFI_TETHER_AUTO_OFF);
+-                keys.add(KEY_WIFI_TETHER_MAXIMIZE_COMPATIBILITY);
+             }
+ 
+             // Remove duplicate
+-- 
+2.34.1
+
