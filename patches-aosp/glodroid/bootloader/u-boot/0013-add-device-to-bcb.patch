@@ -1,0 +1,201 @@
+From a13901c64299e8d25e1e390062ada47e9f7ef429 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Tue, 10 Oct 2023 08:28:58 +0000
+Subject: [PATCH 1/1] uboot: Add device to bcb
+
+---
+ cmd/bcb.c     | 75 ++++++++++++++++++++++++++-------------------------
+ include/bcb.h |  4 +--
+ 2 files changed, 40 insertions(+), 39 deletions(-)
+
+diff --git a/cmd/bcb.c b/cmd/bcb.c
+index 02d0c70d..124c4984 100644
+--- a/cmd/bcb.c
++++ b/cmd/bcb.c
+@@ -25,7 +25,8 @@ enum bcb_cmd {
+ 	BCB_CMD_STORE,
+ };
+ 
+-static int bcb_dev = -1;
++static const char *bcb_dev_name = NULL;
++static const char *bcb_dev_number = NULL;
+ static int bcb_part = -1;
+ static struct bootloader_message bcb __aligned(ARCH_DMA_MINALIGN) = { { 0 } };
+ 
+@@ -53,6 +54,9 @@ static int bcb_is_misused(int argc, char *const argv[])
+ 
+ 	switch (cmd) {
+ 	case BCB_CMD_LOAD:
++		if (argc != 4)
++			goto err;
++		break;
+ 	case BCB_CMD_FIELD_SET:
+ 		if (argc != 3)
+ 			goto err;
+@@ -78,7 +82,7 @@ static int bcb_is_misused(int argc, char *const argv[])
+ 		return -1;
+ 	}
+ 
+-	if (cmd != BCB_CMD_LOAD && (bcb_dev < 0 || bcb_part < 0)) {
++	if (cmd != BCB_CMD_LOAD && (bcb_dev_name == NULL || bcb_part < 0)) {
+ 		printf("Error: Please, load BCB first!\n");
+ 		return -1;
+ 	}
+@@ -115,7 +119,7 @@ static int bcb_field_get(char *name, char **fieldp, int *sizep)
+ 	return 0;
+ }
+ 
+-static int __bcb_load(int devnum, const char *partp)
++static int __bcb_load(const char *device, const char *devnum, const char *partp)
+ {
+ 	struct blk_desc *desc;
+ 	struct disk_partition info;
+@@ -123,10 +127,10 @@ static int __bcb_load(int devnum, const char *partp)
+ 	char *endp;
+ 	int part, ret;
+ 
+-	desc = blk_get_devnum_by_uclass_id(UCLASS_MMC, devnum);
+-	if (!desc) {
+-		ret = -ENODEV;
+-		goto err_read_fail;
++	ret = blk_get_device_by_str(device, devnum, &desc);
++	if (ret < 0 || !desc) {
++	    ret = -ENODEV;
++            goto err_read_fail;
+ 	}
+ 
+ 	/*
+@@ -161,19 +165,23 @@ static int __bcb_load(int devnum, const char *partp)
+ 		goto err_read_fail;
+ 	}
+ 
+-	bcb_dev = desc->devnum;
++	bcb_dev_name = strdup(device); // yes this leaks...
++	bcb_dev_number = devnum ? strdup(devnum) : strdup("");
+ 	bcb_part = part;
+-	debug("%s: Loaded from mmc %d:%d\n", __func__, bcb_dev, bcb_part);
++	debug("%s: Loaded from %s %s:%d\n", __func__, bcb_dev_name, bcb_dev_number, bcb_part);
+ 
+ 	return CMD_RET_SUCCESS;
+ err_read_fail:
+-	printf("Error: mmc %d:%s read failed (%d)\n", devnum, partp, ret);
++	printf("Error: %s %s:%s read failed (%d)\n", device, devnum ? devnum : "", partp, ret);
+ 	goto err;
+ err_too_small:
+-	printf("Error: mmc %d:%s too small!", devnum, partp);
++	printf("Error: %s %s:%s too small!", device, devnum ? devnum : "", partp);
+ 	goto err;
+ err:
+-	bcb_dev = -1;
++	free((void*)bcb_dev_name);
++	free((void*)bcb_dev_number);
++	bcb_dev_name = NULL;
++	bcb_dev_number = NULL;
+ 	bcb_part = -1;
+ 
+ 	return CMD_RET_FAILURE;
+@@ -182,15 +190,7 @@ err:
+ static int do_bcb_load(struct cmd_tbl *cmdtp, int flag, int argc,
+ 		       char * const argv[])
+ {
+-	char *endp;
+-	int devnum = simple_strtoul(argv[1], &endp, 0);
+-
+-	if (*endp != '\0') {
+-		printf("Error: Device id '%s' not a number\n", argv[1]);
+-		return CMD_RET_FAILURE;
+-	}
+-
+-	return __bcb_load(devnum, argv[2]);
++	return __bcb_load(argv[1], argv[2], argv[3]);
+ }
+ 
+ static int __bcb_set(char *fieldp, const char *valp)
+@@ -298,8 +298,8 @@ static int __bcb_store(void)
+ 	u64 cnt;
+ 	int ret;
+ 
+-	desc = blk_get_devnum_by_uclass_id(UCLASS_MMC, bcb_dev);
+-	if (!desc) {
++	ret = blk_get_device_by_str(bcb_dev_name, bcb_dev_number, &desc);
++	if (ret < 0 || !desc) {
+ 		ret = -ENODEV;
+ 		goto err;
+ 	}
+@@ -317,7 +317,7 @@ static int __bcb_store(void)
+ 
+ 	return CMD_RET_SUCCESS;
+ err:
+-	printf("Error: mmc %d:%d write failed (%d)\n", bcb_dev, bcb_part, ret);
++	printf("Error: %s %s:%d write failed (%d)\n", bcb_dev_name, bcb_dev_number, bcb_part, ret);
+ 
+ 	return CMD_RET_FAILURE;
+ }
+@@ -328,11 +328,11 @@ static int do_bcb_store(struct cmd_tbl *cmdtp, int flag, int argc,
+ 	return __bcb_store();
+ }
+ 
+-int bcb_write_reboot_reason(int devnum, char *partp, const char *reasonp)
++int bcb_write_reboot_reason(const char *device, const char *devnum, char *partp, const char *reasonp)
+ {
+ 	int ret;
+ 
+-	ret = __bcb_load(devnum, partp);
++	ret = __bcb_load(device, devnum, partp);
+ 	if (ret != CMD_RET_SUCCESS)
+ 		return ret;
+ 
+@@ -385,21 +385,22 @@ static int do_bcb(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+ U_BOOT_CMD(
+ 	bcb, CONFIG_SYS_MAXARGS, 1, do_bcb,
+ 	"Load/set/clear/test/dump/store Android BCB fields",
+-	"load  <dev> <part>       - load  BCB from mmc <dev>:<part>\n"
++	"load  <dev> <devnum> <part>  - load  BCB from <dev> <devnum>:<part>\n"
+ 	"bcb set   <field> <val>      - set   BCB <field> to <val>\n"
+ 	"bcb clear [<field>]          - clear BCB <field> or all fields\n"
+ 	"bcb test  <field> <op> <val> - test  BCB <field> against <val>\n"
+ 	"bcb dump  <field>            - dump  BCB <field>\n"
+-	"bcb store                    - store BCB back to mmc\n"
++	"bcb store                    - store BCB back to device\n"
+ 	"\n"
+ 	"Legend:\n"
+-	"<dev>   - MMC device index containing the BCB partition\n"
+-	"<part>  - MMC partition index or name containing the BCB\n"
+-	"<field> - one of {command,status,recovery,stage,reserved}\n"
+-	"<op>    - the binary operator used in 'bcb test':\n"
+-	"          '=' returns true if <val> matches the string stored in <field>\n"
+-	"          '~' returns true if <val> matches a subset of <field>'s string\n"
+-	"<val>   - string/text provided as input to bcb {set,test}\n"
+-	"          NOTE: any ':' character in <val> will be replaced by line feed\n"
+-	"          during 'bcb set' and used as separator by upper layers\n"
++	"<dev>    - Device containing the BCB partition\n"
++	"<devnum> - Device index containing the BCB partition\n"
++	"<part>   - Partition index or name containing the BCB\n"
++	"<field>  - one of {command,status,recovery,stage,reserved}\n"
++	"<op>     - the binary operator used in 'bcb test':\n"
++	"           '=' returns true if <val> matches the string stored in <field>\n"
++	"           '~' returns true if <val> matches a subset of <field>'s string\n"
++	"<val>    - string/text provided as input to bcb {set,test}\n"
++	"           NOTE: any ':' character in <val> will be replaced by line feed\n"
++	"           during 'bcb set' and used as separator by upper layers\n"
+ );
+diff --git a/include/bcb.h b/include/bcb.h
+index 5edb17aa..61d03d1e 100644
+--- a/include/bcb.h
++++ b/include/bcb.h
+@@ -9,10 +9,10 @@
+ #define __BCB_H__
+ 
+ #if IS_ENABLED(CONFIG_CMD_BCB)
+-int bcb_write_reboot_reason(int devnum, char *partp, const char *reasonp);
++int bcb_write_reboot_reason(const char *device, const char *devnum, char *partp, const char *reasonp);
+ #else
+ #include <linux/errno.h>
+-static inline int bcb_write_reboot_reason(int devnum, char *partp, const char *reasonp)
++static inline int bcb_write_reboot_reason(const char *device, const char *devnum, char *partp, const char *reasonp)
+ {
+ 	return -EOPNOTSUPP;
+ }
+-- 
+2.34.1
+
