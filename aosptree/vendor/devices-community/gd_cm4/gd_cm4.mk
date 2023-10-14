@@ -38,3 +38,7 @@ SYSFS_MMC0_PATH := emmc2bus/fe340000.mmc
 RPI_CONFIG := $(LOCAL_PATH)/../gd_rpi4/boot/config.txt
 
 $(call inherit-product, $(LOCAL_PATH)/../gd_rpi4/device.mk)
+
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/init.gd_cm4.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/init.gd_cm4.rc \
+    $(LOCAL_PATH)/nvme_format.sh:$(TARGET_COPY_OUT_VENDOR)/etc/init/nvme_format.sh
