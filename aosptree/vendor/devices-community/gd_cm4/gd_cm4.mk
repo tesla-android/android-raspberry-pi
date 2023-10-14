@@ -31,7 +31,7 @@ KERNEL_DEFCONFIG := $(KERNEL_SRC)/arch/arm64/configs/bcm2711_defconfig
 KERNEL_FRAGMENTS := \
     $(LOCAL_PATH)/../gd_rpi4/kernel.config \
 
-KERNEL_DTB_FILE := broadcom/bcm2711-rpi-4-b.dtb
+KERNEL_DTB_FILE := broadcom/bcm2711-rpi-cm4.dtb
 
 SYSFS_MMC0_PATH := emmc2bus/fe340000.mmc
 
