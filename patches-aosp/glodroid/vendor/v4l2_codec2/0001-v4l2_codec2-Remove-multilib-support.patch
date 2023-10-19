@@ -1,0 +1,71 @@
+From 92c8351dfb247422ba84e8cc9012094bbd12f11a Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Thu, 12 Oct 2023 03:19:20 +0300
+Subject: [PATCH 01/11] v4l2_codec2: Remove multilib support
+
+For the bindarized HAL, multilib doesn't make any sense.
+Also, it confuses the init sometimes if both 64 and 32
+variants are available on the board.
+
+Change-Id: I33854241f2976ac54cdb7731cdcc93e94021d30c
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ service/Android.bp                                  | 13 ++-----------
+ ...android.hardware.media.c2@1.0-service-v4l2-64.rc |  7 -------
+ ...> android.hardware.media.c2@1.0-service-v4l2.rc} |  2 +-
+ 3 files changed, 3 insertions(+), 19 deletions(-)
+ delete mode 100644 service/android.hardware.media.c2@1.0-service-v4l2-64.rc
+ rename service/{android.hardware.media.c2@1.0-service-v4l2-32.rc => android.hardware.media.c2@1.0-service-v4l2.rc} (82%)
+
+diff --git a/service/Android.bp b/service/Android.bp
+index eaf5d3f..1cc3808 100644
+--- a/service/Android.bp
++++ b/service/Android.bp
+@@ -33,16 +33,7 @@ cc_binary {
+ 
+     required: ["android.hardware.media.c2-default-seccomp_policy"],
+ 
+-    compile_multilib: "both",
+-    multilib: {
+-        lib32: {
+-            suffix: "-32",
+-            init_rc: ["android.hardware.media.c2@1.0-service-v4l2-32.rc"],
+-        },
+-        lib64: {
+-            suffix: "-64",
+-            init_rc: ["android.hardware.media.c2@1.0-service-v4l2-64.rc"],
+-        },
+-    },
++    compile_multilib: "first",
++    init_rc: ["android.hardware.media.c2@1.0-service-v4l2.rc"],
+     vintf_fragments: ["android.hardware.media.c2@1.2-service-v4l2.xml"],
+ }
+diff --git a/service/android.hardware.media.c2@1.0-service-v4l2-64.rc b/service/android.hardware.media.c2@1.0-service-v4l2-64.rc
+deleted file mode 100644
+index 454953b..0000000
+--- a/service/android.hardware.media.c2@1.0-service-v4l2-64.rc
++++ /dev/null
+@@ -1,7 +0,0 @@
+-service android-hardware-media-c2-v4l2-hal-1-0 /vendor/bin/hw/android.hardware.media.c2@1.0-service-v4l2-64
+-    class hal
+-    user media
+-    group mediadrm drmrpc
+-    ioprio rt 4
+-    task_profiles ProcessCapacityHigh
+-    setenv MESA_GLSL_CACHE_DISABLE 1
+diff --git a/service/android.hardware.media.c2@1.0-service-v4l2-32.rc b/service/android.hardware.media.c2@1.0-service-v4l2.rc
+similarity index 82%
+rename from service/android.hardware.media.c2@1.0-service-v4l2-32.rc
+rename to service/android.hardware.media.c2@1.0-service-v4l2.rc
+index e4ddbc3..8d1a45b 100644
+--- a/service/android.hardware.media.c2@1.0-service-v4l2-32.rc
++++ b/service/android.hardware.media.c2@1.0-service-v4l2.rc
+@@ -1,4 +1,4 @@
+-service android-hardware-media-c2-v4l2-hal-1-0 /vendor/bin/hw/android.hardware.media.c2@1.0-service-v4l2-32
++service android-hardware-media-c2-v4l2-hal-1-0 /vendor/bin/hw/android.hardware.media.c2@1.0-service-v4l2
+     class hal
+     user media
+     group mediadrm drmrpc
+-- 
+2.39.2
+
