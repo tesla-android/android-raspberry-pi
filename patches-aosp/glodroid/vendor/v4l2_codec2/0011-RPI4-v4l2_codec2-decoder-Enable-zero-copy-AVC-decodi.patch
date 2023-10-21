@@ -1,0 +1,46 @@
+From 0bed1ed5c32a03654362d4c9510878cc3a6c9ede Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Thu, 12 Oct 2023 01:33:39 +0300
+Subject: [PATCH 11/11] RPI4: v4l2_codec2/decoder: Enable zero-copy AVC
+ decoding
+
+1. Lower the rank, to override the ffmpeg_codec2.
+2. Keep only NV12. We do not want other formats.
+
+Change-Id: I091b96dc1286409bb8077866f1d58afd98214721
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ components/V4L2ComponentStore.cpp | 2 +-
+ components/V4L2Decoder.cpp        | 3 +--
+ 2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/components/V4L2ComponentStore.cpp b/components/V4L2ComponentStore.cpp
+index 4004ce5..7bffff2 100644
+--- a/components/V4L2ComponentStore.cpp
++++ b/components/V4L2ComponentStore.cpp
+@@ -22,7 +22,7 @@
+ 
+ namespace android {
+ namespace {
+-const uint32_t kComponentRank = 0x80;
++const uint32_t kComponentRank = 0x20;
+ 
+ std::string getMediaTypeFromComponentName(const std::string& name) {
+     if (name == V4L2ComponentName::kH264Decoder || name == V4L2ComponentName::kH264SecureDecoder ||
+diff --git a/components/V4L2Decoder.cpp b/components/V4L2Decoder.cpp
+index aa59e91..88a6f55 100644
+--- a/components/V4L2Decoder.cpp
++++ b/components/V4L2Decoder.cpp
+@@ -30,8 +30,7 @@ constexpr size_t kNumExtraOutputBuffers = 4;
+ // Currently we only support flexible pixel 420 format YCBCR_420_888 in Android.
+ // Here is the list of flexible 420 format.
+ constexpr std::initializer_list<uint32_t> kSupportedOutputFourccs = {
+-        Fourcc::YU12, Fourcc::YV12, Fourcc::YM12, Fourcc::YM21,
+-        Fourcc::NV12, Fourcc::NV21, Fourcc::NM12, Fourcc::NM21,
++        Fourcc::NV12,
+ };
+ 
+ uint32_t VideoCodecToV4L2PixFmt(VideoCodec codec) {
+-- 
+2.39.2
+

@@ -1,0 +1,31 @@
+From 3972306731a17a468a89afbc6829b0b92907b7b1 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Mon, 2 Oct 2023 02:15:11 +0300
+Subject: [PATCH 08/11] HACK: v4l2_codec2: Allow format converter
+ initialization to fail
+
+We do not need any format converters.
+We want zero-copy - to display the buffer as is.
+
+Change-Id: Ibb4e6b9df370dcba53b15b24fb9f503f6e1608b4
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ components/V4L2EncodeComponent.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/components/V4L2EncodeComponent.cpp b/components/V4L2EncodeComponent.cpp
+index c2a2679..b17488b 100644
+--- a/components/V4L2EncodeComponent.cpp
++++ b/components/V4L2EncodeComponent.cpp
+@@ -677,7 +677,7 @@ bool V4L2EncodeComponent::initializeEncoder() {
+                                     V4L2Encoder::kInputBufferCount, mEncoder->codedSize());
+     if (!mInputFormatConverter) {
+         ALOGE("Failed to created input format convertor");
+-        return false;
++        //return false;
+     }
+ 
+     return true;
+-- 
+2.39.2
+

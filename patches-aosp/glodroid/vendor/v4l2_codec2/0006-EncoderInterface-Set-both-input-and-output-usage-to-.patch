@@ -1,0 +1,48 @@
+From 2379c1166cc0deeec129614bb8a0769450153a5e Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Mon, 2 Oct 2023 01:55:53 +0300
+Subject: [PATCH 06/11] EncoderInterface: Set both input and output usage to
+ VIDEO_ENCODER
+
+... so that gralloc can allocate the buffer with the appropriate memory type.
+
+Change-Id: Ifc7d507c9bb9c8193217b74d860760689f993d6c
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ components/V4L2EncodeInterface.cpp | 20 +++++++++-----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)
+
+diff --git a/components/V4L2EncodeInterface.cpp b/components/V4L2EncodeInterface.cpp
+index 03d8c37..2e65cb8 100644
+--- a/components/V4L2EncodeInterface.cpp
++++ b/components/V4L2EncodeInterface.cpp
+@@ -382,17 +382,15 @@ void V4L2EncodeInterface::Initialize(const C2String& name) {
+                     .withConstValue(new C2StreamBufferTypeSetting::input(0u, C2BufferData::GRAPHIC))
+                     .build());
+ 
+-    // TODO(b/167640667) Add VIDEO_ENCODER flag once input convertor is not enabled by default.
+-    // When using the format convertor (which is currently always enabled) it's not useful to add
+-    // the VIDEO_ENCODER buffer flag for input buffers here. Currently zero-copy is not supported
+-    // yet, so when using this flag an additional buffer will be allocated on host side and a copy
+-    // will be performed between the guest and host buffer to keep them in sync. This is wasteful as
+-    // the buffer is only used on guest side by the format convertor which converts and copies the
+-    // buffer into another buffer.
+-    //addParameter(DefineParam(mInputMemoryUsage, C2_PARAMKEY_INPUT_STREAM_USAGE)
+-    //                     .withConstValue(new C2StreamUsageTuning::input(
+-    //                             0u, static_cast<uint64_t>(BufferUsage::VIDEO_ENCODER)))
+-    //                     .build());
++    addParameter(DefineParam(mInputMemoryUsage, C2_PARAMKEY_INPUT_STREAM_USAGE)
++                         .withConstValue(new C2StreamUsageTuning::input(
++                                 0u, static_cast<uint64_t>(BufferUsage::VIDEO_ENCODER)))
++                         .build());
++
++    addParameter(DefineParam(mInputMemoryUsage, C2_PARAMKEY_OUTPUT_STREAM_USAGE)
++                         .withConstValue(new C2StreamUsageTuning::input(
++                                 0u, static_cast<uint64_t>(BufferUsage::VIDEO_ENCODER)))
++                         .build());
+ 
+     addParameter(
+             DefineParam(mOutputFormat, C2_PARAMKEY_OUTPUT_STREAM_BUFFER_TYPE)
+-- 
+2.39.2
+

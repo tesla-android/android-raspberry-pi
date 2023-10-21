@@ -1,0 +1,38 @@
+From 4d61b0f94def056351f18f0223e6863e4ff822bf Mon Sep 17 00:00:00 2001
+From: Andrew Gazizov <andrew.gazizov@opensynergy.com>
+Date: Tue, 27 Sep 2022 09:53:59 +0200
+Subject: [PATCH 03/11] plugin_store: Mark libc2plugin_store library as
+ vendor_available.
+
+Set property vendor_available:true for libc2plugin_store library
+to install it for platform (/system/lib directory). [1]
+Otherwise libc2plugin_store will be not visible and accessible
+for C2PlatformStorePluginLoader.
+
+REF:
+[1] https://source.android.com/docs/core/architecture/vndk/enabling
+
+Bug: 249120082
+Test: Build and run
+
+Change-Id: I465266ef2a3b0d7ea9fa5cd904f345574ff7f275
+---
+ plugin_store/Android.bp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/plugin_store/Android.bp b/plugin_store/Android.bp
+index 621cbfc..ec44f13 100644
+--- a/plugin_store/Android.bp
++++ b/plugin_store/Android.bp
+@@ -9,7 +9,7 @@ package {
+ 
+ cc_library_shared {
+     name: "libc2plugin_store",
+-    vendor: true,
++    vendor_available: true,
+ 
+     defaults: [
+         "libcodec2-impl-defaults",
+-- 
+2.39.2
+

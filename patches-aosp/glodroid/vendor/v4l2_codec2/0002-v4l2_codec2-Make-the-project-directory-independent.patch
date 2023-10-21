@@ -1,0 +1,65 @@
+From f20359e78c894dd389337a74bcd4af36432823df Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Wed, 11 Oct 2023 11:32:05 +0300
+Subject: [PATCH 02/11] v4l2_codec2: Make the project directory-independent
+
+Some users want to group all vendor code in a separate directory.
+Replace hardcoded 'external/v4l2_codec2' paths with cc_library_headers.
+
+Change-Id: I29b3c15df199a225ce0acccbafe4f935de250a2c
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ common/Android.bp             | 6 ++++++
+ components/Android.bp         | 6 ++++++
+ tests/c2_comp_intf/Android.bp | 6 ++----
+ 3 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/common/Android.bp b/common/Android.bp
+index e9c5fe3..a92bca5 100644
+--- a/common/Android.bp
++++ b/common/Android.bp
+@@ -50,3 +50,9 @@ cc_library {
+       "-Wall",
+     ],
+ }
++
++cc_library_headers {
++    name: "v4l2_codec2_common_headers",
++    vendor: true,
++    export_include_dirs: ["include"],
++}
+diff --git a/components/Android.bp b/components/Android.bp
+index 5bee73b..742b9eb 100644
+--- a/components/Android.bp
++++ b/components/Android.bp
+@@ -57,3 +57,9 @@ cc_library {
+       "-Wthread-safety",
+     ],
+ }
++
++cc_library_headers {
++    name: "v4l2_codec2_components_headers",
++    vendor: true,
++    export_include_dirs: ["include"],
++}
+diff --git a/tests/c2_comp_intf/Android.bp b/tests/c2_comp_intf/Android.bp
+index 5c91ef4..35380f3 100644
+--- a/tests/c2_comp_intf/Android.bp
++++ b/tests/c2_comp_intf/Android.bp
+@@ -26,11 +26,9 @@ cc_test {
+         "libutils",
+         "libv4l2_codec2_components",
+     ],
+-    include_dirs: [
+-        "external/v4l2_codec2/common/include",
+-        "external/v4l2_codec2/components/include",
+-    ],
+     header_libs: [
++        "v4l2_codec2_common_headers",
++        "v4l2_codec2_components_headers",
+         "libcodec2_soft_common_headers",
+         "libcodec2_headers",
+         "libcodec2_vndk_headers",
+-- 
+2.39.2
+

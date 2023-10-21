@@ -1,0 +1,33 @@
+From fb3644c873f60638f614eba8e8dc7109c08032c9 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Mon, 2 Oct 2023 02:44:44 +0300
+Subject: [PATCH 09/11] v4l2_codec2/encoder: Don't advertise BITRATE_CONST
+
+BITRATE_CONST doesn't work properly on RPI4.
+
+Change-Id: I2e90b2dd9604e8390d16abc336b73a5b8dfdcee4
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ components/V4L2EncodeInterface.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/components/V4L2EncodeInterface.cpp b/components/V4L2EncodeInterface.cpp
+index 2e65cb8..76bf868 100644
+--- a/components/V4L2EncodeInterface.cpp
++++ b/components/V4L2EncodeInterface.cpp
+@@ -312,10 +312,10 @@ void V4L2EncodeInterface::Initialize(const C2String& name) {
+ 
+     addParameter(
+             DefineParam(mBitrateMode, C2_PARAMKEY_BITRATE_MODE)
+-                    .withDefault(new C2StreamBitrateModeTuning::output(0u, C2Config::BITRATE_CONST))
++                    .withDefault(new C2StreamBitrateModeTuning::output(0u, C2Config::BITRATE_VARIABLE))
+                     .withFields(
+                             {C2F(mBitrateMode, value)
+-                                     .oneOf({C2Config::BITRATE_CONST, C2Config::BITRATE_VARIABLE})})
++                                     .oneOf({C2Config::BITRATE_VARIABLE})})
+                     .withSetter(Setter<decltype(*mBitrateMode)>::StrictValueWithNoDeps)
+                     .build());
+ 
+-- 
+2.39.2
+
