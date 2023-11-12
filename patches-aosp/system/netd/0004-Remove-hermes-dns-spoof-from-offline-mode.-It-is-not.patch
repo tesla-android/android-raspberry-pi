@@ -1,4 +1,4 @@
-From 91ffc8109dd4116933210189aa5ed98c26591a60 Mon Sep 17 00:00:00 2001
+From b7d01b9fa9cf71c198c38382840c86ee86b6b262 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Wed, 20 Sep 2023 10:47:21 +0000
 Subject: [PATCH 4/5] Remove hermes dns spoof from offline mode. It is not

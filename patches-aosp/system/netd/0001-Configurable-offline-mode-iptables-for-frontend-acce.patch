@@ -1,4 +1,4 @@
-From 785894236964614b22f08fa85a11d7441e6747ff Mon Sep 17 00:00:00 2001
+From 83d17ee9f5f6a69f95358886790275edae63cc9c Mon Sep 17 00:00:00 2001
 From: Jenkins <jenkins@tesla-android.com>
 Date: Thu, 8 Jun 2023 13:35:55 +0000
 Subject: [PATCH 1/5] Configurable offline mode + iptables for frontend access
