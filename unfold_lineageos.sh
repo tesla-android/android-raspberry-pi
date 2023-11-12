@@ -1,5 +1,9 @@
 #!/bin/bash -ex
 
+echo "LineageOS-21 is not supported yet"
+
+exit 1
+
 LOCAL_PATH=$(pwd)
 
 echo Init repo tree using AOSP manifest
