@@ -1,4 +1,4 @@
-From 088cbc2343b83760a1797926fbdf21324068a992 Mon Sep 17 00:00:00 2001
+From 7b537766aad291a900c18afcd80f487aa3755d38 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Wed, 20 Sep 2023 10:36:16 +0000
 Subject: [PATCH 3/5] Remove old TA endpoints

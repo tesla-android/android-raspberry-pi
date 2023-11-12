@@ -1,0 +1,181 @@
+From 3e37a264f94804d86d8dabc4efc4a56a7ed8592c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Tue, 10 Oct 2023 08:26:35 +0000
+Subject: [PATCH 1/1] uboot: update bootscript and config for NVME boot
+
+---
+ platform/common/broadcom/uboot.config | 13 +++++-
+ platform/uboot/bootscript.cpp         | 61 +++++++++++++++------------
+ platform/uboot/uboot.mk               |  3 +-
+ 3 files changed, 48 insertions(+), 29 deletions(-)
+
+diff --git a/platform/common/broadcom/uboot.config b/platform/common/broadcom/uboot.config
+index 8c48cc5..9d5ba9a 100644
+--- a/platform/common/broadcom/uboot.config
++++ b/platform/common/broadcom/uboot.config
+@@ -1,3 +1,14 @@
+-CONFIG_BOOTCOMMAND="setenv mmc_bootdev 0 && setenv scriptaddr 0x3000000 && load mmc ${mmc_bootdev}:2 ${scriptaddr} boot.scr && source ${scriptaddr}"
++CONFIG_BOOTCOMMAND="bootflow scan -b"
++CONFIG_PREBOOT="pci enum; usb start; "
++CONFIG_PREBOOT_DEFINED=y
++CONFIG_CMD_SYSBOOT=y
++CONFIG_BOOTSTD_FULL=y
++CONFIG_CMD_BOOTDEV=y
++CONFIG_CMD_BOOTFLOW=y
++CONFIG_CMD_BOOTFLOW_FULL=y
++CONFIG_CMD_BOOTMETH=y
++CONFIG_CMD_NVME=y
++CONFIG_NVME=y
++CONFIG_NVME_PCI=y
+ CONFIG_FASTBOOT_BUF_ADDR=0x3000000
+ CONFIG_FASTBOOT_BUF_SIZE=0x1000000
+diff --git a/platform/uboot/bootscript.cpp b/platform/uboot/bootscript.cpp
+index a9674a4..98da9ed 100644
+--- a/platform/uboot/bootscript.cpp
++++ b/platform/uboot/bootscript.cpp
+@@ -10,6 +10,8 @@
+ #include "platform.h"
+ #include "device.h"
+ 
++echo "Android Booting from $devtype:$devnum"
++
+ #ifdef PLATFORM_SETUP_ENV
+ PLATFORM_SETUP_ENV()
+ #else
+@@ -62,16 +64,16 @@ FUNC_BEGIN(enter_fastboot)
+  if test STRESC(${fastboot_fail}) = STRESC(1);
+  then
+   /* If the sdcard image is deploy image - reformat the GPT to allow fastbootd to flash Android partitions */
+-  part start mmc \$mmc_bootdev misc misc_start || gpt write $partitions
++  part start \$devtype \$devnum misc misc_start || gpt write $partitions
+   /* Boot into the fastbootd mode */
+-  bcb load $mmc_bootdev misc && bcb set command boot-fastboot && bcb store
++  bcb load \$devtype \$devnum misc && bcb set command boot-fastboot && bcb store
+  fi;
+ FUNC_END()
+ 
+ FUNC_BEGIN(bootcmd_bcb)
+- ab_test slot_name mmc \${mmc_bootdev}#misc || run enter_fastboot ;
++ ab_select slot_name \$devtype \${devnum}#misc --no-dec || run enter_fastboot ;
+ 
+- bcb load $mmc_bootdev misc ;
++ bcb load \$devtype \$devnum misc ;
+  /* Handle $ adb reboot bootloader */
+  bcb test command = bootonce-bootloader && bcb clear command && bcb store && run enter_fastboot ;
+  /* Handle $ adb reboot fastboot */
+@@ -82,14 +84,14 @@ FUNC_BEGIN(bootcmd_bcb)
+  if test STRESC(\${androidrecovery}) != STRESC(true);
+  then
+   /* ab_select is used as counter of failed boot attempts. After 14 failed boot attempt fallback to fastboot. */
+-  ab_select slot_name mmc \${mmc_bootdev}#misc || run enter_fastboot ;
++  ab_select slot_name \$devtype \${devnum}#misc || run enter_fastboot ;
+  fi;
+ 
+  FEXTENV(bootargs, " androidboot.slot_suffix=_\$slot_name") ;
+ FUNC_END()
+ 
+ FUNC_BEGIN(avb_verify)
+- avb init \$mmc_bootdev; avb verify _\$slot_name;
++ avb init \$devnum; avb verify _\$slot_name;
+ FUNC_END()
+ 
+ FUNC_BEGIN(bootcmd_avb)
+@@ -107,12 +109,19 @@ FUNC_BEGIN(bootcmd_avb)
+ FUNC_END()
+ 
+ FUNC_BEGIN(bootcmd_prepare_env)
+- setenv bootdevice_path STRESC(__SYSFS_MMC0_PATH__);
+- if test STRESC(${mmc_bootdev}) = STRESC(1);
++ if test \"\${devtype}\" = \"mmc";
++ then
++ setenv device_path \"emmc2bus/fe340000.mmc\";
++ fi;
++ if test \"\${devtype}\" = \"nvme\";
+  then
+-  setenv bootdevice_path STRESC(__SYSFS_MMC1_PATH__);
++ setenv device_path \"scb/fd500000.pcie\";
+  fi;
+- FEXTENV(bootargs, " androidboot.boot_devices=\${bootdevice_path}") ;
++ if test \"\${devtype}\" = \"usb\";
++ then
++ setenv device_path \"soc/fe980000.usb\";
++ fi;
++ FEXTENV(bootargs, " androidboot.boot_devices=\${device_path}") ;
+ FUNC_END()
+ 
+ FUNC_BEGIN(bootcmd_start)
+@@ -154,35 +163,33 @@ FUNC_BEGIN(bootcmd_block)
+  run bootcmd_bcb
+  EXTENV(bootargs, " androidboot.verifiedbootstate=orange ");
+ 
+- part start mmc \$mmc_bootdev boot_\$slot_name boot_start &&
+- part size  mmc \$mmc_bootdev boot_\$slot_name boot_size
+-
+- part start mmc \$mmc_bootdev vendor_boot_\$slot_name vendor_boot_start &&
+- part size  mmc \$mmc_bootdev vendor_boot_\$slot_name vendor_boot_size
++ part start \$devtype \$devnum boot_\$slot_name boot_start &&
++ part size \$devtype \$devnum boot_\$slot_name boot_size
+ 
+- part start mmc \$mmc_bootdev dtbo_\$slot_name dtbo_start &&
+- part size  mmc \$mmc_bootdev dtbo_\$slot_name dtbo_size
++ part start \$devtype \$devnum vendor_boot_\$slot_name vendor_boot_start &&
++ part size \$devtype \$devnum vendor_boot_\$slot_name vendor_boot_size
+ 
+- mmc dev \$mmc_bootdev &&
+- mmc read \$loadaddr \$boot_start \$boot_size
+- mmc read \$vloadaddr \$vendor_boot_start \$vendor_boot_size
+- mmc read \$dtboaddr \$dtbo_start \$dtbo_size
++ part start \$devtype \$devnum dtbo_\$slot_name dtbo_start &&
++ part size \$devtype \$devnum dtbo_\$slot_name dtbo_size
++ \$devtype dev \$devnum &&
++ \$devtype read \$loadaddr \$boot_start \$boot_size
++ \$devtype read \$vloadaddr \$vendor_boot_start \$vendor_boot_size
++ \$devtype read \$dtboaddr \$dtbo_start \$dtbo_size
+ FUNC_END()
+ 
+ FUNC_BEGIN(rename_and_expand_userdata_placeholder)
+-  part number mmc ${mmc_bootdev} userdata_placeholder partition_number
++  part number $devtype ${devnum} userdata_placeholder partition_number
+   if test -n "${partition_number}";
+   then
+     echo "Renaming userdata_placeholder partition to userdata...";
+-    gpt read mmc ${mmc_bootdev} current_layout
++    gpt read $devtype ${devnum} current_layout
+     setexpr new_layout gsub "name=userdata_placeholder" "name=userdata" ${current_layout}
+-    gpt write mmc ${mmc_bootdev} ${new_layout}
++    gpt write $devtype ${devnum} ${new_layout}
+     echo "The userdata_placeholder partition has been renamed to userdata.";
+-
+     echo "Expanding userdata partition to fill the entire drive...";
+-    gpt read mmc ${mmc_bootdev} expanded_layout
++    gpt read $devtype ${devnum} expanded_layout
+     setexpr final_layout gsub "name=userdata,start=[^,]*,size=[^,]*,uuid" "name=userdata,start=[^,]*,size=-,uuid" ${expanded_layout}
+-    gpt write mmc ${mmc_bootdev} ${final_layout}
++    gpt write $devtype ${devnum} ${final_layout}
+     echo "The userdata partition has been expanded.";
+   fi;
+ FUNC_END()
+diff --git a/platform/uboot/uboot.mk b/platform/uboot/uboot.mk
+index 8f1338b..090cfb5 100644
+--- a/platform/uboot/uboot.mk
++++ b/platform/uboot/uboot.mk
+@@ -206,7 +206,7 @@ BOOT_FILES := \
+ 
+ OVERLAY_FILES := $(sort $(shell find -L $(RPI_FIRMWARE_DIR)/boot/overlays))
+ 
+-$(PRODUCT_OUT)/bootloader-sd.img: $(UBOOT_BINARY) $(OVERLAY_FILES) $(ATF_BINARY) $(RPI_CONFIG) $(KERNEL_TARGET)
++$(PRODUCT_OUT)/bootloader-sd.img: $(UBOOT_BINARY) $(OVERLAY_FILES) $(ATF_BINARY) $(RPI_CONFIG) $(KERNEL_TARGET) $(UBOOT_OUT)/boot.scr
+ 	dd if=/dev/null of=$@ bs=1 count=1 seek=$$(( 128 * 1024 * 1024 - 256 * 512 ))
+ 	/sbin/mkfs.vfat -F 32 -n boot $@
+ 	/usr/bin/mcopy -i $@ $(UBOOT_BINARY) ::$(notdir $(UBOOT_BINARY))
+@@ -215,6 +215,7 @@ $(PRODUCT_OUT)/bootloader-sd.img: $(UBOOT_BINARY) $(OVERLAY_FILES) $(ATF_BINARY)
+ 	/usr/bin/mcopy -i $@ $(BOOT_FILES) ::
+ 	/usr/bin/mmd -i $@ ::overlays
+ 	/usr/bin/mcopy -i $@ $(OVERLAY_FILES) ::overlays/
++	/usr/bin/mcopy -i $@ $(UBOOT_OUT)/boot.scr ::$(notdir $(UBOOT_OUT)/boot.scr)
+ endif
+ 
+ ifeq ($(PRODUCT_BOARD_PLATFORM),amlogic)
+-- 
+2.34.1
+

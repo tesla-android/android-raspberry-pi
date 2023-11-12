@@ -10,6 +10,7 @@
   <remote  name="videolan"   fetch="https://code.videolan.org/videolan" />
 
   <remove-project name="platform/external/mesa3d" />
+  <remove-project name="platform/external/v4l2_codec2" />
   <remove-project name="platform/external/drm_hwcomposer" />
 
   <project path="glodroid"                        remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="refs/tags/basedir-v0.9.0" />
@@ -20,7 +21,7 @@
   <!-- gpu+display components (vendor) -->
   <project path="glodroid/vendor/minigbm"         remote="aosp" name="platform/external/minigbm"        groups="glodroid" revision="84b3a09ef0e620c1b2ec19c7626c327e68a847bc" />
   <project path="glodroid/vendor/drm_hwcomposer"  remote="aosp" name="platform/external/drm_hwcomposer" groups="glodroid" revision="5de61b5e4fbf43b78b605dab68465aa6722930c4" />
-  <project path="glodroid/vendor/mesa3d"          remote="aosp" name="platform/external/mesa3d"         groups="glodroid" revision="refs/tags/upstream-mesa-23.1.5" />
+  <project path="glodroid/vendor/mesa3d"          remote="aosp" name="platform/external/mesa3d"         groups="glodroid" revision="f88338f80127d8bbbb49269e2399fd9e7e460c5c" />
 
   <!-- camera components (vendor) -->
   <project path="glodroid/vendor/libcamera"                     remote="libcamera" name="libcamera.git"      groups="glodroid" revision="960d0c1e19feaf310321c906e14bd5410c6be629" />
@@ -31,6 +32,7 @@
   <project path="glodroid/vendor/dav1d"           remote="videolan"    name="dav1d.git"          groups="glodroid" revision="refs/tags/1.1.0" />
   <project path="glodroid/vendor/ffmpeg"          remote="github"      name="FFmpeg/FFmpeg.git"  groups="glodroid" revision="refs/tags/n6.0" clone-depth="1" />
   <project path="glodroid/vendor/ffmpeg_codec2"   remote="glodroid"    name="glodroid_forks.git" groups="glodroid" revision="refs/tags/ffmpeg_codec2-2023w14" clone-depth="1" />
+  <project path="glodroid/vendor/v4l2_codec2" remote="aosp" name="platform/external/v4l2_codec2" groups="glodroid" revision="6a3ebb9202e41f53c2826fb757b869ade5b1e77f" />
 
   <!-- modem components (vendor) -->
   <project path="glodroid/vendor/mm-radio"        remote="glodroid"    name="mm-radio.git"     groups="glodroid" revision="90f9f9a8b20ce2e153d39c9fc250ab2733a7fbb9" />
@@ -50,7 +52,7 @@
   <project path="glodroid/vendor/libudev-zero"    remote="glodroid" name="glodroid_forks.git" groups="glodroid" revision="refs/tags/libudev_zero-v0.8.2" />
 
   <!-- bootloader components (platform) -->
-  <project path="glodroid/bootloader/u-boot"      remote="github" name="u-boot/u-boot.git"    groups="glodroid" revision="487e42f7bc5e685c9337890a38358581bb4f31bc" />
+  <project path="glodroid/bootloader/u-boot"      remote="github" name="u-boot/u-boot.git"    groups="glodroid" revision="4459ed60cb1e0562bc5b40405e2b4b9bbf766d57" />
   <project path="glodroid/bootloader/atf"         name="platform/external/arm-trusted-firmware" groups="glodroid" revision="a127b99d5a063c798d1c6d2e1d4791a630f78355" />
   <project path="glodroid/bootloader/raspberry-fw"  remote="github"  name="raspberrypi/firmware.git" groups="glodroid" revision="0d3395d1e065f5e9f9b081c90bc3b73100ea8698" clone-depth="1" />
 

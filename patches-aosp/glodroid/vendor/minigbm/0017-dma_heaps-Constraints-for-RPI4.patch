@@ -1,0 +1,135 @@
+From 86c7087ad2760bc1593cb95733be4ae61197cb5a Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Sun, 25 Sep 2022 19:22:53 +0300
+Subject: [PATCH 17/21] dma_heaps: Constraints for RPI4
+
+Change-Id: Icce8164cde8da483d683c06a4936ffde05b6f515
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ dmabuf_driver/dmabuf_internals.cpp | 75 +++++++++++++++++++++++++-----
+ 1 file changed, 64 insertions(+), 11 deletions(-)
+
+diff --git a/dmabuf_driver/dmabuf_internals.cpp b/dmabuf_driver/dmabuf_internals.cpp
+index a14da3d..3717ea0 100644
+--- a/dmabuf_driver/dmabuf_internals.cpp
++++ b/dmabuf_driver/dmabuf_internals.cpp
+@@ -63,11 +63,6 @@ static struct format_metadata linear_metadata = { 1, 0, DRM_FORMAT_MOD_LINEAR };
+ 
+ int dmabuf_driver_init(struct driver *drv)
+ {
+-	// TODO
+-	/*
+-	 * in case no allocation needed (Mapper HAL), we do not need to
+-	 * waste a time to initialize the internals of the driver.
+-	 */
+ 	drv_add_combinations(drv, scanout_render_formats, ARRAY_SIZE(scanout_render_formats),
+ 			     &linear_metadata, BO_USE_RENDER_MASK | BO_USE_SCANOUT);
+ 
+@@ -173,28 +168,74 @@ int dmabuf_bo_create(struct bo *bo, uint32_t width, uint32_t height, uint32_t fo
+ 		return -EINVAL;
+ 
+ 	int stride = drv_stride_from_format(format, width, 0);
+-	drv_bo_from_format(bo, stride, 1, height, format);
+ 
+-	struct dma_heap_allocation_data heap_data {
+-		.len = bo->meta.total_size, .fd_flags = O_RDWR | O_CLOEXEC,
+-	};
++	bool force_cma = false;
+ 
+ 	int heap_fd = drv->system_heap_fd.Get();
++	uint32_t size_align = 4096;
+ 
+-	if (!(use_flags & BO_USE_SW_MASK))
+-		heap_fd = drv->system_heap_uncached_fd.Get();
++	//	if (!(use_flags & BO_USE_SW_MASK))
++//	heap_fd = drv->system_heap_uncached_fd.Get();
+ 
+ 	if (use_flags & BO_USE_SCANOUT)
++		force_cma = true;
++
++	/* RPI4 camera over libcamera */
++	if (use_flags & (BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE)) {
++		force_cma = true;
++		stride = ALIGN(stride, 32);
++		if (height > 1)
++			size_align = (ALIGN(width, 32) * ALIGN(height, 16) * 3) >> 1;
++	}
++
++	/* RPI4 hwcodecs */
++	if (use_flags & (BO_USE_HW_VIDEO_DECODER | BO_USE_HW_VIDEO_ENCODER)) {
++		force_cma = true;
++		stride = ALIGN(stride, 32);
++		//				if (height > 1)
++		//					height = ALIGN(height, 16);
++		size_align = 4096;
++	}
++
++	if (force_cma)
+ 		heap_fd = drv->cma_heap_fd.Get();
+ 
++	if (!force_cma && !(use_flags & BO_USE_SW_MASK)) {
++		// TODO: GPU-only buffers can be made tiled, but calculations are too complex
++	}
++
++	drv_bo_from_format(bo, stride, 1, height, format);
++
++	struct dma_heap_allocation_data heap_data {
++		.len = ALIGN(bo->meta.total_size, size_align), .fd_flags = O_RDWR | O_CLOEXEC,
++	};
++
++	char use_str[128];
++	use_str[0] = 0;
++
++	drv_use_flags_to_string(use_flags, use_str, sizeof(use_str));
++
++	drv_logv("Allocate buffer, %dx%d, stride %d, total_size: %llu, use: %s", width, height,
++		 stride, heap_data.len, use_str);
++
+ 	int ret = ioctl(heap_fd, DMA_HEAP_IOCTL_ALLOC, &heap_data);
+ 	if (ret) {
+ 		drv_loge("Failed to allocate dmabuf: %s", strerror(errno));
+ 		return -errno;
+ 	}
+ 
++	use_str[0] = 0;
++	drv_use_flags_to_string_short(use_flags, use_str, sizeof(use_str));
+ 	auto buf_fd = UniqueFd(heap_data.fd);
+ 
++	char dmabuf_name[128];
++	snprintf(dmabuf_name, sizeof(dmabuf_name), "%dx%d %c%c%c%c %s", width, height,
++		 format & 0x7f, (format >> 8) & 0x7f, (format >> 16) & 0x7f, (format >> 24) & 0x7f,
++		 use_str);
++	ret = ioctl(buf_fd.Get(), DMA_BUF_SET_NAME, dmabuf_name);
++	if (ret)
++		drv_loge("DMA_BUF_SET_NAME failed");
++
+ 	auto priv = new DmabufBoPriv();
+ 	bo->inode = drv_get_inode(buf_fd.Get());
+ 	for (size_t plane = 0; plane < bo->meta.num_planes; plane++) {
+@@ -250,11 +291,23 @@ void *dmabuf_bo_map(struct bo *bo, struct vma *vma, uint32_t map_flags)
+ 		return buf;
+ 	}
+ 
++	struct dma_buf_sync sync = { .flags = DMA_BUF_SYNC_START | DMA_BUF_SYNC_RW };
++	int ret = ioctl(priv->fds[0].Get(), DMA_BUF_IOCTL_SYNC, &sync);
++	if (ret)
++		drv_loge("DMA_BUF_IOCTL_SYNC DMA_BUF_SYNC_START failed");
++
+ 	return buf;
+ }
+ 
+ int dmabuf_bo_unmap(struct bo *bo, struct vma *vma)
+ {
++	auto priv = (DmabufBoPriv *)bo->priv;
++
++	struct dma_buf_sync sync = { .flags = DMA_BUF_SYNC_END | DMA_BUF_SYNC_RW };
++	int ret = ioctl(priv->fds[0].Get(), DMA_BUF_IOCTL_SYNC, &sync);
++	if (ret)
++		drv_loge("DMA_BUF_IOCTL_SYNC DMA_BUF_SYNC_END failed");
++
+ 	return munmap(vma->addr, vma->length);
+ }
+ 
+-- 
+2.39.2
+

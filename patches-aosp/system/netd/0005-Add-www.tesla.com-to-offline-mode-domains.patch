@@ -1,0 +1,25 @@
+From 595e512c1d6edcc77a3058bcaf877eb7dcdf2c0a Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Sun, 12 Nov 2023 12:38:44 +0000
+Subject: [PATCH 5/5] Add www.tesla.com to offline mode domains
+
+Change-Id: I7b82dfce45851e41a91ba3a1742e2050ddf24cd5
+---
+ server/TetherController.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/server/TetherController.cpp b/server/TetherController.cpp
+index a294399..fd175b5 100644
+--- a/server/TetherController.cpp
++++ b/server/TetherController.cpp
+@@ -280,6 +280,7 @@ int TetherController::startTethering(bool usingLegacyDnsProxy, int num_addrs, ch
+     if(offlineModeEnabled == 1) {
+ 	argVector.push_back("--address=/connman.vn.tesla.services/104.248.101.213");
+         argVector.push_back("--address=/www.teslamotors.com/104.248.101.213");
++        argVector.push_back("--address=/www.tesla.com/104.248.101.213");
+         argVector.push_back("--address=/connman.vn.cloud.tesla.cn/104.248.101.213");
+         argVector.push_back("--address=/www.tesla.cn/104.248.101.213");
+     }
+-- 
+2.34.1
+

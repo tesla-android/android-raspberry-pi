@@ -31,10 +31,14 @@ KERNEL_DEFCONFIG := $(KERNEL_SRC)/arch/arm64/configs/bcm2711_defconfig
 KERNEL_FRAGMENTS := \
     $(LOCAL_PATH)/../gd_rpi4/kernel.config \
 
-KERNEL_DTB_FILE := broadcom/bcm2711-rpi-4-b.dtb
+KERNEL_DTB_FILE := broadcom/bcm2711-rpi-cm4.dtb
 
 SYSFS_MMC0_PATH := emmc2bus/fe340000.mmc
 
 RPI_CONFIG := $(LOCAL_PATH)/../gd_rpi4/boot/config.txt
 
 $(call inherit-product, $(LOCAL_PATH)/../gd_rpi4/device.mk)
+
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/init.gd_cm4.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/init.gd_cm4.rc \
+    $(LOCAL_PATH)/nvme_format.sh:$(TARGET_COPY_OUT_VENDOR)/etc/init/nvme_format.sh

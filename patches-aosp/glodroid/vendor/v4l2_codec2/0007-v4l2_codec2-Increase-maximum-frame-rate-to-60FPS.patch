@@ -1,0 +1,29 @@
+From 16c04660aaee31877ca5e87eb706758e59b7fd8b Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Mon, 2 Oct 2023 01:58:46 +0300
+Subject: [PATCH 07/11] v4l2_codec2: Increase maximum frame rate to 60FPS
+
+We want screen capture to have more than 30FPS.
+
+Change-Id: I169a40be12bd4fb69285df79dca8b55db0fb07f2
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ common/V4L2Device.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/common/V4L2Device.cpp b/common/V4L2Device.cpp
+index 68a9dca..b3d3679 100644
+--- a/common/V4L2Device.cpp
++++ b/common/V4L2Device.cpp
+@@ -1850,7 +1850,7 @@ V4L2Device::SupportedEncodeProfiles V4L2Device::enumerateSupportedEncodeProfiles
+ 
+     for (const auto& pixelformat : supportedPixelformats) {
+         SupportedEncodeProfile profile;
+-        profile.max_framerate_numerator = 30;
++        profile.max_framerate_numerator = 60;
+         profile.max_framerate_denominator = 1;
+         ui::Size minResolution;
+         getSupportedResolution(pixelformat, &minResolution, &profile.max_resolution);
+-- 
+2.39.2
+

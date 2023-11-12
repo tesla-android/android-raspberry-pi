@@ -1,7 +1,7 @@
-From cadc9a7ccb98d6ec38b605ea7088087541de54fb Mon Sep 17 00:00:00 2001
+From 20b679d769451e5690322a72c8feec55e4ef90c1 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Wed, 29 Mar 2023 20:49:55 +0300
-Subject: [PATCH] Revert "Fix crash from asynchronous GPU metrics"
+Subject: [PATCH 1/4] Revert "Fix crash from asynchronous GPU metrics"
 
 This reverts commit 5d28aee1b1ac76e73db174535802bd2cc6069909.
 
@@ -25,7 +25,7 @@ Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
  2 files changed, 5 insertions(+), 15 deletions(-)
 
 diff --git a/libs/hwui/FrameInfoVisualizer.cpp b/libs/hwui/FrameInfoVisualizer.cpp
-index 687e4dd324d3..3a8e559f6d7e 100644
+index 687e4dd3..3a8e559f 100644
 --- a/libs/hwui/FrameInfoVisualizer.cpp
 +++ b/libs/hwui/FrameInfoVisualizer.cpp
 @@ -179,7 +179,7 @@ void FrameInfoVisualizer::initializeRects(const int baseline, const int width) {
@@ -38,7 +38,7 @@ index 687e4dd324d3..3a8e559f6d7e 100644
          if (mFrameSource[fi][FrameInfoIndex::Flags] & FrameInfoFlags::SkippedFrame) {
              continue;
 diff --git a/libs/hwui/renderthread/CanvasContext.cpp b/libs/hwui/renderthread/CanvasContext.cpp
-index 75d3ff7753cb..976117b9bbd4 100644
+index f56d19bf..1c84202c 100644
 --- a/libs/hwui/renderthread/CanvasContext.cpp
 +++ b/libs/hwui/renderthread/CanvasContext.cpp
 @@ -512,19 +512,9 @@ nsecs_t CanvasContext::draw() {
