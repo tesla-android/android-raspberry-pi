@@ -1,4 +1,4 @@
-From 77f29a84fb0e241f2c95f9cee3471c2d2d7015e2 Mon Sep 17 00:00:00 2001
+From d64193b444cbb6ff15ae6788c95ae92e0c725de4 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
 Date: Mon, 4 Jul 2022 04:31:47 +0200
 Subject: [PATCH 3/4] Wi-Fi Hotspot: Disable switchbar
@@ -13,10 +13,10 @@ Signed-off-by: Michał Gapiński <mike@gapinski.eu>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/src/com/android/settings/wifi/tether/WifiTetherSettings.java b/src/com/android/settings/wifi/tether/WifiTetherSettings.java
-index 80d765a..96c305d 100644
+index 1b6492c..3ef7d15 100644
 --- a/src/com/android/settings/wifi/tether/WifiTetherSettings.java
 +++ b/src/com/android/settings/wifi/tether/WifiTetherSettings.java
-@@ -180,7 +180,7 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+@@ -184,7 +184,7 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
          mMainSwitchBar.setTitle(getString(R.string.use_wifi_hotsopt_main_switch_title));
          mSwitchBarController = new WifiTetherSwitchBarController(activity, mMainSwitchBar);
          getSettingsLifecycle().addObserver(mSwitchBarController);

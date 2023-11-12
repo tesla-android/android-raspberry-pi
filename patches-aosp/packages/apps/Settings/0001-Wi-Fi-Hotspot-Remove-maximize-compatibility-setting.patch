@@ -1,4 +1,4 @@
-From eea0b48e5dc28fcee1e790da6da523c793153d3d Mon Sep 17 00:00:00 2001
+From 10c4d831cf3d32fe7ff9dc6bba3e24450d01d7dd Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
 Date: Mon, 4 Jul 2022 02:30:20 +0200
 Subject: [PATCH 1/4] Wi-Fi Hotspot: Remove maximize compatibility setting
@@ -29,7 +29,7 @@ index a85d9ea..a9fd4b4 100644
          android:key="wifi_hotspot_speed"
          android:title="@string/wifi_hotspot_speed_title"
 diff --git a/src/com/android/settings/wifi/tether/WifiTetherSettings.java b/src/com/android/settings/wifi/tether/WifiTetherSettings.java
-index 88d601a..00df61b 100644
+index d8c3908..4137aaf 100644
 --- a/src/com/android/settings/wifi/tether/WifiTetherSettings.java
 +++ b/src/com/android/settings/wifi/tether/WifiTetherSettings.java
 @@ -70,9 +70,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
@@ -50,8 +50,8 @@ index 88d601a..00df61b 100644
 -    @VisibleForTesting
      WifiTetherAutoOffPreferenceController mWifiTetherAutoOffPreferenceController;
  
-     private boolean mUnavailable;
-@@ -171,8 +166,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+     @VisibleForTesting
+@@ -175,8 +170,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
          mSSIDPreferenceController = use(WifiTetherSSIDPreferenceController.class);
          mSecurityPreferenceController = use(WifiTetherSecurityPreferenceController.class);
          mPasswordPreferenceController = use(WifiTetherPasswordPreferenceController.class);
@@ -60,7 +60,7 @@ index 88d601a..00df61b 100644
          mWifiTetherAutoOffPreferenceController = use(WifiTetherAutoOffPreferenceController.class);
      }
  
-@@ -256,7 +249,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+@@ -260,7 +253,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
          controllers.add(new WifiTetherPasswordPreferenceController(context, listener));
          controllers.add(
                  new WifiTetherAutoOffPreferenceController(context, KEY_WIFI_TETHER_AUTO_OFF));
@@ -68,7 +68,7 @@ index 88d601a..00df61b 100644
          return controllers;
      }
  
-@@ -289,7 +281,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+@@ -293,7 +285,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
                          : mPasswordPreferenceController.getPasswordValidated(securityType);
          configBuilder.setPassphrase(passphrase, securityType);
          if (!mWifiTetherViewModel.isSpeedFeatureAvailable()) {
@@ -76,7 +76,7 @@ index 88d601a..00df61b 100644
          }
          configBuilder.setAutoShutdownEnabled(
                  mWifiTetherAutoOffPreferenceController.isEnabled());
-@@ -300,7 +291,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+@@ -304,7 +295,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
          use(WifiTetherSSIDPreferenceController.class).updateDisplay();
          use(WifiTetherSecurityPreferenceController.class).updateDisplay();
          use(WifiTetherPasswordPreferenceController.class).updateDisplay();
@@ -84,7 +84,7 @@ index 88d601a..00df61b 100644
      }
  
      public static final SearchIndexProvider SEARCH_INDEX_DATA_PROVIDER =
-@@ -332,7 +322,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+@@ -336,7 +326,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
                  keys.add(KEY_WIFI_TETHER_SECURITY);
                  keys.add(KEY_WIFI_TETHER_NETWORK_PASSWORD);
                  keys.add(KEY_WIFI_TETHER_AUTO_OFF);
