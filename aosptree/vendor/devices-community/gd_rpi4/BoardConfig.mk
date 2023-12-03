@@ -20,4 +20,5 @@ BOARD_LIBCAMERA_EXTRA_TARGETS := \
     libetc:libcamera/ipa_rpi_vc4.so.sign:libcamera:ipa_rpi_vc4.so.sign: \
 
 BOARD_FFMPEG_ENABLE_REQUEST_API := true
-BOARD_FFMPEG_PATCHES_DIRS := $(BC_PATH)/codecs/ffmpeg-patches
+BOARD_FFMPEG_KERNEL_HEADERS_DIR := $(BC_PATH)/codecs/request_api_headers_v3
+BOARD_FFMPEG_EXTRA_CONFIGURE_OPTIONS  := --enable-sand

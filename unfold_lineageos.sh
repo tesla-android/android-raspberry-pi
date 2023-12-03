@@ -27,7 +27,7 @@ echo Patch AOSP tree
 patch_dir() {
     pushd aosptree/$1
     repo sync -l .
-    git am ${LOCAL_PATH}/patches-aosp/$1/*
+    git am ${LOCAL_PATH}/patches-aosp/$1/*.patch
     popd
 }
 
