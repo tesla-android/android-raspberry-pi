@@ -1,7 +1,7 @@
-From 5a69e42a3b07012794be9514dda114eb9170f8bd Mon Sep 17 00:00:00 2001
+From c7631080958fe4302309b6309355d8af85dba52b Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Sun, 19 Mar 2023 21:28:43 +0200
-Subject: [PATCH] modem: Start dbus and modemmanager after boot completed
+Subject: [PATCH 5/5] modem: Start dbus and modemmanager after boot completed
 
 This change should slightly reduce the boot time.
 
@@ -24,5 +24,5 @@ index bcf564e..2b2f995 100644
      mkdir /mnt/var/run 0755 system system
      mkdir /mnt/var/run/dbus 0755 system system
 -- 
-2.34.1
+2.39.2
 

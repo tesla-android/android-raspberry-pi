@@ -1,0 +1,100 @@
+From 5d54fa42856a82d583e50ea5de6fa264eb72b92c Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Thu, 23 Nov 2023 03:47:48 +0200
+Subject: [PATCH 04/11] avb: Implement get_preloaded_partition callback
+
+AVB can reuse already loaded images instead of loading them
+from the disk.
+
+Implement get_preloaded_partition so that it uses the 'abootimg load'
+command result environment variables to find the right partition in RAM.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ common/avb_verify.c | 56 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 56 insertions(+)
+
+diff --git a/common/avb_verify.c b/common/avb_verify.c
+index 48ba8db51e..51b752f3ba 100644
+--- a/common/avb_verify.c
++++ b/common/avb_verify.c
+@@ -7,6 +7,7 @@
+ #include <avb_verify.h>
+ #include <blk.h>
+ #include <cpu_func.h>
++#include <env.h>
+ #include <image.h>
+ #include <malloc.h>
+ #include <part.h>
+@@ -539,6 +540,58 @@ static AvbIOResult read_from_partition(AvbOps *ops,
+ 			   num_bytes, buffer, out_num_read, IO_READ);
+ }
+ 
++#ifdef CONFIG_ANDROID_BOOT_IMAGE
++/**
++ * get_preloaded_partition() - Gets the starting pointer of a partition that
++ * is pre-loaded in memory, and save it to |out_pointer|.
++ *
++ * If the partition is not pre-loaded in memory, the out_pointer shall not be
++ * modified.
++ *
++ * @ops: contains AVB ops handlers
++ * @partition: partition name, NUL-terminated UTF-8 string
++ * @num_bytes: amount of bytes to read
++ * @out_pointer: pointer to the starting address of the partition
++ * @out_num_bytes_preloaded: amount of bytes pre-loaded in memory
++ *
++ * @return:
++ *      AVB_IO_RESULT_OK, if partition was found or was not found
++ *
++ */
++static AvbIOResult get_preloaded_partition(AvbOps* ops,
++                                           const char* partition,
++                                           size_t num_bytes,
++                                           uint8_t** out_pointer,
++                                           size_t* out_num_bytes_preloaded)
++{
++	size_t partition_start = 0;
++	size_t partition_size = 0;
++
++	char env_name[64];
++	sprintf(env_name, "abootimg_%s_ptr", partition);
++	partition_start = env_get_hex(env_name, 0);
++
++	sprintf(env_name, "abootimg_%s_size", partition);
++	partition_size = env_get_hex(env_name, 0);
++
++	if (partition_start == 0 || partition_size == 0)
++		return AVB_IO_RESULT_OK;
++
++	if (partition_size < num_bytes) {
++		printf("AVB: Preloaded partition %s size %zu is smaller than requested %zu\n",
++		       partition, partition_size, num_bytes);
++		return AVB_IO_RESULT_ERROR_IO;
++	}
++
++	*out_pointer = (uint8_t *)partition_start;
++	*out_num_bytes_preloaded = partition_size;
++
++	printf("AVB: Using preloaded partition %s at %p\n", partition, *out_pointer);
++
++	return AVB_IO_RESULT_OK;
++}
++#endif
++
+ /**
+  * write_to_partition() - writes N bytes to a partition identified by a string
+  * name
+@@ -988,6 +1041,9 @@ AvbOps *avb_ops_alloc(int boot_device)
+ 	ops_data->ops.user_data = ops_data;
+ 
+ 	ops_data->ops.read_from_partition = read_from_partition;
++#ifdef CONFIG_ANDROID_BOOT_IMAGE
++	ops_data->ops.get_preloaded_partition = get_preloaded_partition;
++#endif
+ 	ops_data->ops.write_to_partition = write_to_partition;
+ 	ops_data->ops.validate_vbmeta_public_key = validate_vbmeta_public_key;
+ 	ops_data->ops.read_rollback_index = read_rollback_index;
+-- 
+2.39.2
+

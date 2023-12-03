@@ -1,0 +1,137 @@
+From 232364b099c83b7d831a1f0493ec67dff9fe4c41 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Tue, 21 Nov 2023 12:44:08 +0200
+Subject: [PATCH 02/11] abootimg: Add init_boot image support
+
+Quote from [1]:
+
+"For devices launching with Android 13, the generic ramdisk is removed
+from the boot image and placed in a separate init_boot image.
+This change leaves the boot image with only the GKI kernel."
+
+[1]: https://source.android.com/docs/core/architecture/partitions/generic-boot
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ boot/image-board.c |  4 +++-
+ cmd/abootimg.c     | 26 +++++++++++++++++++++-----
+ include/image.h    |  7 +++++++
+ 3 files changed, 31 insertions(+), 6 deletions(-)
+
+diff --git a/boot/image-board.c b/boot/image-board.c
+index d500da1b4b..cb225529d2 100644
+--- a/boot/image-board.c
++++ b/boot/image-board.c
+@@ -429,9 +429,11 @@ static int select_ramdisk(struct bootm_headers *images, const char *select, u8 a
+ 			int ret;
+ 			if (IS_ENABLED(CONFIG_CMD_ABOOTIMG)) {
+ 				void *boot_img = map_sysmem(get_abootimg_addr(), 0);
++				void *init_boot_img = map_sysmem(get_ainit_bootimg_addr(), 0);
+ 				void *vendor_boot_img = map_sysmem(get_avendor_bootimg_addr(), 0);
++				void *ramdisk_img = (init_boot_img == -1) ? boot_img : init_boot_img;
+ 
+-				ret = android_image_get_ramdisk(boot_img, vendor_boot_img,
++				ret = android_image_get_ramdisk(ramdisk_img, vendor_boot_img,
+ 								rd_datap, rd_lenp);
+ 				unmap_sysmem(vendor_boot_img);
+ 				unmap_sysmem(boot_img);
+diff --git a/cmd/abootimg.c b/cmd/abootimg.c
+index 2653b555b1..a5321bab6a 100644
+--- a/cmd/abootimg.c
++++ b/cmd/abootimg.c
+@@ -15,6 +15,7 @@
+ 
+ /* Please use abootimg_addr() macro to obtain the boot image address */
+ static ulong _abootimg_addr = -1;
++static ulong _ainit_bootimg_addr = -1;
+ static ulong _avendor_bootimg_addr = -1;
+ 
+ ulong get_abootimg_addr(void)
+@@ -22,6 +23,11 @@ ulong get_abootimg_addr(void)
+ 	return (_abootimg_addr == -1 ? image_load_addr : _abootimg_addr);
+ }
+ 
++ulong get_ainit_bootimg_addr(void)
++{
++	return _ainit_bootimg_addr;
++}
++
+ ulong get_avendor_bootimg_addr(void)
+ {
+ 	return _avendor_bootimg_addr;
+@@ -180,7 +186,7 @@ static int do_abootimg_addr(struct cmd_tbl *cmdtp, int flag, int argc,
+ 	char *endp;
+ 	ulong img_addr;
+ 
+-	if (argc < 2 || argc > 3)
++	if (argc < 2 || argc > 4)
+ 		return CMD_RET_USAGE;
+ 
+ 	img_addr = hextoul(argv[1], &endp);
+@@ -191,16 +197,26 @@ static int do_abootimg_addr(struct cmd_tbl *cmdtp, int flag, int argc,
+ 
+ 	_abootimg_addr = img_addr;
+ 
+-	if (argc == 3) {
++	if (argc > 2) {
+ 		img_addr = simple_strtoul(argv[2], &endp, 16);
+ 		if (*endp != '\0') {
+-			printf("Error: Wrong vendor image address\n");
++			printf("Error: Wrong vendor_boot image address\n");
+ 			return CMD_RET_FAILURE;
+ 		}
+ 
+ 		_avendor_bootimg_addr = img_addr;
+ 	}
+ 
++	if (argc == 4) {
++		img_addr = simple_strtoul(argv[3], &endp, 16);
++		if (*endp != '\0') {
++			printf("Error: Wrong init_boot image address\n");
++			return CMD_RET_FAILURE;
++		}
++
++		_ainit_bootimg_addr = img_addr;
++	}
++
+ 	return CMD_RET_SUCCESS;
+ }
+ 
+@@ -244,7 +260,7 @@ static int do_abootimg_dump(struct cmd_tbl *cmdtp, int flag, int argc,
+ }
+ 
+ static struct cmd_tbl cmd_abootimg_sub[] = {
+-	U_BOOT_CMD_MKENT(addr, 3, 1, do_abootimg_addr, "", ""),
++	U_BOOT_CMD_MKENT(addr, 4, 1, do_abootimg_addr, "", ""),
+ 	U_BOOT_CMD_MKENT(dump, 2, 1, do_abootimg_dump, "", ""),
+ 	U_BOOT_CMD_MKENT(get, 5, 1, do_abootimg_get, "", ""),
+ };
+@@ -272,7 +288,7 @@ static int do_abootimg(struct cmd_tbl *cmdtp, int flag, int argc,
+ U_BOOT_CMD(
+ 	abootimg, CONFIG_SYS_MAXARGS, 0, do_abootimg,
+ 	"manipulate Android Boot Image",
+-	"addr <boot_img_addr> [<vendor_boot_img_addr>]>\n"
++	"addr <boot_img_addr> [<vendor_boot_img_addr> [<init_boot_img_addr>]]\n"
+ 	"    - set the address in RAM where boot image is located\n"
+ 	"      ($loadaddr is used by default)\n"
+ 	"abootimg dump dtb\n"
+diff --git a/include/image.h b/include/image.h
+index 01a6787d21..e6dc875cc3 100644
+--- a/include/image.h
++++ b/include/image.h
+@@ -1894,6 +1894,13 @@ bool is_android_vendor_boot_image_header(const void *vendor_boot_img);
+  */
+ ulong get_abootimg_addr(void);
+ 
++/**
++ * get_ainit_bootimg_addr() - Get Android init boot image address
++ *
++ * Return: Android init boot image address
++ */
++ulong get_ainit_bootimg_addr(void);
++
+ /**
+  * get_avendor_bootimg_addr() - Get Android vendor boot image address
+  *
+-- 
+2.39.2
+

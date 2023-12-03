@@ -1,7 +1,7 @@
-From 4391fb36ce55370ac46fbe30008049a17189dd22 Mon Sep 17 00:00:00 2001
+From d9c3b3101d1dd48437d790c8624d2153d432c844 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Tue, 4 Apr 2023 22:06:44 +0300
-Subject: [PATCH 4/5] bootscript: Disable uart logging
+Subject: [PATCH 3/5] bootscript: Disable uart logging
 
 Improves boot time significantly.
 
@@ -11,7 +11,7 @@ Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/platform/uboot/bootscript.cpp b/platform/uboot/bootscript.cpp
-index e9da6a4..36f69c1 100644
+index 79001b1..e9fa198 100644
 --- a/platform/uboot/bootscript.cpp
 +++ b/platform/uboot/bootscript.cpp
 @@ -46,7 +46,7 @@ EXTENV(partitions, ";name=userdata,size=-,uuid=\${uuid_gpt_userdata}")
@@ -24,5 +24,5 @@ index e9da6a4..36f69c1 100644
  FUNC_BEGIN(enter_fastboot)
  #ifdef PRE_ENTER_FASTBOOT
 -- 
-2.37.2
+2.39.2
 

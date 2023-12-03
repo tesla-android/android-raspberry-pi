@@ -1,7 +1,7 @@
-From 27575d5205e12031f35b99e8be1f58b3334e59d5 Mon Sep 17 00:00:00 2001
+From c98966803edd89928396db3e633a729f7e512158 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Tue, 4 Apr 2023 22:07:21 +0300
-Subject: [PATCH 4/4] Disable AVB
+Subject: [PATCH 2/5] Disable AVB
 
 Reduces boot time.
 
@@ -33,13 +33,13 @@ index a514344..722b70f 100644
  /dev/block/by-name/misc             /misc           emmc    defaults                              defaults
  
 diff --git a/platform/uboot/bootscript.cpp b/platform/uboot/bootscript.cpp
-index e9da6a4..b07bcbb 100644
+index a1e2537..79001b1 100644
 --- a/platform/uboot/bootscript.cpp
 +++ b/platform/uboot/bootscript.cpp
-@@ -147,13 +147,7 @@ FUNC_BEGIN(bootcmd_block)
-  DEVICE_HANDLE_BUTTONS()
- #endif
-  run bootcmd_bcb
+@@ -148,13 +148,7 @@ FUNC_BEGIN(bootcmd_block)
+  abootimg load mmc \$mmc_bootdev init_boot   \${slot_name}
+  abootimg load mmc \$mmc_bootdev vendor_boot \${slot_name}
+ 
 - if test STRESC(\$androidrecovery) = STRESC("true");
 - then
 -  /* Always unlock device for fastbootd and recovery modes, otherwise fastbootd flashing won't work. TODO: Support conditional lock/unlock */
@@ -48,9 +48,9 @@ index e9da6a4..b07bcbb 100644
 -  run bootcmd_avb;
 - fi;
 + EXTENV(bootargs, " androidboot.verifiedbootstate=orange ");
+ FUNC_END()
  
-  part start mmc \$mmc_bootdev boot_\$slot_name boot_start &&
-  part size  mmc \$mmc_bootdev boot_\$slot_name boot_size
+ FUNC_BEGIN(rename_and_expand_userdata_placeholder)
 -- 
-2.37.2
+2.39.2
 

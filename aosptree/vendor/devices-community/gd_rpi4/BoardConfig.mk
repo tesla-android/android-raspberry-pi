@@ -15,7 +15,7 @@ BOARD_KERNEL_CMDLINE += coherent_pool=1M 8250.nr_uarts=1 snd_bcm2835.enable_comp
 BOARD_LIBCAMERA_IPAS := rpi/vc4
 BOARD_LIBCAMERA_PIPELINES := simple rpi/vc4
 
-BOARD_LIBCAMERA_EXTRA_TARGETS := \
+BOARD_LIBCAMERA_EXTRA_TARGETS += \
     libetc:libcamera/ipa_rpi_vc4.so:libcamera:ipa_rpi_vc4.so:           \
     libetc:libcamera/ipa_rpi_vc4.so.sign:libcamera:ipa_rpi_vc4.so.sign: \
 

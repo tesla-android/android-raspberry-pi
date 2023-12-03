@@ -14,7 +14,7 @@
   <remove-project name="platform/external/wpa_supplicant_8" />
 
   <project path="glodroid"                        remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="refs/tags/basedir-v0.9.0" />
-  <project path="glodroid/configuration"          remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="1ba92aede3fccf6fb07ef3787a7bdd55f58e03fc" />
+  <project path="glodroid/configuration"          remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="3af4141df41e5a504880b7dc823c4e0596626e06" />
 
   <project path="glodroid/apks"                   remote="glodroid" name="glodroid_external_apks.git" groups="glodroid" revision="refs/tags/apps-v0.8.2" />
 
@@ -55,7 +55,7 @@
   <project path="external/wpa_supplicant_8"       remote="aosp"     name="platform/external/wpa_supplicant_8"   revision="1d9ae9a55470b894973457e3a4892a8820ca1bd7" />
 
   <!-- bootloader components (platform) -->
-  <project path="glodroid/bootloader/u-boot"      remote="github" name="u-boot/u-boot.git"    groups="glodroid" revision="487e42f7bc5e685c9337890a38358581bb4f31bc" />
+  <project path="glodroid/bootloader/u-boot"      remote="github" name="u-boot/u-boot.git"    groups="glodroid" revision="refs/tags/v2023.10" />
   <project path="glodroid/bootloader/atf"         name="platform/external/arm-trusted-firmware" groups="glodroid" revision="a127b99d5a063c798d1c6d2e1d4791a630f78355" />
   <project path="glodroid/bootloader/raspberry-fw"  remote="github"  name="raspberrypi/firmware.git" groups="glodroid" revision="0d3395d1e065f5e9f9b081c90bc3b73100ea8698" clone-depth="1" />
 
@@ -67,7 +67,5 @@
                                            remote="glodroid" name="linaro_gcc_prebuilts.git" groups="glodroid" revision="refs/tags/gcc-linaro-7.4.1-2019.02-x86_64_aarch64-linux-gnu" />
   <project path="prebuilts/gcc/linux-x86/arm/gcc-linaro-arm-eabi"
                                            remote="glodroid" name="linaro_gcc_prebuilts.git" groups="glodroid" revision="refs/tags/gcc-linaro-7.5.0-2019.12-x86_64_arm-eabi" />
-  <project path="glodroid/compilers/rust/1.65.0"
-                                           remote="glodroid" name="linaro_gcc_prebuilts.git" groups="glodroid" revision="refs/tags/rust-v1.65.0-linux-x86" />
 
 </manifest>

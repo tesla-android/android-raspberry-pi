@@ -1,7 +1,7 @@
-From 87f3c5e6c44574587083a0089652067229256f68 Mon Sep 17 00:00:00 2001
+From 0bc4ad774e77343b7c45f13af38306d12a2a54b7 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Fri, 7 Apr 2023 00:12:38 +0300
-Subject: [PATCH 6/6] android: Fix ramdisk loading for bootimage v3+
+Subject: [PATCH 01/11] android: Fix ramdisk loading for bootimage v3+
 
 Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
 ---
@@ -62,5 +62,5 @@ index 88e40bc7ec..da8003f370 100644
  	*rd_len = img_data.ramdisk_size;
  	return 0;
 -- 
-2.37.2
+2.39.2
 

@@ -1,0 +1,59 @@
+From cf2e1ec62e291b049feb107e300ad8a8372e6563 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Sun, 3 Dec 2023 18:05:09 +0200
+Subject: [PATCH 4/5] bootscript: Add a hack to prevent the crash
+
+The kernel crashes during boot. But if you try to investigate it and add an
+UART logging, it appears that any change of cmdline size fixes the issue.
+
+No time for digging into it, so fix it by extending the kcmdline.
+
+HERE IS THE FAIL:
+
+Working FDT set to 2eff2700
+   Uncompressing Kernel Image
+   Using Device Tree in place at 000000002eff2700, end 000000002f002fe3
+Working FDT set to 2eff2700
+
+Starting kernel ...
+
+"Synchronous Abort" handler, esr 0x96000044, far 0x692f3d74696e6938
+elr: 00000000000a8778 lr : 00000000000b30b8 (reloc)
+elr: 000000003b356778 lr : 000000003b3610b8
+x0 : 0000000000000000 x1 : 00000000000002a0
+x2 : 000000003b3cd000 x3 : 692f3d74696e6920
+x4 : 0000000032339790 x5 : 746f6f722074696e
+x6 : 000000003b3cdba8 x7 : 000000003b3cdbb8
+x8 : 0000000032339a30 x9 : 0000000000000007
+x10: 0000000000000004 x11: 000000003ebdac20
+x12: 0000000000000001 x13: 000000003ebdac20
+x14: 0000000000000000 x15: 0000000000000004
+x16: 0000000000000000 x17: 0000000000000000
+x18: 0000000032329d60 x19: 0000000032339be0
+x20: 0000000000000000 x21: 00000000323357c0
+x22: 0000000000000000 x23: 0000000000004600
+x24: 00000000ffffff7f x25: 00000000323381d8
+x26: 000000003b3d1550 x27: 0000000000000005
+x28: 00000000323f2000 x29: 000000003231b1e0
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ platform/uboot/bootscript.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/platform/uboot/bootscript.cpp b/platform/uboot/bootscript.cpp
+index e9fa198..1e78b18 100644
+--- a/platform/uboot/bootscript.cpp
++++ b/platform/uboot/bootscript.cpp
+@@ -46,7 +46,7 @@ EXTENV(partitions, ";name=userdata,size=-,uuid=\${uuid_gpt_userdata}")
+ setenv bootargs " init=/init rootwait ro androidboot.boottime=223.708 androidboot.selinux=permissive"
+ EXTENV(bootargs, " androidboot.revision=1.0 androidboot.board_id=0x1234567 androidboot.serialno=${serial#}")
+ EXTENV(bootargs, " firmware_class.path=/vendor/etc/firmware")
+-EXTENV(bootargs, " ${debug_bootargs} printk.devkmsg=on quiet")
++EXTENV(bootargs, " ${debug_bootargs} printk.devkmsg=on quiet androidboot.workaround=is_here")
+ 
+ FUNC_BEGIN(enter_fastboot)
+ #ifdef PRE_ENTER_FASTBOOT
+-- 
+2.39.2
+
