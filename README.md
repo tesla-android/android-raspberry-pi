@@ -1,4 +1,4 @@
-# Android 13 for the Raspberry PI 4 series based on the GloDroid project
+# Android 14 for the Raspberry PI 4 series based on the GloDroid project
 
 [![GloDroid](https://img.shields.io/badge/GLODROID-PROJECT-blue)](https://github.com/GloDroid/glodroid_manifest)
 [![ProjectStatus](https://img.shields.io/badge/PROJECT-STATUS-yellowgreen)](https://github.com/GloDroidCommunity/raspberry-pi/issues/1)
