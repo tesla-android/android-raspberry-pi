@@ -14,7 +14,7 @@
   <remove-project name="platform/external/wpa_supplicant_8" />
 
   <project path="glodroid"                        remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="refs/tags/basedir-v0.9.0" />
-  <project path="glodroid/configuration"          remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="3af4141df41e5a504880b7dc823c4e0596626e06" />
+  <project path="glodroid/configuration"          remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="4f403afa7c75a79e608d5793e3cdf7fd8f8b5b07" />
 
   <project path="glodroid/apks"                   remote="glodroid" name="glodroid_external_apks.git" groups="glodroid" revision="refs/tags/apps-v0.8.2" />
 
