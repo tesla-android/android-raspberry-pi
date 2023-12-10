@@ -37,4 +37,6 @@ SYSFS_MMC0_PATH := emmc2bus/fe340000.mmc
 
 RPI_CONFIG := $(LOCAL_PATH)/boot/config.txt
 
+GD_NO_DEFAULT_MODEM := true
+
 $(call inherit-product, $(LOCAL_PATH)/device.mk)
