@@ -1,7 +1,7 @@
-From 62b6944405392cbe8cc2338fa140a5fdd1c4329b Mon Sep 17 00:00:00 2001
+From b21e33a6d53b523dbf225d22ae081371a28c582f Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Tue, 13 Jul 2021 13:25:31 +0300
-Subject: [PATCH 08/21] minigbm: Add gbm_mesa backend
+Subject: [PATCH 12/18] minigbm: Add gbm_mesa backend
 
 This is adaptation of the Rob Herring's gbm_gralloc HAL [1] to work
 as minigbm backend, optimised to work in modern Android conditions.
@@ -71,13 +71,13 @@ v5:
 Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
 Change-Id: If0f3dac42bea74f97a87e5a682380c33f4ff6837
 ---
- gbm_mesa_driver/UniqueFd.h             | 115 ++++++
- gbm_mesa_driver/gbm_mesa_driver.cpp    |  47 +++
- gbm_mesa_driver/gbm_mesa_internals.cpp | 523 +++++++++++++++++++++++++
+ gbm_mesa_driver/UniqueFd.h             | 115 +++++
+ gbm_mesa_driver/gbm_mesa_driver.cpp    |  42 ++
+ gbm_mesa_driver/gbm_mesa_internals.cpp | 583 +++++++++++++++++++++++++
  gbm_mesa_driver/gbm_mesa_internals.h   |  52 +++
- gbm_mesa_driver/gbm_mesa_wrapper.c     | 204 ++++++++++
+ gbm_mesa_driver/gbm_mesa_wrapper.c     | 208 +++++++++
  gbm_mesa_driver/gbm_mesa_wrapper.h     |  58 +++
- 6 files changed, 999 insertions(+)
+ 6 files changed, 1058 insertions(+)
  create mode 100644 gbm_mesa_driver/UniqueFd.h
  create mode 100644 gbm_mesa_driver/gbm_mesa_driver.cpp
  create mode 100644 gbm_mesa_driver/gbm_mesa_internals.cpp
@@ -208,10 +208,10 @@ index 0000000..d2de5fb
 +#endif
 diff --git a/gbm_mesa_driver/gbm_mesa_driver.cpp b/gbm_mesa_driver/gbm_mesa_driver.cpp
 new file mode 100644
-index 0000000..d2c6c7d
+index 0000000..9952c1d
 --- /dev/null
 +++ b/gbm_mesa_driver/gbm_mesa_driver.cpp
-@@ -0,0 +1,47 @@
+@@ -0,0 +1,42 @@
 +/*
 + * Copyright (C) 2021-2022 Roman Stratiienko (r.stratiienko@gmail.com)
 + *
@@ -237,11 +237,11 @@ index 0000000..d2c6c7d
 +extern "C" {
 +#endif
 +
-+struct backend gbm_mesa_backend = {
++struct backend backend_gbm_mesa = {
 +	.name = "gbm_mesa",
 +	.init = gbm_mesa_driver_init,
 +	.close = gbm_mesa_driver_close,
-+	.bo_create = gbm_mesa_bo_create,
++	.bo_create_v2 = gbm_mesa_bo_create2,
 +	.bo_destroy = gbm_mesa_bo_destroy,
 +	.bo_import = gbm_mesa_bo_import,
 +	.bo_map = gbm_mesa_bo_map,
@@ -251,20 +251,15 @@ index 0000000..d2c6c7d
 +	.resolve_format_and_use_flags = gbm_mesa_resolve_format_and_use_flags,
 +};
 +
-+struct backend *init_external_backend()
-+{
-+	return &gbm_mesa_backend;
-+}
-+
 +#ifdef __cplusplus
 +}
 +#endif
 diff --git a/gbm_mesa_driver/gbm_mesa_internals.cpp b/gbm_mesa_driver/gbm_mesa_internals.cpp
 new file mode 100644
-index 0000000..97d5257
+index 0000000..da278c9
 --- /dev/null
 +++ b/gbm_mesa_driver/gbm_mesa_internals.cpp
-@@ -0,0 +1,523 @@
+@@ -0,0 +1,583 @@
 +/*
 + * Copyright (C) 2021-2022 Roman Stratiienko (r.stratiienko@gmail.com)
 + *
@@ -315,8 +310,17 @@ index 0000000..97d5257
 +#include <xf86drm.h>
 +#include <xf86drmMode.h>
 +
++// PRIx64
++#include <inttypes.h>
++
++#ifndef EMBEDDED_GBM_WRAPPER
 +#define GBM_WRAPPER_NAME "libgbm_mesa_wrapper.so"
 +#define GBM_GET_OPS_SYMBOL "get_gbm_ops"
++#else
++extern "C" {
++struct gbm_ops *get_gbm_ops();
++}
++#endif
 +
 +void gbm_mesa_resolve_format_and_use_flags(struct driver *drv, uint32_t format, uint64_t use_flags,
 +					   uint32_t *out_format, uint64_t *out_use_flags)
@@ -343,49 +347,9 @@ index 0000000..97d5257
 +	}
 +}
 +
-+static const uint32_t scanout_render_formats[] = { DRM_FORMAT_ARGB8888, DRM_FORMAT_XRGB8888,
-+						   DRM_FORMAT_ABGR8888, DRM_FORMAT_XBGR8888,
-+						   DRM_FORMAT_RGB565 };
-+
-+static const uint32_t texture_only_formats[] = { DRM_FORMAT_NV12, DRM_FORMAT_NV21,
-+						 DRM_FORMAT_YVU420, DRM_FORMAT_YVU420_ANDROID };
-+
-+static struct format_metadata linear_metadata = { 1, 0, DRM_FORMAT_MOD_LINEAR };
-+
 +int gbm_mesa_driver_init(struct driver *drv)
 +{
-+	drv_add_combinations(drv, scanout_render_formats, ARRAY_SIZE(scanout_render_formats),
-+			     &linear_metadata, BO_USE_RENDER_MASK | BO_USE_SCANOUT);
-+
-+	drv_add_combinations(drv, texture_only_formats, ARRAY_SIZE(texture_only_formats),
-+			     &linear_metadata, BO_USE_TEXTURE_MASK | BO_USE_SCANOUT);
-+
-+	drv_add_combination(drv, DRM_FORMAT_R8, &linear_metadata, BO_USE_SW_MASK | BO_USE_LINEAR);
-+
-+	// Fixes android.hardware.cts.HardwareBufferTest#testCreate CTS test
-+	drv_add_combination(drv, DRM_FORMAT_BGR888, &linear_metadata, BO_USE_SW_MASK);
-+
-+	drv_modify_combination(drv, DRM_FORMAT_NV12, &linear_metadata,
-+			       BO_USE_HW_VIDEO_ENCODER | BO_USE_HW_VIDEO_DECODER |
-+				   BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE);
-+	drv_modify_combination(drv, DRM_FORMAT_NV21, &linear_metadata, BO_USE_HW_VIDEO_ENCODER);
-+
-+	/*
-+	 * R8 format is used for Android's HAL_PIXEL_FORMAT_BLOB and is used for JPEG snapshots
-+	 * from camera and input/output from hardware decoder/encoder.
-+	 */
-+	drv_modify_combination(drv, DRM_FORMAT_R8, &linear_metadata,
-+			       BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE | BO_USE_HW_VIDEO_DECODER |
-+				   BO_USE_HW_VIDEO_ENCODER);
-+
-+	/*
-+	 * Android also frequently requests YV12 formats for some camera implementations
-+	 * (including the external provider implmenetation).
-+	 */
-+	drv_modify_combination(drv, DRM_FORMAT_YVU420_ANDROID, &linear_metadata,
-+			       BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE);
-+
-+	return drv_modify_linear_combinations(drv);
++	return 0;
 +}
 +
 +struct GbmMesaDriver {
@@ -538,6 +502,7 @@ index 0000000..97d5257
 +			return nullptr;
 +		}
 +
++#ifndef EMBEDDED_GBM_WRAPPER
 +		gbm_mesa_drv->dl_handle = dlopen(GBM_WRAPPER_NAME, RTLD_NOW);
 +		if (gbm_mesa_drv->dl_handle == nullptr) {
 +			drv_loge("%s", dlerror());
@@ -551,6 +516,7 @@ index 0000000..97d5257
 +			drv_loge("Unable to find '%s' symbol", GBM_GET_OPS_SYMBOL);
 +			return nullptr;
 +		}
++#endif
 +
 +		gbm_mesa_drv->wrapper = get_gbm_ops();
 +		if (gbm_mesa_drv->wrapper == nullptr) {
@@ -598,9 +564,40 @@ index 0000000..97d5257
 +	struct gbm_bo *gbm_bo = nullptr;
 +};
 +
-+int gbm_mesa_bo_create(struct bo *bo, uint32_t width, uint32_t height, uint32_t format,
-+		       uint64_t use_flags)
++static bool unmask64(uint64_t *value, uint64_t mask)
 +{
++	if ((*value & mask) != 0) {
++		*value &= ~mask;
++		return true;
++	}
++	return false;
++}
++
++static const uint32_t supported_formats[] = {
++	DRM_FORMAT_ARGB8888,	   DRM_FORMAT_XRGB8888, DRM_FORMAT_ABGR8888, DRM_FORMAT_XBGR8888,
++	DRM_FORMAT_RGB565,	   DRM_FORMAT_BGR888,	DRM_FORMAT_NV12,     DRM_FORMAT_YVU420,
++	DRM_FORMAT_YVU420_ANDROID, DRM_FORMAT_R8,
++};
++
++static bool is_format_supported(uint32_t format)
++{
++	return std::find(std::begin(supported_formats), std::end(supported_formats), format) !=
++	       std::end(supported_formats);
++}
++
++int gbm_mesa_bo_create2(struct bo *bo, uint32_t width, uint32_t height, uint32_t format,
++			uint64_t use_flags, bool test_only)
++{
++	uint64_t use_flags_copy = use_flags;
++
++	/* Check if format is supported */
++	if (!is_format_supported(format)) {
++		char format_str[5] = { 0 };
++		memcpy(format_str, &format, 4);
++		drv_loge("Format %s is not supported", format_str);
++		return -EINVAL;
++	}
++
 +	/* For some ARM SOCs, if no more free CMA available, buffer can be allocated in VRAM but HWC
 +	 * won't be able to display it directly, using GPU for compositing */
 +	bool scanout_strong = false;
@@ -616,20 +613,22 @@ index 0000000..97d5257
 +
 +	auto wr = drv->wrapper;
 +
++	bool sw_mask = unmask64(&use_flags, BO_USE_SW_MASK);
++
 +	struct alloc_args alloc_args = {
 +		.gbm = drv->gbm_dev,
 +		.width = width,
 +		.height = height,
 +		.drm_format = wr->get_gbm_format(format) ? format : 0,
-+		.force_linear = (use_flags & BO_USE_SW_MASK) != 0,
-+		.needs_map_stride = (use_flags & BO_USE_SW_MASK) != 0,
-+		.use_scanout = (use_flags & BO_USE_SCANOUT) != 0,
++		.use_scanout = unmask64(&use_flags, BO_USE_SCANOUT | BO_USE_CURSOR),
++		.force_linear = sw_mask,
++		.needs_map_stride = sw_mask,
 +	};
 +
 +	/* Alignment for RPI4 CSI camera. Since we do not care about other cameras, keep this
 +	 * globally for now.
 +	 * TODO: Create/use constraints table for camera/codecs */
-+	if (use_flags & (BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE)) {
++	if (unmask64(&use_flags, BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE)) {
 +		scanout_strong = true;
 +		alloc_args.use_scanout = true;
 +		alloc_args.width = ALIGN(alloc_args.width, 32);
@@ -660,6 +659,19 @@ index 0000000..97d5257
 +			 alloc_args.height);
 +	}
 +
++	/* GBM API will always return a buffer that can be used by the GPU */
++	unmask64(&use_flags, BO_USE_CURSOR | BO_USE_TEXTURE | BO_USE_RENDERING);
++
++	if (use_flags != 0) {
++		char use_str[128] = { 0 };
++		drv_use_flags_to_string(use_flags, use_str, sizeof(use_str));
++		drv_loge("Unsupported use flags: %s", use_str);
++		return -EINVAL;
++	}
++
++	if (test_only)
++		return 0;
++
 +	err = wr->alloc(&alloc_args);
 +
 +	if (err && !scanout_strong) {
@@ -676,14 +688,20 @@ index 0000000..97d5257
 +	if (!bo_layout_ready)
 +		drv_bo_from_format(bo, alloc_args.out_stride, 1, alloc_args.height, format);
 +
-+	drv_logv("Allocated: %dx%d, stride: %d, map_stride: %d", width, height,
-+		 alloc_args.out_stride, alloc_args.out_map_stride);
++	char use_str[128];
++	use_str[0] = 0;
++
++	drv_use_flags_to_string(use_flags_copy, use_str, sizeof(use_str));
++	char format_str[5] = { 0 };
++	memcpy(format_str, &format, 4);
++
++	drv_logv("Allocate buffer: %s %dx%d, stride %d, total_size: %llu, use: %s", format_str,
++		 width, height, alloc_args.out_stride, bo->meta.total_size, use_str);
 +
 +	auto priv = new GbmMesaBoPriv();
 +	bo->inode = drv_get_inode(alloc_args.out_fd);
 +	for (size_t plane = 0; plane < bo->meta.num_planes; plane++) {
 +		priv->fds[plane] = UniqueFd(alloc_args.out_fd);
-+
 +	}
 +
 +	priv->map_stride = alloc_args.out_map_stride;
@@ -706,26 +724,48 @@ index 0000000..97d5257
 +		priv->fds[plane] = UniqueFd(dup(data->fds[plane]));
 +	}
 +
-+	if (data->use_flags & BO_USE_SW_MASK) {
-+		// Mapping require importing by gbm_mesa
-+		auto drv = gbm_mesa_get_or_init_driver(bo->drv, true);
-+		auto wr = drv->wrapper;
++	bo->priv = priv;
 +
-+		uint32_t s_format = data->format;
-+		int s_height = data->height;
-+		int s_width = data->width;
-+		if (wr->get_gbm_format(s_format) == 0) {
-+			s_width = bo->meta.total_size;
-+			s_height = 1;
-+			s_format = DRM_FORMAT_R8;
-+		}
++	/* Defer GBM import to gbm_mesa_bo_map */
++	return 0;
++}
 +
-+		priv->drv = drv;
-+		priv->gbm_bo = wr->import(drv->gbm_dev, data->fds[0], s_width, s_height,
-+					  data->strides[0], data->format_modifier, s_format);
++static int gbm_mesa_gbm_bo_import(struct bo *bo)
++{
++	auto priv = (GbmMesaBoPriv *)bo->priv;
++
++	auto drv = gbm_mesa_get_or_init_driver(bo->drv, true);
++	auto wr = drv->wrapper;
++
++	uint32_t s_format = bo->meta.format;
++	int s_height = bo->meta.height;
++	int s_width = bo->meta.width;
++	int s_stride = bo->meta.strides[0];
++	if (wr->get_gbm_format(s_format) == 0) {
++		s_width = bo->meta.total_size;
++		s_height = 1;
++		s_format = DRM_FORMAT_R8;
 +	}
 +
-+	bo->priv = priv;
++	if (s_format == DRM_FORMAT_R8 && s_height == 1) {
++		/* Some mesa drivers(lima) may not support large 1D buffers.
++		 * Use 2D texture (width=4096) instead.
++		 */
++		s_height = DIV_ROUND_UP(s_width, 4096);
++		s_width = s_stride = 4096;
++	}
++
++	priv->drv = drv;
++	int fd = priv->fds[0].Get();
++	priv->gbm_bo = wr->import(drv->gbm_dev, fd, s_width, s_height, s_stride,
++				  bo->meta.format_modifier, s_format);
++
++	if (!priv->gbm_bo) {
++		drv_loge("Failed to import buffer: %dx%d fd(%d), s_format(0x%x), "
++			 "modifier(0x%" PRIx64 "), stride(%d), into GBM",
++			 s_width, s_height, fd, s_format, bo->meta.format_modifier, s_stride);
++		return -EINVAL;
++	}
 +
 +	return 0;
 +}
@@ -746,13 +786,21 @@ index 0000000..97d5257
 +
 +void *gbm_mesa_bo_map(struct bo *bo, struct vma *vma, uint32_t map_flags)
 +{
++	if (!(bo->meta.use_flags & BO_USE_SW_MASK)) {
++		drv_loge("Can't map buffer without BO_USE_SW_MASK");
++		return MAP_FAILED;
++	}
++
++	auto priv = (GbmMesaBoPriv *)bo->priv;
++	if (!priv->gbm_bo) {
++		if (gbm_mesa_gbm_bo_import(bo) != 0)
++			return MAP_FAILED;
++	}
++
 +	auto drv = gbm_mesa_get_or_init_driver(bo->drv, true);
 +	auto wr = drv->wrapper;
 +
 +	vma->length = bo->meta.total_size;
-+
-+	auto priv = (GbmMesaBoPriv *)bo->priv;
-+	assert(priv->gbm_bo != nullptr);
 +
 +	void *buf = MAP_FAILED;
 +
@@ -771,12 +819,19 @@ index 0000000..97d5257
 +
 +int gbm_mesa_bo_unmap(struct bo *bo, struct vma *vma)
 +{
++	if (!(bo->meta.use_flags & BO_USE_SW_MASK)) {
++		drv_loge("Can't unmap buffer without BO_USE_SW_MASK");
++		return -EINVAL;
++	}
++
 +	auto drv = gbm_mesa_get_or_init_driver(bo->drv, true);
 +	auto wr = drv->wrapper;
 +
 +	auto priv = (GbmMesaBoPriv *)bo->priv;
-+	assert(priv->gbm_bo != nullptr);
-+	assert(vma->priv != nullptr);
++	if (vma->priv == nullptr || priv->gbm_bo == nullptr) {
++		drv_loge("Buffer internal state is invalid");
++		return -EINVAL;
++	}
 +	wr->unmap(priv->gbm_bo, vma->priv);
 +	vma->priv = nullptr;
 +	return 0;
@@ -790,7 +845,7 @@ index 0000000..97d5257
 +}
 diff --git a/gbm_mesa_driver/gbm_mesa_internals.h b/gbm_mesa_driver/gbm_mesa_internals.h
 new file mode 100644
-index 0000000..4a8ac9d
+index 0000000..119275e
 --- /dev/null
 +++ b/gbm_mesa_driver/gbm_mesa_internals.h
 @@ -0,0 +1,52 @@
@@ -834,8 +889,8 @@ index 0000000..4a8ac9d
 +void gbm_mesa_resolve_format_and_use_flags(struct driver *drv, uint32_t format, uint64_t use_flags,
 +					   uint32_t *out_format, uint64_t *out_use_flags);
 +
-+int gbm_mesa_bo_create(struct bo *bo, uint32_t width, uint32_t height, uint32_t format,
-+		       uint64_t use_flags);
++int gbm_mesa_bo_create2(struct bo *bo, uint32_t width, uint32_t height, uint32_t format,
++		        uint64_t use_flags, bool test_only);
 +
 +int gbm_mesa_bo_import(struct bo *bo, struct drv_import_fd_data *data);
 +
@@ -848,10 +903,10 @@ index 0000000..4a8ac9d
 +int gbm_mesa_bo_get_plane_fd(struct bo *bo, size_t plane);
 diff --git a/gbm_mesa_driver/gbm_mesa_wrapper.c b/gbm_mesa_driver/gbm_mesa_wrapper.c
 new file mode 100644
-index 0000000..6070431
+index 0000000..0c45bdd
 --- /dev/null
 +++ b/gbm_mesa_driver/gbm_mesa_wrapper.c
-@@ -0,0 +1,204 @@
+@@ -0,0 +1,208 @@
 +/*
 + * Copyright (C) 2021-2022 Roman Stratiienko (r.stratiienko@gmail.com)
 + *
@@ -962,9 +1017,12 @@ index 0000000..6070431
 +	/* Buffer is now handled through the system via out_fd, we can now destroy gbm_mesa bo */
 +	gbm_bo_destroy(bo);
 +
++#if defined(__x86_64__) || defined(__i386__)
 +	if (args->needs_map_stride) {
-+		/* At least on Intel and nouveau map_stride after gbm_create is different from
-+		 * map_stride after gbm_import, We care only about map_stride after importing. */
++		/* At least on Intel and nouveau the map_stride after calling gbm_create is
++		 * different from map_stride after calling gbm_import, We care only about map_stride
++		 * after importing. Issue does not affect arm systems. */
++
 +		struct gbm_import_fd_modifier_data data = {
 +			.width = args->width,
 +			.height = args->height,
@@ -995,6 +1053,7 @@ index 0000000..6070431
 +
 +		gbm_bo_destroy(bo);
 +	}
++#endif
 +
 +	return 0;
 +}

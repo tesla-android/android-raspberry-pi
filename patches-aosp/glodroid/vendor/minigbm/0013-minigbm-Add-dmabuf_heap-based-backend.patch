@@ -1,7 +1,7 @@
-From 88b2ce32d015ed339bdb7136ed418c9bf4483210 Mon Sep 17 00:00:00 2001
+From 3d744867852fa529a69ef9e9bfde2269f96ede96 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Wed, 23 Jun 2021 17:14:23 +0300
-Subject: [PATCH 09/21] minigbm: Add dmabuf_heap-based backend
+Subject: [PATCH 13/18] minigbm: Add dmabuf_heap-based backend
 
 WIP at this moment.
 Working on RPI4. (v3d+vc4).
@@ -9,12 +9,12 @@ Working on RPI4. (v3d+vc4).
 Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
 Change-Id: I517f095543b031e35f0d48bc03f6010a67012865
 ---
- dmabuf_driver/UniqueFd.h                 | 115 ++++++++++
+ dmabuf_driver/UniqueFd.h                 | 115 ++++++++
  dmabuf_driver/dma-heap.h                 |  33 +++
- dmabuf_driver/dmabuf_external_driver.cpp |  31 +++
- dmabuf_driver/dmabuf_internals.cpp       | 276 +++++++++++++++++++++++
+ dmabuf_driver/dmabuf_external_driver.cpp |  26 ++
+ dmabuf_driver/dmabuf_internals.cpp       | 336 +++++++++++++++++++++++
  dmabuf_driver/dmabuf_internals.h         |  36 +++
- 5 files changed, 491 insertions(+)
+ 5 files changed, 546 insertions(+)
  create mode 100644 dmabuf_driver/UniqueFd.h
  create mode 100644 dmabuf_driver/dma-heap.h
  create mode 100644 dmabuf_driver/dmabuf_external_driver.cpp
@@ -183,10 +183,10 @@ index 0000000..1f42e47
 +#endif
 diff --git a/dmabuf_driver/dmabuf_external_driver.cpp b/dmabuf_driver/dmabuf_external_driver.cpp
 new file mode 100644
-index 0000000..a50e2d3
+index 0000000..52f5802
 --- /dev/null
 +++ b/dmabuf_driver/dmabuf_external_driver.cpp
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,26 @@
 +#include "dmabuf_internals.h"
 +
 +#include "drv_priv.h"
@@ -196,11 +196,11 @@ index 0000000..a50e2d3
 +extern "C" {
 +#endif
 +
-+struct backend dmabuf_backend = {
++struct backend backend_dmabuf_heap = {
 +	.name = "dmabuf",
 +	.init = dmabuf_driver_init,
 +	.close = dmabuf_driver_close,
-+	.bo_create = dmabuf_bo_create,
++	.bo_create_v2 = dmabuf_bo_create2,
 +	.bo_destroy = dmabuf_bo_destroy,
 +	.bo_import = dmabuf_bo_import,
 +	.bo_map = dmabuf_bo_map,
@@ -210,20 +210,15 @@ index 0000000..a50e2d3
 +	.resolve_format_and_use_flags = dmabuf_resolve_format_and_use_flags,
 +};
 +
-+struct backend *init_external_backend(int *fd)
-+{
-+	return &dmabuf_backend;
-+}
-+
 +#ifdef __cplusplus
 +}
 +#endif
 diff --git a/dmabuf_driver/dmabuf_internals.cpp b/dmabuf_driver/dmabuf_internals.cpp
 new file mode 100644
-index 0000000..a14da3d
+index 0000000..a7e68cf
 --- /dev/null
 +++ b/dmabuf_driver/dmabuf_internals.cpp
-@@ -0,0 +1,276 @@
+@@ -0,0 +1,336 @@
 +#define LOG_TAG "DMABUF-GRALLOC"
 +
 +extern "C" {
@@ -278,54 +273,9 @@ index 0000000..a14da3d
 +	}
 +}
 +
-+static const uint32_t scanout_render_formats[] = { DRM_FORMAT_ARGB8888, DRM_FORMAT_XRGB8888,
-+						   DRM_FORMAT_ABGR8888, DRM_FORMAT_XBGR8888,
-+						   DRM_FORMAT_RGB565 };
-+
-+static const uint32_t texture_only_formats[] = { DRM_FORMAT_NV12, DRM_FORMAT_NV21,
-+						 DRM_FORMAT_YVU420, DRM_FORMAT_YVU420_ANDROID };
-+
-+static struct format_metadata linear_metadata = { 1, 0, DRM_FORMAT_MOD_LINEAR };
-+
 +int dmabuf_driver_init(struct driver *drv)
 +{
-+	// TODO
-+	/*
-+	 * in case no allocation needed (Mapper HAL), we do not need to
-+	 * waste a time to initialize the internals of the driver.
-+	 */
-+	drv_add_combinations(drv, scanout_render_formats, ARRAY_SIZE(scanout_render_formats),
-+			     &linear_metadata, BO_USE_RENDER_MASK | BO_USE_SCANOUT);
-+
-+	drv_add_combinations(drv, texture_only_formats, ARRAY_SIZE(texture_only_formats),
-+			     &linear_metadata, BO_USE_TEXTURE_MASK | BO_USE_SCANOUT);
-+
-+	drv_add_combination(drv, DRM_FORMAT_R8, &linear_metadata, BO_USE_SW_MASK | BO_USE_LINEAR);
-+
-+	// Fixes android.hardware.cts.HardwareBufferTest#testCreate CTS test
-+	drv_add_combination(drv, DRM_FORMAT_BGR888, &linear_metadata, BO_USE_SW_MASK);
-+
-+	drv_modify_combination(drv, DRM_FORMAT_NV12, &linear_metadata,
-+			       BO_USE_HW_VIDEO_ENCODER | BO_USE_HW_VIDEO_DECODER |
-+				   BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE);
-+	drv_modify_combination(drv, DRM_FORMAT_NV21, &linear_metadata, BO_USE_HW_VIDEO_ENCODER);
-+
-+	/*
-+	 * R8 format is used for Android's HAL_PIXEL_FORMAT_BLOB and is used for JPEG snapshots
-+	 * from camera and input/output from hardware decoder/encoder.
-+	 */
-+	drv_modify_combination(drv, DRM_FORMAT_R8, &linear_metadata,
-+			       BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE | BO_USE_HW_VIDEO_DECODER |
-+				   BO_USE_HW_VIDEO_ENCODER);
-+
-+	/*
-+	 * Android also frequently requests YV12 formats for some camera implementations
-+	 * (including the external provider implmenetation).
-+	 */
-+	drv_modify_combination(drv, DRM_FORMAT_YVU420_ANDROID, &linear_metadata,
-+			       BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE);
-+
-+	return drv_modify_linear_combinations(drv);
++	return 0;
 +}
 +
 +struct DmabufDriver {
@@ -390,28 +340,111 @@ index 0000000..a14da3d
 +	UniqueFd fds[DRV_MAX_PLANES];
 +};
 +
-+int dmabuf_bo_create(struct bo *bo, uint32_t width, uint32_t height, uint32_t format,
-+		     uint64_t use_flags)
++static bool unmask64(uint64_t *value, uint64_t mask)
++{
++	if ((*value & mask) != 0) {
++		*value &= ~mask;
++		return true;
++	}
++	return false;
++}
++
++static const uint32_t supported_formats[] = {
++	DRM_FORMAT_ARGB8888,	   DRM_FORMAT_XRGB8888, DRM_FORMAT_ABGR8888, DRM_FORMAT_XBGR8888,
++	DRM_FORMAT_RGB565,	   DRM_FORMAT_BGR888,	DRM_FORMAT_NV12,     DRM_FORMAT_YVU420,
++	DRM_FORMAT_YVU420_ANDROID, DRM_FORMAT_R8,
++};
++
++static bool is_format_supported(uint32_t format)
++{
++	return std::find(std::begin(supported_formats), std::end(supported_formats), format) !=
++	       std::end(supported_formats);
++}
++
++int dmabuf_bo_create2(struct bo *bo, uint32_t width, uint32_t height, uint32_t format,
++		      uint64_t use_flags, bool test_only)
 +{
 +	auto drv = dmabuf_get_or_init_driver(bo->drv);
++	uint64_t l_use_flags = use_flags;
++
++	/* Check if format is supported */
++	if (!is_format_supported(format)) {
++		char format_str[5] = { 0 };
++		memcpy(format_str, &format, 4);
++		drv_loge("Format %s is not supported", format_str);
++		return -EINVAL;
++	}
 +
 +	if (drv == nullptr)
 +		return -EINVAL;
 +
 +	int stride = drv_stride_from_format(format, width, 0);
++
++	bool force_cma = false;
++	int heap_fd = drv->system_heap_fd.Get();
++	uint32_t size_align = 4096;
++
++	bool sw_mask = unmask64(&l_use_flags, BO_USE_SW_MASK);
++
++	//	if (!(use_flags & BO_USE_SW_MASK))
++//	heap_fd = drv->system_heap_uncached_fd.Get();
++
++	if (unmask64(&l_use_flags, BO_USE_SCANOUT))
++		force_cma = true;
++
++	/* RPI4 camera over libcamera */
++	if (unmask64(&l_use_flags, BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE)) {
++		force_cma = true;
++		stride = ALIGN(stride, 32);
++		if (height > 1)
++			size_align = (ALIGN(width, 32) * ALIGN(height, 16) * 3) >> 1;
++	}
++
++	/* RPI4 hwcodecs */
++	if (unmask64(&l_use_flags, BO_USE_HW_VIDEO_DECODER | BO_USE_HW_VIDEO_ENCODER)) {
++		force_cma = true;
++		stride = ALIGN(stride, 32);
++		//				if (height > 1)
++		//					height = ALIGN(height, 16);
++		size_align = 4096;
++	}
++
++	/* On RPI4 the following flags fits any HEAP type */
++	unmask64(&l_use_flags, BO_USE_CURSOR | BO_USE_TEXTURE | BO_USE_RENDERING);
++
++	if (l_use_flags != 0) {
++		char use_str[128] = { 0 };
++		drv_use_flags_to_string(l_use_flags, use_str, sizeof(use_str));
++		drv_loge("Unsupported use flags: %s", use_str);
++		return -EINVAL;
++	}
++
++	if (test_only)
++		return 0;
++
++	if (force_cma)
++		heap_fd = drv->cma_heap_fd.Get();
++
++	if (!force_cma && !sw_mask) {
++		// TODO: GPU-only buffers can be made tiled, but calculations are too complex
++	}
++
 +	drv_bo_from_format(bo, stride, 1, height, format);
 +
 +	struct dma_heap_allocation_data heap_data {
-+		.len = bo->meta.total_size, .fd_flags = O_RDWR | O_CLOEXEC,
++		.len = ALIGN(bo->meta.total_size, size_align), .fd_flags = O_RDWR | O_CLOEXEC,
 +	};
 +
-+	int heap_fd = drv->system_heap_fd.Get();
++	char use_str[128];
++	use_str[0] = 0;
 +
-+	if (!(use_flags & BO_USE_SW_MASK))
-+		heap_fd = drv->system_heap_uncached_fd.Get();
++	drv_use_flags_to_string(use_flags, use_str, sizeof(use_str));
 +
-+	if (use_flags & BO_USE_SCANOUT)
-+		heap_fd = drv->cma_heap_fd.Get();
++	char format_str[5] = { 0 };
++	memcpy(format_str, &format, 4);
++
++	drv_logi("Allocate buffer, %s %dx%d, stride %d, total_size: %llu, use: %s", format_str,
++		 width, height, stride, heap_data.len, use_str);
 +
 +	int ret = ioctl(heap_fd, DMA_HEAP_IOCTL_ALLOC, &heap_data);
 +	if (ret) {
@@ -419,7 +452,17 @@ index 0000000..a14da3d
 +		return -errno;
 +	}
 +
++	use_str[0] = 0;
++	drv_use_flags_to_string_short(use_flags, use_str, sizeof(use_str));
 +	auto buf_fd = UniqueFd(heap_data.fd);
++
++	char dmabuf_name[128];
++	snprintf(dmabuf_name, sizeof(dmabuf_name), "%dx%d %c%c%c%c %s", width, height,
++		 format & 0x7f, (format >> 8) & 0x7f, (format >> 16) & 0x7f, (format >> 24) & 0x7f,
++		 use_str);
++	ret = ioctl(buf_fd.Get(), DMA_BUF_SET_NAME, dmabuf_name);
++	if (ret)
++		drv_loge("DMA_BUF_SET_NAME failed");
 +
 +	auto priv = new DmabufBoPriv();
 +	bo->inode = drv_get_inode(buf_fd.Get());
@@ -476,11 +519,23 @@ index 0000000..a14da3d
 +		return buf;
 +	}
 +
++	struct dma_buf_sync sync = { .flags = DMA_BUF_SYNC_START | DMA_BUF_SYNC_RW };
++	int ret = ioctl(priv->fds[0].Get(), DMA_BUF_IOCTL_SYNC, &sync);
++	if (ret)
++		drv_loge("DMA_BUF_IOCTL_SYNC DMA_BUF_SYNC_START failed");
++
 +	return buf;
 +}
 +
 +int dmabuf_bo_unmap(struct bo *bo, struct vma *vma)
 +{
++	auto priv = (DmabufBoPriv *)bo->priv;
++
++	struct dma_buf_sync sync = { .flags = DMA_BUF_SYNC_END | DMA_BUF_SYNC_RW };
++	int ret = ioctl(priv->fds[0].Get(), DMA_BUF_IOCTL_SYNC, &sync);
++	if (ret)
++		drv_loge("DMA_BUF_IOCTL_SYNC DMA_BUF_SYNC_END failed");
++
 +	return munmap(vma->addr, vma->length);
 +}
 +
@@ -502,7 +557,7 @@ index 0000000..a14da3d
 +}
 diff --git a/dmabuf_driver/dmabuf_internals.h b/dmabuf_driver/dmabuf_internals.h
 new file mode 100644
-index 0000000..2b96107
+index 0000000..62db751
 --- /dev/null
 +++ b/dmabuf_driver/dmabuf_internals.h
 @@ -0,0 +1,36 @@
@@ -530,8 +585,8 @@ index 0000000..2b96107
 +void dmabuf_resolve_format_and_use_flags(struct driver *drv, uint32_t format, uint64_t use_flags,
 +					 uint32_t *out_format, uint64_t *out_use_flags);
 +
-+int dmabuf_bo_create(struct bo *bo, uint32_t width, uint32_t height, uint32_t format,
-+		     uint64_t use_flags);
++int dmabuf_bo_create2(struct bo *bo, uint32_t width, uint32_t height, uint32_t format,
++		      uint64_t use_flags, bool test_only);
 +
 +int dmabuf_bo_import(struct bo *bo, struct drv_import_fd_data *data);
 +

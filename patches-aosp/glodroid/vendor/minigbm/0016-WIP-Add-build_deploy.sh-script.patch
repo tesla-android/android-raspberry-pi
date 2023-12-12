@@ -1,7 +1,7 @@
-From 4c081893e68fda95006379e174444ae1693dfa65 Mon Sep 17 00:00:00 2001
+From 05254efbfba40787c5fe6e5f59241718d1a8662d Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Thu, 22 Dec 2022 21:52:47 +0200
-Subject: [PATCH 14/21] WIP: Add build_deploy.sh script
+Subject: [PATCH 16/18] WIP: Add build_deploy.sh script
 
 Works from obj/AOSPEXT/MINIGBM directory
 
@@ -14,7 +14,7 @@ Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
 
 diff --git a/build_deploy.sh b/build_deploy.sh
 new file mode 100755
-index 0000000..cebbe88
+index 0000000..102fbe9
 --- /dev/null
 +++ b/build_deploy.sh
 @@ -0,0 +1,16 @@
@@ -30,11 +30,10 @@ index 0000000..cebbe88
 +adb push ./install/vendor/lib64/hw/gralloc.minigbm_gd.so /vendor/lib64/hw/
 +adb push ./install/vendor/lib64/hw/android.hardware.graphics.mapper@4.0-impl.minigbm_gd.so /vendor/lib64/hw/
 +
-+adb shell stop 
++adb shell stop
 +adb shell stop vendor.graphics.allocator-4-0
 +adb shell start vendor.graphics.allocator-4-0
 +adb shell start
-\ No newline at end of file
 -- 
 2.39.2
 

@@ -1,7 +1,7 @@
-From beec188cef5eeeb4bdf117dcda986e1f37ce0492 Mon Sep 17 00:00:00 2001
+From 31f412a235a5643704acec6f28f2549aa82cd16f Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Wed, 23 Jun 2021 17:12:00 +0300
-Subject: [PATCH 05/21] minigbm: Add const to the backend::name
+Subject: [PATCH 06/18] minigbm: Add const to the backend::name
 
 ... to avoid compile-time error on C++:
 
@@ -15,10 +15,10 @@ Change-Id: I176eb657f72e92d6b5c7c3b25c78c56f776c20ab
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/drv_priv.h b/drv_priv.h
-index 5ec9fe7..fceffc0 100644
+index f385413..07c5000 100644
 --- a/drv_priv.h
 +++ b/drv_priv.h
-@@ -75,7 +75,7 @@ struct driver {
+@@ -76,7 +76,7 @@ struct driver {
  };
  
  struct backend {

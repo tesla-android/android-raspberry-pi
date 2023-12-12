@@ -1,7 +1,7 @@
-From d91fa235b2b78506124f2ee968f2ec3d67828421 Mon Sep 17 00:00:00 2001
+From 880c0fb51b4c03991cb4d090037890724b2559b1 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Sun, 2 Oct 2022 17:14:06 +0300
-Subject: [PATCH 02/21] minigbm: Use dmabuf inode as unique buffer id instead
+Subject: [PATCH 03/18] minigbm: Use dmabuf inode as unique buffer id instead
  of handle
 
 Handle has some limits and can't be used as unique buffer ID on systems
@@ -29,10 +29,10 @@ Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
  6 files changed, 41 insertions(+), 16 deletions(-)
 
 diff --git a/drv.c b/drv.c
-index 11729d8..52abe26 100644
+index d238122..4c40412 100644
 --- a/drv.c
 +++ b/drv.c
-@@ -250,7 +250,7 @@ static void drv_bo_mapping_destroy(struct bo *bo)
+@@ -255,7 +255,7 @@ static void drv_bo_mapping_destroy(struct bo *bo)
  		while (idx < drv_array_size(drv->mappings)) {
  			struct mapping *mapping =
  			    (struct mapping *)drv_array_at_idx(drv->mappings, idx);
@@ -41,7 +41,7 @@ index 11729d8..52abe26 100644
  				idx++;
  				continue;
  			}
-@@ -284,11 +284,16 @@ static void drv_bo_acquire(struct bo *bo)
+@@ -289,11 +289,16 @@ static void drv_bo_acquire(struct bo *bo)
  	pthread_mutex_lock(&drv->buffer_table_lock);
  	for (size_t plane = 0; plane < bo->meta.num_planes; plane++) {
  		uintptr_t num = 0;
@@ -61,7 +61,7 @@ index 11729d8..52abe26 100644
  	}
  	pthread_mutex_unlock(&drv->buffer_table_lock);
  }
-@@ -307,18 +312,18 @@ static bool drv_bo_release(struct bo *bo)
+@@ -312,18 +317,18 @@ static bool drv_bo_release(struct bo *bo)
  
  	pthread_mutex_lock(&drv->buffer_table_lock);
  	for (size_t plane = 0; plane < bo->meta.num_planes; plane++) {
@@ -84,7 +84,7 @@ index 11729d8..52abe26 100644
  			/* num is positive if found in the hashmap. */
  			pthread_mutex_unlock(&drv->buffer_table_lock);
  			return false;
-@@ -430,6 +435,8 @@ struct bo *drv_bo_import(struct driver *drv, struct drv_import_fd_data *data)
+@@ -441,6 +446,8 @@ struct bo *drv_bo_import(struct driver *drv, struct drv_import_fd_data *data)
  		return NULL;
  	}
  
@@ -93,15 +93,6 @@ index 11729d8..52abe26 100644
  	drv_bo_acquire(bo);
  
  	bo->meta.format_modifier = data->format_modifier;
-@@ -490,7 +497,7 @@ void *drv_bo_map(struct bo *bo, const struct rectangle *rect, uint32_t map_flags
- 
- 	for (i = 0; i < drv_array_size(drv->mappings); i++) {
- 		struct mapping *prior = (struct mapping *)drv_array_at_idx(drv->mappings, i);
--		if (prior->vma->handle != bo->handle.u32 || prior->vma->map_flags != map_flags)
-+		if (prior->vma->inode != bo->inode || prior->vma->map_flags != map_flags)
- 			continue;
- 
- 		if (rect->x != prior->rect.x || rect->y != prior->rect.y ||
 @@ -504,7 +511,7 @@ void *drv_bo_map(struct bo *bo, const struct rectangle *rect, uint32_t map_flags
  
  	for (i = 0; i < drv_array_size(drv->mappings); i++) {
@@ -110,8 +101,17 @@ index 11729d8..52abe26 100644
 +		if (prior->vma->inode != bo->inode || prior->vma->map_flags != map_flags)
  			continue;
  
+ 		if (rect->x != prior->rect.x || rect->y != prior->rect.y ||
+@@ -518,7 +525,7 @@ void *drv_bo_map(struct bo *bo, const struct rectangle *rect, uint32_t map_flags
+ 
+ 	for (i = 0; i < drv_array_size(drv->mappings); i++) {
+ 		struct mapping *prior = (struct mapping *)drv_array_at_idx(drv->mappings, i);
+-		if (prior->vma->handle != bo->handle.u32 || prior->vma->map_flags != map_flags)
++		if (prior->vma->inode != bo->inode || prior->vma->map_flags != map_flags)
+ 			continue;
+ 
  		prior->vma->refcount++;
-@@ -530,7 +537,7 @@ void *drv_bo_map(struct bo *bo, const struct rectangle *rect, uint32_t map_flags
+@@ -544,7 +551,7 @@ void *drv_bo_map(struct bo *bo, const struct rectangle *rect, uint32_t map_flags
  
  	mapping.vma->refcount = 1;
  	mapping.vma->addr = addr;
@@ -121,10 +121,10 @@ index 11729d8..52abe26 100644
  
  success:
 diff --git a/drv.h b/drv.h
-index badc9fc..24087f7 100644
+index a6e602b..fc389c1 100644
 --- a/drv.h
 +++ b/drv.h
-@@ -111,7 +111,8 @@ struct drv_import_fd_data {
+@@ -126,7 +126,8 @@ struct drv_import_fd_data {
  struct vma {
  	void *addr;
  	size_t length;
@@ -135,7 +135,7 @@ index badc9fc..24087f7 100644
  	int32_t refcount;
  	uint32_t map_strides[DRV_MAX_PLANES];
 diff --git a/drv_helpers.c b/drv_helpers.c
-index 1c4071a..44f6e1d 100644
+index c810d8e..83d5ac0 100644
 --- a/drv_helpers.c
 +++ b/drv_helpers.c
 @@ -12,6 +12,7 @@
@@ -146,11 +146,10 @@ index 1c4071a..44f6e1d 100644
  #include <sys/types.h>
  #include <unistd.h>
  #include <xf86drm.h>
-@@ -611,3 +612,15 @@ void drv_resolve_format_and_use_flags_helper(struct driver *drv, uint32_t format
- 		break;
+@@ -616,6 +617,18 @@ void drv_resolve_format_and_use_flags_helper(struct driver *drv, uint32_t format
  	}
  }
-+
+ 
 +uint32_t drv_get_inode(int dmabuf_fd)
 +{
 +	struct stat sb = { 0 };
@@ -162,19 +161,25 @@ index 1c4071a..44f6e1d 100644
 +
 +	return sb.st_ino;
 +}
++
+ const char *drv_get_os_option(const char *name)
+ {
+ 	const char *ret = getenv(name);
 diff --git a/drv_helpers.h b/drv_helpers.h
-index 0ea9ba9..5286e8c 100644
+index 873bd08..6b315cf 100644
 --- a/drv_helpers.h
 +++ b/drv_helpers.h
-@@ -50,4 +50,6 @@ void drv_resolve_format_and_use_flags_helper(struct driver *drv, uint32_t format
+@@ -51,6 +51,8 @@ void drv_resolve_format_and_use_flags_helper(struct driver *drv, uint32_t format
  					     uint64_t use_flags, uint32_t *out_format,
  					     uint64_t *out_use_flags);
  
 +uint32_t drv_get_inode(int dmabuf_fd);
 +
- #endif
+ /*
+  * Get an option. Should return NULL if specified option is not set.
+  */
 diff --git a/drv_priv.h b/drv_priv.h
-index d9888d0..b2ca418 100644
+index a4f950b..6c6bc4c 100644
 --- a/drv_priv.h
 +++ b/drv_priv.h
 @@ -44,7 +44,9 @@ struct bo {
@@ -188,10 +193,10 @@ index d9888d0..b2ca418 100644
  };
  
 diff --git a/virtgpu_virgl.c b/virtgpu_virgl.c
-index 34b143c..510b1c9 100644
+index e47ce1e..fbe4ea1 100644
 --- a/virtgpu_virgl.c
 +++ b/virtgpu_virgl.c
-@@ -869,7 +869,7 @@ static int virgl_bo_invalidate(struct bo *bo, struct mapping *mapping)
+@@ -1021,7 +1021,7 @@ static int virgl_bo_invalidate(struct bo *bo, struct mapping *mapping)
  	if (params[param_resource_blob].value && (bo->meta.tiling & VIRTGPU_BLOB_FLAG_USE_MAPPABLE))
  		return 0;
  
@@ -200,7 +205,7 @@ index 34b143c..510b1c9 100644
  
  	if (mapping->rect.x || mapping->rect.y) {
  		/*
-@@ -923,7 +923,7 @@ static int virgl_bo_invalidate(struct bo *bo, struct mapping *mapping)
+@@ -1075,7 +1075,7 @@ static int virgl_bo_invalidate(struct bo *bo, struct mapping *mapping)
  	// The transfer needs to complete before invalidate returns so that any host changes
  	// are visible and to ensure the host doesn't overwrite subsequent guest changes.
  	// TODO(b/136733358): Support returning fences from transfers
@@ -209,7 +214,7 @@ index 34b143c..510b1c9 100644
  	ret = drmIoctl(bo->drv->fd, DRM_IOCTL_VIRTGPU_WAIT, &waitcmd);
  	if (ret) {
  		drv_loge("DRM_IOCTL_VIRTGPU_WAIT failed with %s\n", strerror(errno));
-@@ -951,7 +951,7 @@ static int virgl_bo_flush(struct bo *bo, struct mapping *mapping)
+@@ -1103,7 +1103,7 @@ static int virgl_bo_flush(struct bo *bo, struct mapping *mapping)
  	if (params[param_resource_blob].value && (bo->meta.tiling & VIRTGPU_BLOB_FLAG_USE_MAPPABLE))
  		return 0;
  
@@ -218,7 +223,7 @@ index 34b143c..510b1c9 100644
  
  	if (mapping->rect.x || mapping->rect.y) {
  		/*
-@@ -1001,7 +1001,7 @@ static int virgl_bo_flush(struct bo *bo, struct mapping *mapping)
+@@ -1153,7 +1153,7 @@ static int virgl_bo_flush(struct bo *bo, struct mapping *mapping)
  	// buffer, we need to wait for the transfer to complete for consistency.
  	// TODO(b/136733358): Support returning fences from transfers
  	if (bo->meta.use_flags & BO_USE_NON_GPU_HW) {

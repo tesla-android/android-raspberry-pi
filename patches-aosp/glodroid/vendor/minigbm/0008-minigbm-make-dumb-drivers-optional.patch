@@ -1,7 +1,7 @@
-From 5b55893855e7ef3b91699467fd892e80b7a0f37c Mon Sep 17 00:00:00 2001
+From e13b5b2b371b54f02e869b94f8c1f8d923686621 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Thu, 22 Dec 2022 21:51:35 +0200
-Subject: [PATCH 13/21] minigbm: make dumb drivers optional
+Subject: [PATCH 08/18] minigbm: make dumb drivers optional
 
 Change-Id: Ie668d4a9d8f18ff1f885979ebe1dcd0a7646fda2
 Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
@@ -10,10 +10,10 @@ Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
  1 file changed, 4 insertions(+)
 
 diff --git a/drv.c b/drv.c
-index 50f6b10..8aec66b 100644
+index d942960..46910d6 100644
 --- a/drv.c
 +++ b/drv.c
-@@ -44,6 +44,7 @@ extern const struct backend backend_vc4;
+@@ -51,6 +51,7 @@ extern const struct backend backend_vc4;
  #endif
  
  // Dumb / generic drivers
@@ -21,7 +21,7 @@ index 50f6b10..8aec66b 100644
  extern const struct backend backend_evdi;
  extern const struct backend backend_marvell;
  extern const struct backend backend_mediatek;
-@@ -57,6 +58,7 @@ extern const struct backend backend_synaptics;
+@@ -64,6 +65,7 @@ extern const struct backend backend_synaptics;
  extern const struct backend backend_virtgpu;
  extern const struct backend backend_udl;
  extern const struct backend backend_vkms;
@@ -29,7 +29,7 @@ index 50f6b10..8aec66b 100644
  
  static const struct backend *drv_backend_list[] = {
  #ifdef DRV_AMDGPU
-@@ -71,10 +73,12 @@ static const struct backend *drv_backend_list[] = {
+@@ -78,10 +80,12 @@ static const struct backend *drv_backend_list[] = {
  #ifdef DRV_VC4
  	&backend_vc4,
  #endif

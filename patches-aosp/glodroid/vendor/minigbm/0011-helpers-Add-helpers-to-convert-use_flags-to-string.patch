@@ -1,7 +1,7 @@
-From 0511302473e9163fa9ed7eca1a374c1b07efa824 Mon Sep 17 00:00:00 2001
+From 712c83d7cadd85d6f69aab0831afbf5c8a6f5d4d Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Sun, 25 Sep 2022 19:22:53 +0300
-Subject: [PATCH 16/21] helpers: Add helpers to convert use_flags to string
+Subject: [PATCH 11/18] helpers: Add helpers to convert use_flags to string
 
 Change-Id: Icce8164cde8da483d683c06a4936ffde05b6f515
 Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
@@ -11,12 +11,12 @@ Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
  2 files changed, 52 insertions(+)
 
 diff --git a/drv_helpers.c b/drv_helpers.c
-index 44f6e1d..2499cdc 100644
+index 83d5ac0..03808e5 100644
 --- a/drv_helpers.c
 +++ b/drv_helpers.c
-@@ -624,3 +624,52 @@ uint32_t drv_get_inode(int dmabuf_fd)
- 
- 	return sb.st_ino;
+@@ -691,3 +691,52 @@ void lru_init(struct lru *lru, int max)
+ 	lru->count = 0;
+ 	lru->max = max;
  }
 +
 +#define FLAG_TO_STR(flag, str)                                                                     \
@@ -68,12 +68,12 @@ index 44f6e1d..2499cdc 100644
 +	return 0;
 +}
 diff --git a/drv_helpers.h b/drv_helpers.h
-index 5286e8c..0684605 100644
+index 6b315cf..35c2969 100644
 --- a/drv_helpers.h
 +++ b/drv_helpers.h
-@@ -52,4 +52,7 @@ void drv_resolve_format_and_use_flags_helper(struct driver *drv, uint32_t format
- 
- uint32_t drv_get_inode(int dmabuf_fd);
+@@ -74,4 +74,7 @@ struct lru_entry *lru_find(struct lru *lru, bool (*eq)(struct lru_entry *e, void
+ void lru_insert(struct lru *lru, struct lru_entry *entry);
+ void lru_init(struct lru *lru, int max);
  
 +int drv_use_flags_to_string(int use_flags, char *out, int max_len);
 +int drv_use_flags_to_string_short(int use_flags, char *out, int max_len);

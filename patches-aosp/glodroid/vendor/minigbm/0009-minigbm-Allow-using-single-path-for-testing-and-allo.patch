@@ -1,7 +1,7 @@
-From a0ae3de35cd8c0d0cca443eeac4cfa13534a821e Mon Sep 17 00:00:00 2001
+From d4a8f06e1e942dc218ff448135cb6344677a9c04 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Thu, 22 Dec 2022 13:31:15 +0200
-Subject: [PATCH 07/21] minigbm: Allow using single path for testing and
+Subject: [PATCH 09/18] minigbm: Allow using single path for testing and
  allocation
 
 At this moment minigbm require 2 separate logic to be implemented by the
@@ -39,18 +39,15 @@ Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
  5 files changed, 41 insertions(+), 19 deletions(-)
 
 diff --git a/cros_gralloc/cros_gralloc_driver.cc b/cros_gralloc/cros_gralloc_driver.cc
-index 3c093c7..ba4bfce 100644
+index 2d0ac32..f7c6c93 100644
 --- a/cros_gralloc/cros_gralloc_driver.cc
 +++ b/cros_gralloc/cros_gralloc_driver.cc
-@@ -189,6 +189,7 @@ bool cros_gralloc_driver::get_resolved_format_and_use_flags(
+@@ -188,10 +188,22 @@ bool cros_gralloc_driver::get_resolved_format_and_use_flags(
  	uint32_t resolved_format;
  	uint64_t resolved_use_flags;
  	struct combination *combo;
 +	int ret = 0;
  
- 	if (mt8183_camera_quirk_ && (descriptor->use_flags & BO_USE_CAMERA_READ) &&
- 	    !(descriptor->use_flags & BO_USE_SCANOUT) &&
-@@ -201,6 +202,17 @@ bool cros_gralloc_driver::get_resolved_format_and_use_flags(
  	drv_resolve_format_and_use_flags(drv_.get(), descriptor->drm_format, descriptor->use_flags,
  					 &resolved_format, &resolved_use_flags);
  
@@ -68,7 +65,7 @@ index 3c093c7..ba4bfce 100644
  	combo = drv_get_combination(drv_.get(), resolved_format, resolved_use_flags);
  	if (!combo && (descriptor->droid_usage & GRALLOC_USAGE_HW_VIDEO_ENCODER) &&
  	    descriptor->droid_format != HAL_PIXEL_FORMAT_YCbCr_420_888) {
-@@ -276,11 +288,11 @@ int32_t cros_gralloc_driver::allocate(const struct cros_gralloc_buffer_descripto
+@@ -267,11 +279,11 @@ int32_t cros_gralloc_driver::allocate(const struct cros_gralloc_buffer_descripto
  		return -EINVAL;
  	}
  
@@ -85,10 +82,10 @@ index 3c093c7..ba4bfce 100644
  
  	num_planes = drv_bo_get_num_planes(bo);
 diff --git a/drv.c b/drv.c
-index 8ac51ff..bd27ac3 100644
+index 46910d6..078c23d 100644
 --- a/drv.c
 +++ b/drv.c
-@@ -344,10 +344,10 @@ static bool drv_bo_release(struct bo *bo)
+@@ -353,10 +353,10 @@ static bool drv_bo_release(struct bo *bo)
  	return true;
  }
  
@@ -102,7 +99,7 @@ index 8ac51ff..bd27ac3 100644
  	struct bo *bo;
  	bool is_test_alloc;
  
-@@ -357,10 +357,15 @@ struct bo *drv_bo_create(struct driver *drv, uint32_t width, uint32_t height, ui
+@@ -366,10 +366,15 @@ struct bo *drv_bo_create(struct driver *drv, uint32_t width, uint32_t height, ui
  	bo = drv_bo_new(drv, width, height, format, use_flags, is_test_alloc);
  
  	if (!bo)
@@ -122,7 +119,7 @@ index 8ac51ff..bd27ac3 100644
  		ret = drv->backend->bo_compute_metadata(bo, width, height, format, use_flags, NULL,
  							0);
  		if (!is_test_alloc && ret == 0)
-@@ -369,15 +374,15 @@ struct bo *drv_bo_create(struct driver *drv, uint32_t width, uint32_t height, ui
+@@ -378,10 +383,9 @@ struct bo *drv_bo_create(struct driver *drv, uint32_t width, uint32_t height, ui
  		ret = drv->backend->bo_create(bo, width, height, format, use_flags);
  	}
  
@@ -135,6 +132,9 @@ index 8ac51ff..bd27ac3 100644
  	}
  
  	drv_bo_acquire(bo);
+@@ -389,7 +393,8 @@ struct bo *drv_bo_create(struct driver *drv, uint32_t width, uint32_t height, ui
+ 	if (drv->log_bos)
+ 		drv_bo_log_info(bo, "legacy created");
  
 -	return bo;
 +	*out_bo = bo;
@@ -143,10 +143,10 @@ index 8ac51ff..bd27ac3 100644
  
  struct bo *drv_bo_create_with_modifiers(struct driver *drv, uint32_t width, uint32_t height,
 diff --git a/drv.h b/drv.h
-index 9852cf2..af1dc92 100644
+index 777a767..1beadf3 100644
 --- a/drv.h
 +++ b/drv.h
-@@ -147,8 +147,8 @@ struct combination *drv_get_combination(struct driver *drv, uint32_t format, uin
+@@ -162,8 +162,8 @@ struct combination *drv_get_combination(struct driver *drv, uint32_t format, uin
  struct bo *drv_bo_new(struct driver *drv, uint32_t width, uint32_t height, uint32_t format,
  		      uint64_t use_flags, bool is_test_buffer);
  
@@ -158,10 +158,10 @@ index 9852cf2..af1dc92 100644
  struct bo *drv_bo_create_with_modifiers(struct driver *drv, uint32_t width, uint32_t height,
  					uint32_t format, const uint64_t *modifiers, uint32_t count);
 diff --git a/drv_priv.h b/drv_priv.h
-index db61583..f4d5c02 100644
+index 424b358..57aeb6f 100644
 --- a/drv_priv.h
 +++ b/drv_priv.h
-@@ -81,6 +81,8 @@ struct backend {
+@@ -82,6 +82,8 @@ struct backend {
  	void (*close)(struct driver *drv);
  	int (*bo_create)(struct bo *bo, uint32_t width, uint32_t height, uint32_t format,
  			 uint64_t use_flags);

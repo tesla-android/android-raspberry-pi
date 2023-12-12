@@ -14,12 +14,12 @@
   <remove-project name="platform/external/wpa_supplicant_8" />
 
   <project path="glodroid"                        remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="refs/tags/basedir-v0.9.0" />
-  <project path="glodroid/configuration"          remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="4f403afa7c75a79e608d5793e3cdf7fd8f8b5b07" />
+  <project path="glodroid/configuration"          remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="65de01e8fbeaa87d485e7f0eadc19212fccf4b6b" />
 
   <project path="glodroid/apks"                   remote="glodroid" name="glodroid_external_apks.git" groups="glodroid" revision="refs/tags/apps-v0.8.2" />
 
   <!-- gpu+display components (vendor) -->
-  <project path="glodroid/vendor/minigbm"         remote="aosp" name="platform/external/minigbm"        groups="glodroid" revision="84b3a09ef0e620c1b2ec19c7626c327e68a847bc" />
+  <project path="glodroid/vendor/minigbm"         remote="aosp" name="platform/external/minigbm"        groups="glodroid" revision="6a402a9d24b4f9b44b2812850f11ba906418398d" />
   <project path="glodroid/vendor/drm_hwcomposer"  remote="aosp" name="platform/external/drm_hwcomposer" groups="glodroid" revision="5de61b5e4fbf43b78b605dab68465aa6722930c4" />
   <project path="glodroid/vendor/mesa3d"          remote="aosp" name="platform/external/mesa3d"         groups="glodroid" revision="9b0960cfe39414815b1dc5a786e6312639f49352" />
 
@@ -35,7 +35,7 @@
   <project path="glodroid/vendor/v4l2_codec2" remote="aosp" name="platform/external/v4l2_codec2" groups="glodroid" revision="6a3ebb9202e41f53c2826fb757b869ade5b1e77f" />
 
   <!-- other components (vendor) -->
-  <project path="glodroid/vendor/aospext"         remote="glodroid" name="aospext.git"        groups="glodroid" revision="b57cd19c2454d1b260c6c9b02575bb423e659321" />
+  <project path="glodroid/vendor/aospext"         remote="glodroid" name="aospext.git"        groups="glodroid" revision="4c5a5d5fd52c6d7626f615714928435df45aabcd" />
   <project path="glodroid/vendor/iio-sensors-hal" remote="glodroid" name="glodroid_forks.git" groups="glodroid" revision="refs/tags/iio-sensors-hal-v0.9.0" />
   <project path="glodroid/vendor/tinyhal"         remote="github"   name="CirrusLogic/tinyhal.git" groups="glodroid" revision="9c5df120b33ca51f05d4f997da659111ab63498e" />
   <project path="glodroid/vendor/libudev-zero"    remote="glodroid" name="glodroid_forks.git" groups="glodroid" revision="refs/tags/libudev_zero-v0.8.2" />

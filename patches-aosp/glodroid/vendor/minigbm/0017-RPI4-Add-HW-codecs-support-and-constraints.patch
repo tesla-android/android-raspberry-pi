@@ -1,7 +1,7 @@
-From b0ab280b323c7d9e1531950ca338aef632fe3738 Mon Sep 17 00:00:00 2001
+From 5b1c648ca57a6a37b5b20d271ce4288dfe682ad7 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Sun, 1 Oct 2023 16:17:17 +0300
-Subject: [PATCH 21/21] RPI4: Add HW codecs support and constraints
+Subject: [PATCH 17/18] RPI4: Add HW codecs support and constraints
 
 Change-Id: I8cd8eef9237268ce6945d3153542eedb506614a9
 Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
@@ -10,7 +10,7 @@ Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
  1 file changed, 10 insertions(+)
 
 diff --git a/gbm_mesa_driver/gbm_mesa_internals.cpp b/gbm_mesa_driver/gbm_mesa_internals.cpp
-index 184ba69..cdccd66 100644
+index da278c9..f26f533 100644
 --- a/gbm_mesa_driver/gbm_mesa_internals.cpp
 +++ b/gbm_mesa_driver/gbm_mesa_internals.cpp
 @@ -373,6 +373,16 @@ int gbm_mesa_bo_create2(struct bo *bo, uint32_t width, uint32_t height, uint32_t
