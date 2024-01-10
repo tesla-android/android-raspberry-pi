@@ -26,7 +26,7 @@ UBOOT_DEFCONFIG := rpi_4_defconfig
 ATF_PLAT        := rpi4
 
 KERNEL_SRC       := glodroid/kernel/broadcom
-KERNEL_DEFCONFIG := $(KERNEL_SRC)/arch/arm64/configs/bcm2711_defconfig
+KERNEL_DEFCONFIG := $(KERNEL_SRC)/arch/arm64/configs/android_rpi4_defconfig
 
 KERNEL_FRAGMENTS := \
     $(LOCAL_PATH)/kernel.config \
@@ -36,5 +36,7 @@ KERNEL_DTB_FILE := broadcom/bcm2711-rpi-4-b.dtb
 SYSFS_MMC0_PATH := emmc2bus/fe340000.mmc
 
 RPI_CONFIG := $(LOCAL_PATH)/boot/config.txt
+
+GD_NO_DEFAULT_MODEM := true
 
 $(call inherit-product, $(LOCAL_PATH)/device.mk)

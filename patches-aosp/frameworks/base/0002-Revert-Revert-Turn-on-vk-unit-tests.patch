@@ -1,0 +1,337 @@
+From a9b939efad2964d4cb88d90c6c3f59d8dcbed612 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Tue, 5 Dec 2023 20:13:04 +0200
+Subject: [PATCH 2/2] Revert "Revert "Turn on vk unit tests""
+
+This reverts commit d290c36e6e30a2be150605cf8437d36e095e1ab7.
+
+With this commit, the following assertion is triggered:
+Abort message: 'Assertion failed: queueProps[i].queueCount < kRequestedQueueCount'
+
+Change-Id: I0318daee095ddeaf8445d7b7c5cce541e3def9f1
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ libs/hwui/Properties.cpp                 | 14 +++----
+ libs/hwui/Properties.h                   |  2 +-
+ libs/hwui/renderthread/VulkanManager.cpp | 52 ++++++++++++------------
+ libs/hwui/renderthread/VulkanManager.h   | 23 ++++++++++-
+ libs/hwui/tests/common/TestUtils.h       | 46 ++++++++++-----------
+ 5 files changed, 76 insertions(+), 61 deletions(-)
+
+diff --git a/libs/hwui/Properties.cpp b/libs/hwui/Properties.cpp
+index 06aed63d8def..7af6efb7da41 100644
+--- a/libs/hwui/Properties.cpp
++++ b/libs/hwui/Properties.cpp
+@@ -17,6 +17,7 @@
+ #include "Properties.h"
+ 
+ #include "Debug.h"
++#include "log/log_main.h"
+ #ifdef __ANDROID__
+ #include "HWUIProperties.sysprop.h"
+ #endif
+@@ -219,15 +220,12 @@ RenderPipelineType Properties::getRenderPipelineType() {
+     return sRenderPipelineType;
+ }
+ 
+-void Properties::overrideRenderPipelineType(RenderPipelineType type) {
++void Properties::overrideRenderPipelineType(RenderPipelineType type, bool inUnitTest) {
+     // If we're doing actual rendering then we can't change the renderer after it's been set.
+-    // Unit tests can freely change this as often as it wants, though, as there's no actual
+-    // GL rendering happening
+-    if (sRenderPipelineType != RenderPipelineType::NotInitialized) {
+-        LOG_ALWAYS_FATAL_IF(sRenderPipelineType != type,
+-                            "Trying to change pipeline but it's already set");
+-        return;
+-    }
++    // Unit tests can freely change this as often as it wants.
++    LOG_ALWAYS_FATAL_IF(sRenderPipelineType != RenderPipelineType::NotInitialized &&
++                                sRenderPipelineType != type && !inUnitTest,
++                        "Trying to change pipeline but it's already set.");
+     sRenderPipelineType = type;
+ }
+ 
+diff --git a/libs/hwui/Properties.h b/libs/hwui/Properties.h
+index bb477449fff0..24e206bbc3b1 100644
+--- a/libs/hwui/Properties.h
++++ b/libs/hwui/Properties.h
+@@ -303,7 +303,7 @@ public:
+     static bool enableRTAnimations;
+ 
+     // Used for testing only to change the render pipeline.
+-    static void overrideRenderPipelineType(RenderPipelineType);
++    static void overrideRenderPipelineType(RenderPipelineType, bool inUnitTest = false);
+ 
+     static bool runningInEmulator;
+ 
+diff --git a/libs/hwui/renderthread/VulkanManager.cpp b/libs/hwui/renderthread/VulkanManager.cpp
+index 46698a6fdcc0..c0198df44044 100644
+--- a/libs/hwui/renderthread/VulkanManager.cpp
++++ b/libs/hwui/renderthread/VulkanManager.cpp
+@@ -23,11 +23,13 @@
+ #include <GrDirectContext.h>
+ #include <GrTypes.h>
+ #include <android/sync.h>
+-#include <gui/TraceUtils.h>
+ #include <ui/FatVector.h>
+ #include <vk/GrVkExtensions.h>
+ #include <vk/GrVkTypes.h>
+ 
++#include <cstring>
++
++#include <gui/TraceUtils.h>
+ #include "Properties.h"
+ #include "RenderThread.h"
+ #include "pipeline/skia/ShaderCache.h"
+@@ -89,6 +91,19 @@ static void free_features_extensions_structs(const VkPhysicalDeviceFeatures2& fe
+     }
+ }
+ 
++GrVkGetProc VulkanManager::sSkiaGetProp = [](const char* proc_name, VkInstance instance,
++                                             VkDevice device) {
++    if (device != VK_NULL_HANDLE) {
++        if (strcmp("vkQueueSubmit", proc_name) == 0) {
++            return (PFN_vkVoidFunction)VulkanManager::interceptedVkQueueSubmit;
++        } else if (strcmp("vkQueueWaitIdle", proc_name) == 0) {
++            return (PFN_vkVoidFunction)VulkanManager::interceptedVkQueueWaitIdle;
++        }
++        return vkGetDeviceProcAddr(device, proc_name);
++    }
++    return vkGetInstanceProcAddr(instance, proc_name);
++};
++
+ #define GET_PROC(F) m##F = (PFN_vk##F)vkGetInstanceProcAddr(VK_NULL_HANDLE, "vk" #F)
+ #define GET_INST_PROC(F) m##F = (PFN_vk##F)vkGetInstanceProcAddr(mInstance, "vk" #F)
+ #define GET_DEV_PROC(F) m##F = (PFN_vk##F)vkGetDeviceProcAddr(mDevice, "vk" #F)
+@@ -124,7 +139,6 @@ VulkanManager::~VulkanManager() {
+     }
+ 
+     mGraphicsQueue = VK_NULL_HANDLE;
+-    mAHBUploadQueue = VK_NULL_HANDLE;
+     mDevice = VK_NULL_HANDLE;
+     mPhysicalDevice = VK_NULL_HANDLE;
+     mInstance = VK_NULL_HANDLE;
+@@ -218,7 +232,7 @@ void VulkanManager::setupDevice(GrVkExtensions& grExtensions, VkPhysicalDeviceFe
+     mDriverVersion = physDeviceProperties.driverVersion;
+ 
+     // query to get the initial queue props size
+-    uint32_t queueCount = 0;
++    uint32_t queueCount;
+     mGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &queueCount, nullptr);
+     LOG_ALWAYS_FATAL_IF(!queueCount);
+ 
+@@ -226,14 +240,11 @@ void VulkanManager::setupDevice(GrVkExtensions& grExtensions, VkPhysicalDeviceFe
+     std::unique_ptr<VkQueueFamilyProperties[]> queueProps(new VkQueueFamilyProperties[queueCount]);
+     mGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &queueCount, queueProps.get());
+ 
+-    constexpr auto kRequestedQueueCount = 2;
+-
+     // iterate to find the graphics queue
+     mGraphicsQueueIndex = queueCount;
+     for (uint32_t i = 0; i < queueCount; i++) {
+         if (queueProps[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+             mGraphicsQueueIndex = i;
+-            LOG_ALWAYS_FATAL_IF(queueProps[i].queueCount < kRequestedQueueCount);
+             break;
+         }
+     }
+@@ -263,14 +274,7 @@ void VulkanManager::setupDevice(GrVkExtensions& grExtensions, VkPhysicalDeviceFe
+         LOG_ALWAYS_FATAL_IF(!hasKHRSwapchainExtension);
+     }
+ 
+-    auto getProc = [](const char* proc_name, VkInstance instance, VkDevice device) {
+-        if (device != VK_NULL_HANDLE) {
+-            return vkGetDeviceProcAddr(device, proc_name);
+-        }
+-        return vkGetInstanceProcAddr(instance, proc_name);
+-    };
+-
+-    grExtensions.init(getProc, mInstance, mPhysicalDevice, mInstanceExtensions.size(),
++    grExtensions.init(sSkiaGetProp, mInstance, mPhysicalDevice, mInstanceExtensions.size(),
+                       mInstanceExtensions.data(), mDeviceExtensions.size(),
+                       mDeviceExtensions.data());
+ 
+@@ -309,7 +313,7 @@ void VulkanManager::setupDevice(GrVkExtensions& grExtensions, VkPhysicalDeviceFe
+     // and we can't depend on it on all platforms
+     features.features.robustBufferAccess = VK_FALSE;
+ 
+-    float queuePriorities[kRequestedQueueCount] = {0.0};
++    float queuePriorities[1] = {0.0};
+ 
+     void* queueNextPtr = nullptr;
+ 
+@@ -342,7 +346,7 @@ void VulkanManager::setupDevice(GrVkExtensions& grExtensions, VkPhysicalDeviceFe
+             queueNextPtr,                                // pNext
+             0,                                           // VkDeviceQueueCreateFlags
+             mGraphicsQueueIndex,                         // queueFamilyIndex
+-            kRequestedQueueCount,                        // queueCount
++            1,                                           // queueCount
+             queuePriorities,                             // pQueuePriorities
+     };
+ 
+@@ -400,7 +404,6 @@ void VulkanManager::initialize() {
+     this->setupDevice(mExtensions, mPhysicalDeviceFeatures2);
+ 
+     mGetDeviceQueue(mDevice, mGraphicsQueueIndex, 0, &mGraphicsQueue);
+-    mGetDeviceQueue(mDevice, mGraphicsQueueIndex, 1, &mAHBUploadQueue);
+ 
+     if (Properties::enablePartialUpdates && Properties::useBufferAge) {
+         mSwapBehavior = SwapBehavior::BufferAge;
+@@ -414,24 +417,16 @@ static void onGrContextReleased(void* context) {
+ 
+ sk_sp<GrDirectContext> VulkanManager::createContext(GrContextOptions& options,
+                                                     ContextType contextType) {
+-    auto getProc = [](const char* proc_name, VkInstance instance, VkDevice device) {
+-        if (device != VK_NULL_HANDLE) {
+-            return vkGetDeviceProcAddr(device, proc_name);
+-        }
+-        return vkGetInstanceProcAddr(instance, proc_name);
+-    };
+-
+     GrVkBackendContext backendContext;
+     backendContext.fInstance = mInstance;
+     backendContext.fPhysicalDevice = mPhysicalDevice;
+     backendContext.fDevice = mDevice;
+-    backendContext.fQueue =
+-            (contextType == ContextType::kRenderThread) ? mGraphicsQueue : mAHBUploadQueue;
++    backendContext.fQueue = mGraphicsQueue;
+     backendContext.fGraphicsQueueIndex = mGraphicsQueueIndex;
+     backendContext.fMaxAPIVersion = mAPIVersion;
+     backendContext.fVkExtensions = &mExtensions;
+     backendContext.fDeviceFeatures2 = &mPhysicalDeviceFeatures2;
+-    backendContext.fGetProc = std::move(getProc);
++    backendContext.fGetProc = sSkiaGetProp;
+ 
+     LOG_ALWAYS_FATAL_IF(options.fContextDeleteProc != nullptr, "Conflicting fContextDeleteProcs!");
+     this->incStrong((void*)onGrContextReleased);
+@@ -642,6 +637,8 @@ void VulkanManager::swapBuffers(VulkanSurface* surface, const SkRect& dirtyRect)
+         ALOGE_IF(VK_SUCCESS != err, "VulkanManager::swapBuffers(): Failed to get semaphore Fd");
+     } else {
+         ALOGE("VulkanManager::swapBuffers(): Semaphore submission failed");
++
++        std::lock_guard<std::mutex> lock(mGraphicsQueueMutex);
+         mQueueWaitIdle(mGraphicsQueue);
+     }
+     if (mDestroySemaphoreContext) {
+@@ -656,6 +653,7 @@ void VulkanManager::swapBuffers(VulkanSurface* surface, const SkRect& dirtyRect)
+ void VulkanManager::destroySurface(VulkanSurface* surface) {
+     // Make sure all submit commands have finished before starting to destroy objects.
+     if (VK_NULL_HANDLE != mGraphicsQueue) {
++        std::lock_guard<std::mutex> lock(mGraphicsQueueMutex);
+         mQueueWaitIdle(mGraphicsQueue);
+     }
+ 
+diff --git a/libs/hwui/renderthread/VulkanManager.h b/libs/hwui/renderthread/VulkanManager.h
+index 2be1ffdbc423..00a40c0c85c3 100644
+--- a/libs/hwui/renderthread/VulkanManager.h
++++ b/libs/hwui/renderthread/VulkanManager.h
+@@ -17,6 +17,10 @@
+ #ifndef VULKANMANAGER_H
+ #define VULKANMANAGER_H
+ 
++#include <functional>
++#include <mutex>
++
++#include "vulkan/vulkan_core.h"
+ #if !defined(VK_USE_PLATFORM_ANDROID_KHR)
+ #define VK_USE_PLATFORM_ANDROID_KHR
+ #endif
+@@ -182,8 +186,25 @@ private:
+     VkDevice mDevice = VK_NULL_HANDLE;
+ 
+     uint32_t mGraphicsQueueIndex;
++
++    std::mutex mGraphicsQueueMutex;
+     VkQueue mGraphicsQueue = VK_NULL_HANDLE;
+-    VkQueue mAHBUploadQueue = VK_NULL_HANDLE;
++
++    static VKAPI_ATTR VkResult interceptedVkQueueSubmit(VkQueue queue, uint32_t submitCount,
++                                                        const VkSubmitInfo* pSubmits,
++                                                        VkFence fence) {
++        sp<VulkanManager> manager = VulkanManager::getInstance();
++        std::lock_guard<std::mutex> lock(manager->mGraphicsQueueMutex);
++        return manager->mQueueSubmit(queue, submitCount, pSubmits, fence);
++    }
++
++    static VKAPI_ATTR VkResult interceptedVkQueueWaitIdle(VkQueue queue) {
++        sp<VulkanManager> manager = VulkanManager::getInstance();
++        std::lock_guard<std::mutex> lock(manager->mGraphicsQueueMutex);
++        return manager->mQueueWaitIdle(queue);
++    }
++
++    static GrVkGetProc sSkiaGetProp;
+ 
+     // Variables saved to populate VkFunctorInitParams.
+     static const uint32_t mAPIVersion = VK_MAKE_VERSION(1, 1, 0);
+diff --git a/libs/hwui/tests/common/TestUtils.h b/libs/hwui/tests/common/TestUtils.h
+index 81ecfe59d3bc..9d5c13e5cd75 100644
+--- a/libs/hwui/tests/common/TestUtils.h
++++ b/libs/hwui/tests/common/TestUtils.h
+@@ -61,12 +61,12 @@ namespace uirenderer {
+         ADD_FAILURE() << "ClipState not a rect";                                     \
+     }
+ 
+-#define INNER_PIPELINE_TEST(test_case_name, test_name, pipeline, functionCall) \
+-    TEST(test_case_name, test_name##_##pipeline) {                             \
+-        RenderPipelineType oldType = Properties::getRenderPipelineType();      \
+-        Properties::overrideRenderPipelineType(RenderPipelineType::pipeline);  \
+-        functionCall;                                                          \
+-        Properties::overrideRenderPipelineType(oldType);                       \
++#define INNER_PIPELINE_TEST(test_case_name, test_name, pipeline, functionCall)      \
++    TEST(test_case_name, test_name##_##pipeline) {                                  \
++        RenderPipelineType oldType = Properties::getRenderPipelineType();           \
++        Properties::overrideRenderPipelineType(RenderPipelineType::pipeline, true); \
++        functionCall;                                                               \
++        Properties::overrideRenderPipelineType(oldType, true);                      \
+     };
+ 
+ #define INNER_PIPELINE_RENDERTHREAD_TEST(test_case_name, test_name, pipeline) \
+@@ -78,29 +78,27 @@ namespace uirenderer {
+  * Like gtest's TEST, but runs on the RenderThread, and 'renderThread' is passed, in top level scope
+  * (for e.g. accessing its RenderState)
+  */
+-#define RENDERTHREAD_TEST(test_case_name, test_name)                                        \
+-    class test_case_name##_##test_name##_RenderThreadTest {                                 \
+-    public:                                                                                 \
+-        static void doTheThing(renderthread::RenderThread& renderThread);                   \
+-    };                                                                                      \
+-    INNER_PIPELINE_RENDERTHREAD_TEST(test_case_name, test_name, SkiaGL);                    \
+-    /* Temporarily disabling Vulkan until we can figure out a way to stub out the driver */ \
+-    /* INNER_PIPELINE_RENDERTHREAD_TEST(test_case_name, test_name, SkiaVulkan); */          \
+-    void test_case_name##_##test_name##_RenderThreadTest::doTheThing(                       \
++#define RENDERTHREAD_TEST(test_case_name, test_name)                         \
++    class test_case_name##_##test_name##_RenderThreadTest {                  \
++    public:                                                                  \
++        static void doTheThing(renderthread::RenderThread& renderThread);    \
++    };                                                                       \
++    INNER_PIPELINE_RENDERTHREAD_TEST(test_case_name, test_name, SkiaGL);     \
++    INNER_PIPELINE_RENDERTHREAD_TEST(test_case_name, test_name, SkiaVulkan); \
++    void test_case_name##_##test_name##_RenderThreadTest::doTheThing(        \
+             renderthread::RenderThread& renderThread)
+ 
+ /**
+  * Like RENDERTHREAD_TEST, but only runs with the Skia RenderPipelineTypes
+  */
+-#define RENDERTHREAD_SKIA_PIPELINE_TEST(test_case_name, test_name)                          \
+-    class test_case_name##_##test_name##_RenderThreadTest {                                 \
+-    public:                                                                                 \
+-        static void doTheThing(renderthread::RenderThread& renderThread);                   \
+-    };                                                                                      \
+-    INNER_PIPELINE_RENDERTHREAD_TEST(test_case_name, test_name, SkiaGL);                    \
+-    /* Temporarily disabling Vulkan until we can figure out a way to stub out the driver */ \
+-    /* INNER_PIPELINE_RENDERTHREAD_TEST(test_case_name, test_name, SkiaVulkan); */          \
+-    void test_case_name##_##test_name##_RenderThreadTest::doTheThing(                       \
++#define RENDERTHREAD_SKIA_PIPELINE_TEST(test_case_name, test_name)           \
++    class test_case_name##_##test_name##_RenderThreadTest {                  \
++    public:                                                                  \
++        static void doTheThing(renderthread::RenderThread& renderThread);    \
++    };                                                                       \
++    INNER_PIPELINE_RENDERTHREAD_TEST(test_case_name, test_name, SkiaGL);     \
++    INNER_PIPELINE_RENDERTHREAD_TEST(test_case_name, test_name, SkiaVulkan); \
++    void test_case_name##_##test_name##_RenderThreadTest::doTheThing(        \
+             renderthread::RenderThread& renderThread)
+ 
+ /**
+-- 
+2.39.2
+
