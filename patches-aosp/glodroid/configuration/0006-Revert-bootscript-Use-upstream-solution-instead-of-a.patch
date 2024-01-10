@@ -1,0 +1,27 @@
+From dc52354b6be4ab4b5b10f5a3c95a93d516ea9e48 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Wed, 10 Jan 2024 23:05:04 +0000
+Subject: [PATCH 06/10] Revert "bootscript: Use upstream solution instead of
+ ab_test"
+
+This reverts commit bf4cdafe04647b17175c7b8984d3bd13d5cfd647.
+---
+ platform/uboot/bootscript.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/platform/uboot/bootscript.cpp b/platform/uboot/bootscript.cpp
+index b4bc643..f518650 100644
+--- a/platform/uboot/bootscript.cpp
++++ b/platform/uboot/bootscript.cpp
+@@ -69,7 +69,7 @@ FUNC_BEGIN(enter_fastboot)
+ FUNC_END()
+ 
+ FUNC_BEGIN(bootcmd_bcb)
+- ab_select slot_name mmc \${mmc_bootdev}#misc --no-dec || run enter_fastboot ;
++ ab_test slot_name mmc \${mmc_bootdev}#misc || run enter_fastboot ;
+ 
+  bcb load $mmc_bootdev misc ;
+  /* Handle $ adb reboot bootloader */
+-- 
+2.34.1
+

@@ -1,0 +1,27 @@
+From a6a8fec013c6fe10a5daf025f382b27732987529 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Sat, 13 Jan 2024 11:03:49 +0000
+Subject: [PATCH 5/5] Fix build on Android 14
+
+Change-Id: I3ebd41070fc529fdae6eb23014e8fa2d28eb20e0
+---
+ service/java/com/android/server/wifi/util/ApConfigUtil.java | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/service/java/com/android/server/wifi/util/ApConfigUtil.java b/service/java/com/android/server/wifi/util/ApConfigUtil.java
+index 56044a4..fa189b2 100644
+--- a/service/java/com/android/server/wifi/util/ApConfigUtil.java
++++ b/service/java/com/android/server/wifi/util/ApConfigUtil.java
+@@ -801,7 +801,8 @@ public class ApConfigUtil {
+             SoftApCapability capability) {
+         /* Use default band and channel for device without HAL. */
+         if (!wifiNative.isHalStarted()) {
+-            configBuilder.setChannel(DEFAULT_AP_CHANNEL, DEFAULT_AP_BAND);
++            configBuilder.setChannel(TeslaAndroidSoftApConfiguration.getSoftApChannelWidth(),
++                                     TeslaAndroidSoftApConfiguration.getSoftApBandType());
+             return SUCCESS;
+         }
+ 
+-- 
+2.34.1
+

@@ -1,4 +1,4 @@
-From fa4ecdb7bf542c5f52d2bce508b00360c2cec65a Mon Sep 17 00:00:00 2001
+From 7a44e66c0803014937656a9fb6d70da3e8f897fe Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
 Date: Mon, 4 Jul 2022 03:06:29 +0200
 Subject: [PATCH 2/4] Wi-Fi Hotspot: Remove auto off settings
@@ -13,7 +13,7 @@ Signed-off-by: Michał Gapiński <mike@gapinski.eu>
  1 file changed, 5 deletions(-)
 
 diff --git a/src/com/android/settings/wifi/tether/WifiTetherSettings.java b/src/com/android/settings/wifi/tether/WifiTetherSettings.java
-index 4137aaf..1b6492c 100644
+index 00df61b..80d765a 100644
 --- a/src/com/android/settings/wifi/tether/WifiTetherSettings.java
 +++ b/src/com/android/settings/wifi/tether/WifiTetherSettings.java
 @@ -68,8 +68,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
@@ -25,7 +25,7 @@ index 4137aaf..1b6492c 100644
      static final String KEY_WIFI_HOTSPOT_SECURITY = "wifi_hotspot_security";
      @VisibleForTesting
      static final String KEY_WIFI_HOTSPOT_SPEED = "wifi_hotspot_speed";
-@@ -251,8 +249,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+@@ -247,8 +245,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
          controllers.add(new WifiTetherSSIDPreferenceController(context, listener));
          controllers.add(new WifiTetherSecurityPreferenceController(context, listener));
          controllers.add(new WifiTetherPasswordPreferenceController(context, listener));
@@ -34,7 +34,7 @@ index 4137aaf..1b6492c 100644
          return controllers;
      }
  
-@@ -325,7 +321,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+@@ -321,7 +317,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
                  keys.add(KEY_WIFI_TETHER_NETWORK_NAME);
                  keys.add(KEY_WIFI_TETHER_SECURITY);
                  keys.add(KEY_WIFI_TETHER_NETWORK_PASSWORD);

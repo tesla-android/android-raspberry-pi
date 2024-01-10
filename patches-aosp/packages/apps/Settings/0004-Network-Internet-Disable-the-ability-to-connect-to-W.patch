@@ -1,4 +1,4 @@
-From 3c16ae7aecfd37a59ef8b16ec315efb0ad39e0ed Mon Sep 17 00:00:00 2001
+From 2d7e1fb6940f393efcb51ccfb7310df19e8b49b8 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
 Date: Mon, 4 Jul 2022 05:43:24 +0200
 Subject: [PATCH 4/4] Network & Internet: Disable the ability to connect to
