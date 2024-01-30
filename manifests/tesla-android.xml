@@ -9,6 +9,7 @@
   <remove-project name="platform/packages/apps/LegacyCamera" />
   <remove-project name="platform/packages/apps/Browser2" />
   <remove-project name="platform/packages/apps/QuickSearchBox" />
+  <project path="glodroid/configuration" remote="tesla-android" name="glodroid_configuration.git" revision="main" />
   <project path="external/libws" remote="tesla-android" name="android-external-libws.git" revision="main" />
   <project path="external/usb-modeswitch" remote="tesla-android" name="android-external-usb-modeswitch.git" revision="main" />
   <project path="external/tesla-android-virtual-gnss" remote="tesla-android" name="android-external-tesla-android-virtual-gnss.git" revision="main" />
