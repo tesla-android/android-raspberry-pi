@@ -37,9 +37,6 @@ PRODUCT_COPY_FILES += \
 # to handle the whole composition. Ignore CTM instead.
 PRODUCT_VENDOR_PROPERTIES += vendor.hwc.drm.ctm=DRM_OR_IGNORE
 
-# Use hwcomposer for non-display composition cases.
-PRODUCT_VENDOR_PROPERTIES += debug.sf.enable_hwc_vds=1
-
 # Checked by android.opengl.cts.OpenGlEsVersionTest#testOpenGlEsVersion. Required to run correct set of dEQP tests.
 # 196609 == 0x00030001 == GLES v3.1
 PRODUCT_VENDOR_PROPERTIES += \
