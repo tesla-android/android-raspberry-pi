@@ -17,7 +17,7 @@ index 56044a4..fa189b2 100644
          /* Use default band and channel for device without HAL. */
          if (!wifiNative.isHalStarted()) {
 -            configBuilder.setChannel(DEFAULT_AP_CHANNEL, DEFAULT_AP_BAND);
-+            configBuilder.setChannel(TeslaAndroidSoftApConfiguration.getSoftApChannelWidth(),
++            configBuilder.setChannel(TeslaAndroidSoftApConfiguration.getSoftApChannel(),
 +                                     TeslaAndroidSoftApConfiguration.getSoftApBandType());
              return SUCCESS;
          }
