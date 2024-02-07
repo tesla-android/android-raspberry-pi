@@ -19,8 +19,8 @@ index dc90a3ea5..e4c7fd160 100644
  if INPUT_TOUCHSCREEN
  
 +config TOUCHSCREEN_VIRTUAL
-+	bool "Enable TOUCHSCREEN_VIRTUAL"
-+	default y
++	tristate "Enable TOUCHSCREEN_VIRTUAL"
++	default m
 +	help
 +	  Simple virtual input device for testing things in Linux. Creates a character device and an input device.
 +
