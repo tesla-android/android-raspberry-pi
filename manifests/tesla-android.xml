@@ -2,7 +2,7 @@
 <manifest>
   <remote name="tesla-android" fetch="https://github.com/tesla-android/" />
   <remote name="github" fetch="https://github.com/" />  
-  <remote name="gapps-gitlab" fetch="https://gitlab.com/ThankYouMario"  />
+  <remote name="gapps-gitlab" fetch="https://gitlab.com/MindTheGapps"  />
 
   <remove-project name="device/generic/car" />
   <remove-project name="platform/packages/apps/Camera2" />
@@ -20,5 +20,5 @@
   <project path="vendor/tesla-android" remote="tesla-android" name="android-vendor-tesla-android.git" revision="main" />
   <project path="packages/apps/Updater" remote="tesla-android" name="android-packages-apps-updater.git" revision="main" />
   <project path="packages/apps/Jelly" remote="github" name="LineageOS/android_packages_apps_Jelly" revision="lineage-21.0"/>
-  <project path="vendor/google/gms" remote="gapps-gitlab" name="android_vendor_google_gms.git" revision="uvite"/> 
+  <project path="vendor/gapps" remote="gapps-gitlab" name="vendor_gapps.git" revision="tau"/>
 </manifest>
