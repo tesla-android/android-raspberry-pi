@@ -49,7 +49,7 @@ pipeline {
         stage('Setup OverlayFS') {
             steps {
                 script {
-                    if (getCurrentBranch() == 'android-14') {
+                    if (getCurrentBranch() == 'main') {
                         sh "mkdir -p ${SHARED_WORKSPACE_PATH} ${BASE_PATH}/merged"
                         sh """
                             if ! mountpoint -q ${BASE_PATH}/merged; then
@@ -178,7 +178,7 @@ pipeline {
 	        script {
 	            setBuildStatus("Build succeeded", "SUCCESS");
 	                sh "sudo umount -l ${BASE_PATH}/merged"
-	            if (getCurrentBranch() != 'android-14') {
+	            if (getCurrentBranch() != 'main') {
 	                sh "sudo rm -rf ${BASE_PATH}/upper ${BASE_PATH}/work"
 	            }
 	        }
@@ -186,9 +186,9 @@ pipeline {
 	    failure {
 	        script {
 	            setBuildStatus("Build failed", "FAILURE");
-	            if (getCurrentBranch() == 'android-14') {
+	            if (getCurrentBranch() == 'main') {
 	                sh "sudo umount -l ${BASE_PATH}/merged"
-	                //sh "sudo rm -rf ${SHARED_WORKSPACE_PATH}"
+	                sh "sudo rm -rf ${SHARED_WORKSPACE_PATH}"
 	            } else {
 	                sh "sudo umount -l ${BASE_PATH}/merged"
 	                sh "sudo rm -rf ${BASE_PATH}/upper ${BASE_PATH}/work"
