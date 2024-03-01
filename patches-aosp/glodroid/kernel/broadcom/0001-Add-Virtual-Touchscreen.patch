@@ -77,7 +77,7 @@ index 000000000..f84c5f051
 +struct class * cl;
 +struct device * dev;
 +
-+struct file_operations fops __attribute__((__section__(".text"))) = {
++struct file_operations fops = {
 +       read: device_read,
 +       write: device_write,
 +       open: device_open,
