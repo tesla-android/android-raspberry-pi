@@ -96,6 +96,8 @@ pipeline {
             steps {
                 dir("${BASE_PATH}/merged") {
                     sh 'cp -R /home/jenkins/tesla-android/signing aosptree/vendor/tesla-android/signing'
+                    sh 'cp -R aosptree/vendor/tesla-android/signing/releasekey.pk8 aosptree/build/make/target/product/security/testkey.pk8'
+                    sh 'cp -R aosptree/vendor/tesla-android/signing/releasekey.x509.pem aosptree/build/make/target/product/security/testkey.x509.pem'
                 }
             }
         }

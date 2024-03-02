@@ -58,7 +58,7 @@ index 1a78df6..9388f83 100755
 -    persist.tesla-android.releasetype=RELEASE \
 +    persist.tesla-android.releasetype=BETA \
  
- PRODUCT_DEFAULT_DEV_CERTIFICATE := $(LOCAL_PATH)/signing/releasekey
+ #PRODUCT_DEFAULT_DEV_CERTIFICATE := $(LOCAL_PATH)/signing/releasekey
  PRODUCT_OTA_PUBLIC_KEYS := $(LOCAL_PATH)/signing/platform
 -- 
 2.39.3 (Apple Git-145)
