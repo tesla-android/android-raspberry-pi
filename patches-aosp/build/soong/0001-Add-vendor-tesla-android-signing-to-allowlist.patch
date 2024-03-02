@@ -1,0 +1,26 @@
+From 4af019585e87fd2906e1db3c6bb745e82ac73c9e Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Sat, 2 Mar 2024 19:47:23 +0000
+Subject: [PATCH] Add vendor/tesla-android/signing to allowlist
+
+Change-Id: Ia5b9bc0ebeb209f8b9e86b28e48b0f229b306ce9
+---
+ android/allowlists/allowlists.go | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/android/allowlists/allowlists.go b/android/allowlists/allowlists.go
+index 63d4e11..c018137 100644
+--- a/android/allowlists/allowlists.go
++++ b/android/allowlists/allowlists.go
+@@ -440,6 +440,8 @@ var (
+ 
+ 		// TODO(b/266459895): remove this and the placeholder BUILD file after re-enabling libunwindstack
+ 		"external/rust/crates/rustc-demangle-capi":/* recursive = */ false,
++
++		"/vendor/tesla-android/signing":/* recursive = */ false,
+ 	}
+ 
+ 	Bp2buildModuleAlwaysConvertList = []string{
+-- 
+2.34.1
+
