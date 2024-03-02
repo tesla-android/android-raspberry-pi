@@ -1,0 +1,65 @@
+From d8bdc8f50b64a5546cb69b98d5a551afb5ff0125 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
+Date: Sat, 2 Mar 2024 16:40:30 +0100
+Subject: [PATCH] Switch to beta channel
+
+---
+ products/tesla_android_cm4.mk        | 2 +-
+ products/tesla_android_radxa_zero.mk | 2 +-
+ products/tesla_android_rpi4.mk       | 2 +-
+ vendor.mk                            | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/products/tesla_android_cm4.mk b/products/tesla_android_cm4.mk
+index be4f22a..695e977 100755
+--- a/products/tesla_android_cm4.mk
++++ b/products/tesla_android_cm4.mk
+@@ -15,6 +15,6 @@ PRODUCT_MANUFACTURER := RaspberryPiFoundation
+ 
+ PRODUCT_PROPERTY_OVERRIDES += \
+     ro.tesla-android.device=cm4 \
+-    persist.tesla-android.updater.uri=https://ota.teslaandroid.com/api/v1/cm4/release \
++    persist.tesla-android.updater.uri=https://ota.teslaandroid.com/api/v1/cm4/beta \
+ 
+ GD_LCD_DENSITY = 200
+diff --git a/products/tesla_android_radxa_zero.mk b/products/tesla_android_radxa_zero.mk
+index 52cf891..b254754 100755
+--- a/products/tesla_android_radxa_zero.mk
++++ b/products/tesla_android_radxa_zero.mk
+@@ -15,6 +15,6 @@ PRODUCT_MANUFACTURER := radxa
+ 
+ PRODUCT_PROPERTY_OVERRIDES += \
+     ro.tesla-android.device=radxa_zero \
+-    persist.tesla-android.updater.uri=https://ota.teslaandroid.com/api/v1/radxa_zero/release \
++    persist.tesla-android.updater.uri=https://ota.teslaandroid.com/api/v1/radxa_zero/beta \
+ 
+ GD_LCD_DENSITY = 200
+diff --git a/products/tesla_android_rpi4.mk b/products/tesla_android_rpi4.mk
+index ab874b2..a0d01a0 100755
+--- a/products/tesla_android_rpi4.mk
++++ b/products/tesla_android_rpi4.mk
+@@ -15,7 +15,7 @@ PRODUCT_MANUFACTURER := RaspberryPiFoundation
+ 
+ PRODUCT_PROPERTY_OVERRIDES += \
+     ro.tesla-android.device=rpi4 \
+-    persist.tesla-android.updater.uri=https://ota.teslaandroid.com/api/v1/rpi4/release \
++    persist.tesla-android.updater.uri=https://ota.teslaandroid.com/api/v1/rpi4/beta \
+ 
+ GD_LCD_DENSITY = 200
+ 
+diff --git a/vendor.mk b/vendor.mk
+index 1a78df6..9388f83 100755
+--- a/vendor.mk
++++ b/vendor.mk
+@@ -10,7 +10,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
+ # Flavor and signing
+ 
+ PRODUCT_PROPERTY_OVERRIDES += \
+-    persist.tesla-android.releasetype=RELEASE \
++    persist.tesla-android.releasetype=BETA \
+ 
+ PRODUCT_DEFAULT_DEV_CERTIFICATE := $(LOCAL_PATH)/signing/releasekey
+ PRODUCT_OTA_PUBLIC_KEYS := $(LOCAL_PATH)/signing/platform
+-- 
+2.39.3 (Apple Git-145)
+
