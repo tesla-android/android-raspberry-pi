@@ -80,7 +80,7 @@ pipeline {
                     sh '''
                         mkdir -p patches-aosp/vendor || true
                         mkdir -p patches-aosp/vendor/tesla-android || true
-                        cp -R jenkins/0001-CI-Disable-release-keys-switch-to-beta-channel.patch patches-aosp/vendor/tesla-android/0001-CI-Disable-release-keys-switch-to-beta-channel.patch
+                        cp -R jenkins/0001-Switch-to-beta-channel.patch patches-aosp/vendor/tesla-android/0001-Switch-to-beta-channel.patch
                     '''
                 }
             }
