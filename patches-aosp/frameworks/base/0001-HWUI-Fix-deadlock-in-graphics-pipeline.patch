@@ -1,0 +1,39 @@
+From 2be0dae3f8fb3c912edb49dba2f2cd434b8d9401 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Thu, 19 Oct 2023 03:37:01 +0300
+Subject: [PATCH] HWUI: Fix deadlock in graphics pipeline
+
+Mutex lock() causes deadlock when the queue is empty.
+Regression is caused by b013c8dee3b3e897b3557206f2d6c75b8c9f2f84
+For some unknown reason, it is reproduced only on GloDroid :)
+So probably some other part of GD is to blame.
+Or, it is just a coincidence.
+
+TODO: Do one more investigation attempt.
+
+Change-Id: Ic981947babe62b83032e9ba1630cc0458c228f44
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ libs/hwui/renderthread/CanvasContext.cpp | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/libs/hwui/renderthread/CanvasContext.cpp b/libs/hwui/renderthread/CanvasContext.cpp
+index 16b35ffcabac..a9dde31e83e7 100644
+--- a/libs/hwui/renderthread/CanvasContext.cpp
++++ b/libs/hwui/renderthread/CanvasContext.cpp
+@@ -586,7 +586,11 @@ void CanvasContext::draw(bool solelyTextureViewUpdates) {
+         // not visible to IRenderPipeline much less FrameInfoVisualizer. And since this is
+         // the thread we're primarily concerned about being responsive, this being too broad
+         // shouldn't pose a performance issue.
+-        std::scoped_lock lock(mFrameMetricsReporterMutex);
++
++// Causes deadlock when the queue is empty. Regression is caused by b013c8dee3b3e897b3557206f2d6c75b8c9f2f84
++// For some unknown reason, it is reproduced only on GloDroid :) So probably some other part of GD is to blame. Or, it is just a coincidence.
++//        std::scoped_lock lock(mFrameMetricsReporterMutex);
++
+         drawResult = mRenderPipeline->draw(frame, windowDirty, dirty, mLightGeometry,
+                                            &mLayerUpdateQueue, mContentDrawBounds, mOpaque,
+                                            mLightInfo, mRenderNodes, &(profiler()), mBufferParams);
+-- 
+2.39.2
+

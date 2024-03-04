@@ -1,7 +1,7 @@
-From 5648a823bbc25a397f0c5d42ae4f4612b2573bf9 Mon Sep 17 00:00:00 2001
+From c2762e873261815625707a60298bfb46d6f67aa0 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
 Date: Mon, 4 Jul 2022 04:58:36 +0200
-Subject: [PATCH 2/2] WifiApConfigStore: Use a static default Wi-Fi password
+Subject: [PATCH 2/4] WifiApConfigStore: Use a static default Wi-Fi password
  instead of a geneerated one
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -10,53 +10,26 @@ Content-Transfer-Encoding: 8bit
 Change-Id: I9588928ef7ca98c5d17c55c65ce3d63d0f6c20e9
 Signed-off-by: Michał Gapiński <mike@gapinski.eu>
 ---
- .../android/net/wifi/SoftApConfiguration.java |  2 +-
  .../server/wifi/WifiApConfigStore.java        | 24 ++++++-------------
- 2 files changed, 8 insertions(+), 18 deletions(-)
+ 1 file changed, 7 insertions(+), 17 deletions(-)
 
-diff --git a/framework/java/android/net/wifi/SoftApConfiguration.java b/framework/java/android/net/wifi/SoftApConfiguration.java
-index b85b613b7e..5a5818da4f 100644
---- a/framework/java/android/net/wifi/SoftApConfiguration.java
-+++ b/framework/java/android/net/wifi/SoftApConfiguration.java
-@@ -1254,7 +1254,7 @@ public final class SoftApConfiguration implements Parcelable {
-             mChannels.put(BAND_2GHZ, 0);
-             mMaxNumberOfClients = 0;
-             mSecurityType = SECURITY_TYPE_OPEN;
--            mAutoShutdownEnabled = disabled; // disabled by default.
-+            mAutoShutdownEnabled = false; // disabled by default.
-             mShutdownTimeoutMillis = DEFAULT_TIMEOUT;
-             mClientControlByUser = false;
-             mBlockedClientList = new ArrayList<>();
 diff --git a/service/java/com/android/server/wifi/WifiApConfigStore.java b/service/java/com/android/server/wifi/WifiApConfigStore.java
-index 70659c12fb..b0e5e0149a 100644
+index 108ba38..b9ae8cf 100644
 --- a/service/java/com/android/server/wifi/WifiApConfigStore.java
 +++ b/service/java/com/android/server/wifi/WifiApConfigStore.java
-@@ -246,7 +246,7 @@ public class WifiApConfigStore {
-                 == SECURITY_TYPE_WPA3_SAE
+@@ -253,7 +253,7 @@ public class WifiApConfigStore {
                  || config.getSecurityType()
                  == SECURITY_TYPE_WPA3_SAE_TRANSITION)) {
--            configBuilder.setPassphrase(generatePassword(),
-+            configBuilder.setPassphrase(getDefaultPassword(),
-                     SECURITY_TYPE_WPA2_PSK);
-             Log.i(TAG, "Device doesn't support WPA3-SAE, reset config to WPA2");
-         }
-@@ -372,10 +372,10 @@ public class WifiApConfigStore {
-         configBuilder.setSsid(mContext.getResources().getString(
+             try {
+-                configBuilder.setPassphrase(generatePassword(),
++                configBuilder.setPassphrase(getDefaultPassword(),
+                         SECURITY_TYPE_WPA2_PSK);
+             } catch (IllegalArgumentException e) {
+                 Log.wtf(TAG, "Generated password was invalid: " + e);
+@@ -387,10 +387,10 @@ public class WifiApConfigStore {
                  R.string.wifi_tether_configure_ssid_default) + "_" + getRandomIntForDefaultSsid());
-         if (ApConfigUtil.isWpa3SaeSupported(mContext)) {
--            configBuilder.setPassphrase(generatePassword(),
-+            configBuilder.setPassphrase(getDefaultPassword(),
-                     SECURITY_TYPE_WPA3_SAE_TRANSITION);
-         } else {
--            configBuilder.setPassphrase(generatePassword(),
-+            configBuilder.setPassphrase(getDefaultPassword(),
-                     SECURITY_TYPE_WPA2_PSK);
-         }
- 
-@@ -437,10 +437,10 @@ public class WifiApConfigStore {
-             // Default to disable the auto shutdown
-             configBuilder.setAutoShutdownEnabled(false);
-             if (ApConfigUtil.isWpa3SaeSupported(context)) {
+         try {
+             if (ApConfigUtil.isWpa3SaeSupported(mContext)) {
 -                configBuilder.setPassphrase(generatePassword(),
 +                configBuilder.setPassphrase(getDefaultPassword(),
                          SECURITY_TYPE_WPA3_SAE_TRANSITION);
@@ -65,8 +38,21 @@ index 70659c12fb..b0e5e0149a 100644
 +                configBuilder.setPassphrase(getDefaultPassword(),
                          SECURITY_TYPE_WPA2_PSK);
              }
-             // Update default MAC randomization setting to NONE when feature doesn't support it or
-@@ -636,18 +636,8 @@ public class WifiApConfigStore {
+         } catch (IllegalArgumentException e) {
+@@ -456,10 +456,10 @@ public class WifiApConfigStore {
+             configBuilder.setAutoShutdownEnabled(false);
+             try {
+                 if (ApConfigUtil.isWpa3SaeSupported(context)) {
+-                    configBuilder.setPassphrase(generatePassword(),
++                    configBuilder.setPassphrase(getDefaultPassword(),
+                             SECURITY_TYPE_WPA3_SAE_TRANSITION);
+                 } else {
+-                    configBuilder.setPassphrase(generatePassword(),
++                    configBuilder.setPassphrase(getDefaultPassword(),
+                             SECURITY_TYPE_WPA2_PSK);
+                 }
+             } catch (IllegalArgumentException e) {
+@@ -660,18 +660,8 @@ public class WifiApConfigStore {
          return true;
      }
  

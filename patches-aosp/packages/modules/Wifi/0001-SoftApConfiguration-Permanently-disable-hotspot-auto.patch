@@ -1,7 +1,7 @@
-From 79927a16f01f25791c0c48d442cbb5e0a1878ac0 Mon Sep 17 00:00:00 2001
+From 3e8d9f33f889c8c00ce23c18e4e6071b79d716e1 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
 Date: Mon, 4 Jul 2022 02:38:19 +0200
-Subject: [PATCH 1/2] SoftApConfiguration: Permanently disable hotspot auto
+Subject: [PATCH 1/4] SoftApConfiguration: Permanently disable hotspot auto
  shutdown
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -16,10 +16,10 @@ Signed-off-by: Michał Gapiński <mike@gapinski.eu>
  create mode 100644 framework/java/android/net/wifi/SoftApConfiguration.java.rej
 
 diff --git a/framework/java/android/net/wifi/SoftApConfiguration.java b/framework/java/android/net/wifi/SoftApConfiguration.java
-index 251e7da81a..b85b613b7e 100644
+index 3de0735..114b8e6 100644
 --- a/framework/java/android/net/wifi/SoftApConfiguration.java
 +++ b/framework/java/android/net/wifi/SoftApConfiguration.java
-@@ -468,7 +468,7 @@ public final class SoftApConfiguration implements Parcelable {
+@@ -475,7 +475,7 @@ public final class SoftApConfiguration implements Parcelable {
          }
          mSecurityType = securityType;
          mMaxNumberOfClients = maxNumberOfClients;
@@ -28,7 +28,7 @@ index 251e7da81a..b85b613b7e 100644
          mShutdownTimeoutMillis = shutdownTimeoutMillis;
          mClientControlByUser = clientControlByUser;
          mBlockedClientList = new ArrayList<>(blockedList);
-@@ -1254,7 +1254,7 @@ public final class SoftApConfiguration implements Parcelable {
+@@ -1261,7 +1261,7 @@ public final class SoftApConfiguration implements Parcelable {
              mChannels.put(BAND_2GHZ, 0);
              mMaxNumberOfClients = 0;
              mSecurityType = SECURITY_TYPE_OPEN;
@@ -37,7 +37,7 @@ index 251e7da81a..b85b613b7e 100644
              mShutdownTimeoutMillis = DEFAULT_TIMEOUT;
              mClientControlByUser = false;
              mBlockedClientList = new ArrayList<>();
-@@ -1773,7 +1773,7 @@ public final class SoftApConfiguration implements Parcelable {
+@@ -1801,7 +1801,7 @@ public final class SoftApConfiguration implements Parcelable {
           */
          @NonNull
          public Builder setAutoShutdownEnabled(boolean enable) {
@@ -48,7 +48,7 @@ index 251e7da81a..b85b613b7e 100644
  
 diff --git a/framework/java/android/net/wifi/SoftApConfiguration.java.rej b/framework/java/android/net/wifi/SoftApConfiguration.java.rej
 new file mode 100644
-index 0000000000..f0a9a32a1c
+index 0000000..f0a9a32
 --- /dev/null
 +++ b/framework/java/android/net/wifi/SoftApConfiguration.java.rej
 @@ -0,0 +1,10 @@

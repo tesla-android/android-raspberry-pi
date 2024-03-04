@@ -1,0 +1,38 @@
+From 4192ae1ba522e0c49edc4c7b05967524bab7c4e4 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Wed, 7 Feb 2024 13:11:10 +0000
+Subject: [PATCH] Build IPETH
+
+---
+ arch/arm64/configs/android_rpi4_defconfig | 2 +-
+ arch/arm64/configs/bcm2712_defconfig      | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/configs/android_rpi4_defconfig b/arch/arm64/configs/android_rpi4_defconfig
+index f8809069c..3e47aa43e 100644
+--- a/arch/arm64/configs/android_rpi4_defconfig
++++ b/arch/arm64/configs/android_rpi4_defconfig
+@@ -2355,7 +2355,7 @@ CONFIG_USB_NET_ZAURUS=y
+ # CONFIG_USB_NET_QMI_WWAN is not set
+ # CONFIG_USB_HSO is not set
+ # CONFIG_USB_NET_INT51X1 is not set
+-# CONFIG_USB_IPHETH is not set
++CONFIG_USB_IPHETH=y
+ # CONFIG_USB_SIERRA_NET is not set
+ # CONFIG_USB_VL600 is not set
+ # CONFIG_USB_NET_CH9200 is not set
+diff --git a/arch/arm64/configs/bcm2712_defconfig b/arch/arm64/configs/bcm2712_defconfig
+index 1b6bb7b59..e2dac91dc 100644
+--- a/arch/arm64/configs/bcm2712_defconfig
++++ b/arch/arm64/configs/bcm2712_defconfig
+@@ -574,6 +574,7 @@ CONFIG_USB_NET_NET1080=m
+ CONFIG_USB_NET_PLUSB=m
+ CONFIG_USB_NET_MCS7830=m
+ CONFIG_USB_NET_CDC_SUBSET=m
++CONFIG_USB_IPHETH=y
+ CONFIG_USB_ALI_M5632=y
+ CONFIG_USB_AN2720=y
+ CONFIG_USB_EPSON2888=y
+-- 
+2.34.1
+

@@ -80,7 +80,7 @@ pipeline {
                     sh '''
                         mkdir -p patches-aosp/vendor || true
                         mkdir -p patches-aosp/vendor/tesla-android || true
-                        cp -R jenkins/0001-CI-Disable-release-keys-switch-to-beta-channel.patch patches-aosp/vendor/tesla-android/0001-CI-Disable-release-keys-switch-to-beta-channel.patch
+                        cp -R jenkins/0001-Switch-to-beta-channel.patch patches-aosp/vendor/tesla-android/0001-Switch-to-beta-channel.patch
                     '''
                 }
             }
@@ -96,6 +96,8 @@ pipeline {
             steps {
                 dir("${BASE_PATH}/merged") {
                     sh 'cp -R /home/jenkins/tesla-android/signing aosptree/vendor/tesla-android/signing'
+                    sh 'cp -R aosptree/vendor/tesla-android/signing/releasekey.pk8 aosptree/build/make/target/product/security/testkey.pk8'
+                    sh 'cp -R aosptree/vendor/tesla-android/signing/releasekey.x509.pem aosptree/build/make/target/product/security/testkey.x509.pem'
                 }
             }
         }

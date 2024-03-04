@@ -2,6 +2,9 @@ dtparam=audio=on
 dtparam=krnbt=on
 dtparam=uart1=on
 
+# CPU
+arm_boost=1
+
 [all]
 start_x=1
 enable_uart=1

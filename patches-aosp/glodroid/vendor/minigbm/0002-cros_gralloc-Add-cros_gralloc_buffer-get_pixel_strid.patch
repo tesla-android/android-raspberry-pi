@@ -1,0 +1,44 @@
+From 4af0647f3788edba11d85f5be354401eb4a6f8f5 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Tue, 12 Dec 2023 11:48:31 +0200
+Subject: [PATCH 02/18] cros_gralloc: Add
+ cros_gralloc_buffer::get_pixel_stride() function
+
+Change-Id: I6c462605fb6eb3ce774369113293b442f420bfe5
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ cros_gralloc/cros_gralloc_buffer.cc | 5 +++++
+ cros_gralloc/cros_gralloc_buffer.h  | 1 +
+ 2 files changed, 6 insertions(+)
+
+diff --git a/cros_gralloc/cros_gralloc_buffer.cc b/cros_gralloc/cros_gralloc_buffer.cc
+index 0657820..dba8061 100644
+--- a/cros_gralloc/cros_gralloc_buffer.cc
++++ b/cros_gralloc/cros_gralloc_buffer.cc
+@@ -65,6 +65,11 @@ uint32_t cros_gralloc_buffer::get_width() const
+ 	return hnd_->width;
+ }
+ 
++uint32_t cros_gralloc_buffer::get_pixel_stride() const
++{
++	return hnd_->pixel_stride;
++}
++
+ uint32_t cros_gralloc_buffer::get_height() const
+ {
+ 	return hnd_->height;
+diff --git a/cros_gralloc/cros_gralloc_buffer.h b/cros_gralloc/cros_gralloc_buffer.h
+index fb888ac..b477faa 100644
+--- a/cros_gralloc/cros_gralloc_buffer.h
++++ b/cros_gralloc/cros_gralloc_buffer.h
+@@ -21,6 +21,7 @@ class cros_gralloc_buffer
+ 
+ 	uint32_t get_id() const;
+ 	uint32_t get_width() const;
++	uint32_t get_pixel_stride() const;
+ 	uint32_t get_height() const;
+ 	uint32_t get_format() const;
+ 	uint64_t get_format_modifier() const;
+-- 
+2.39.2
+

@@ -1,0 +1,33 @@
+From b422575c9815b86dfcb46cd65eed2c44893cdcce Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Sat, 2 Mar 2024 21:54:06 +0000
+Subject: [PATCH] HACK: replace default test keys
+
+Change-Id: I40ec405f0caf18f010a515067193e66063eaa5bc
+---
+ core/sysprop.mk | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/core/sysprop.mk b/core/sysprop.mk
+index 65b436d..b42b693 100644
+--- a/core/sysprop.mk
++++ b/core/sysprop.mk
+@@ -161,7 +161,7 @@ endif
+ # Both of these tags will be removed and replaced with "release-keys"
+ # when the target-files is signed in a post-build step.
+ ifeq ($(DEFAULT_SYSTEM_DEV_CERTIFICATE),build/make/target/product/security/testkey)
+-BUILD_KEYS := test-keys
++BUILD_KEYS := release-keys
+ else
+ BUILD_KEYS := release-keys
+ endif
+@@ -558,4 +558,4 @@ ALL_INSTALLED_BUILD_PROP_FILES := \
+ # $1 installed file path, e.g. out/target/product/vsoc_x86_64/system/build.prop
+ define is-build-prop
+ $(if $(findstring $1,$(ALL_INSTALLED_BUILD_PROP_FILES)),Y)
+-endef
+\ No newline at end of file
++endef
+-- 
+2.34.1
+
