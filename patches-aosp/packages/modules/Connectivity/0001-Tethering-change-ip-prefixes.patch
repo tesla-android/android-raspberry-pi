@@ -1,7 +1,7 @@
-From 35bcbd35b64bc403e1470f4591c22db4b7f2a7f7 Mon Sep 17 00:00:00 2001
+From 156887ceb43c4ca0f777f039801c35e17b8b7cad Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
 Date: Mon, 17 Oct 2022 02:00:02 +0200
-Subject: [PATCH 1/1] Tethering: change ip prefixes
+Subject: [PATCH] Tethering: change ip prefixes
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -13,10 +13,10 @@ Signed-off-by: Michał Gapiński <mike@gapinski.eu>
  1 file changed, 5 insertions(+), 27 deletions(-)
 
 diff --git a/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java b/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java
-index cc2422f877..33a7c3cea8 100644
+index 6c0ca82..b3d6e7a 100644
 --- a/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java
 +++ b/Tethering/src/com/android/networkstack/tethering/PrivateAddressCoordinator.java
-@@ -71,8 +71,8 @@ public class PrivateAddressCoordinator {
+@@ -72,8 +72,8 @@ public class PrivateAddressCoordinator {
      // mUpstreamPrefixMap when tethering is starting. See #maybeRemoveDeprecatedUpstreams().
      private final ArrayMap<Network, List<IpPrefix>> mUpstreamPrefixMap;
      private final ArraySet<IpServer> mDownstreams;
@@ -27,9 +27,9 @@ index cc2422f877..33a7c3cea8 100644
      private final List<IpPrefix> mTetheringPrefixes;
      private final ConnectivityManager mConnectivityMgr;
      private final TetheringConfiguration mConfig;
-@@ -90,8 +90,7 @@ public class PrivateAddressCoordinator {
-         mCachedAddresses.put(TETHERING_BLUETOOTH, new LinkAddress(LEGACY_BLUETOOTH_IFACE_ADDRESS));
-         mCachedAddresses.put(TETHERING_WIFI_P2P, new LinkAddress(LEGACY_WIFI_P2P_IFACE_ADDRESS));
+@@ -93,8 +93,7 @@ public class PrivateAddressCoordinator {
+         mCachedAddresses.put(new AddressKey(TETHERING_WIFI_P2P, CONNECTIVITY_SCOPE_LOCAL),
+                 new LinkAddress(LEGACY_WIFI_P2P_IFACE_ADDRESS));
  
 -        mTetheringPrefixes = new ArrayList<>(Arrays.asList(new IpPrefix("192.168.0.0/16"),
 -            new IpPrefix("172.16.0.0/12"), new IpPrefix("10.0.0.0/8")));
@@ -37,7 +37,7 @@ index cc2422f877..33a7c3cea8 100644
      }
  
      /**
-@@ -255,12 +254,9 @@ public class PrivateAddressCoordinator {
+@@ -263,12 +262,9 @@ public class PrivateAddressCoordinator {
          // is less than 127.0.0.0 = 0x7f000000 = 2130706432.
          //
          // Additionally, it makes debug output easier to read by making the numbers smaller.
@@ -52,7 +52,7 @@ index cc2422f877..33a7c3cea8 100644
  
          // Find a prefix length PREFIX_LENGTH between randomPrefixStart and the end of the block,
          // such that the prefix does not conflict with any upstream.
-@@ -305,24 +301,6 @@ public class PrivateAddressCoordinator {
+@@ -313,24 +309,6 @@ public class PrivateAddressCoordinator {
          return (new Random()).nextInt();
      }
  

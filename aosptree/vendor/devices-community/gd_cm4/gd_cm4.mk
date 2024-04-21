@@ -26,7 +26,7 @@ UBOOT_DEFCONFIG := rpi_4_defconfig
 ATF_PLAT        := rpi4
 
 KERNEL_SRC       := glodroid/kernel/broadcom
-KERNEL_DEFCONFIG := $(KERNEL_SRC)/arch/arm64/configs/bcm2711_defconfig
+KERNEL_DEFCONFIG := $(KERNEL_SRC)/arch/arm64/configs/android_rpi4_defconfig
 
 KERNEL_FRAGMENTS := \
     $(LOCAL_PATH)/../gd_rpi4/kernel.config \
@@ -39,6 +39,4 @@ RPI_CONFIG := $(LOCAL_PATH)/../gd_rpi4/boot/config.txt
 
 $(call inherit-product, $(LOCAL_PATH)/../gd_rpi4/device.mk)
 
-PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/init.gd_cm4.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/init.gd_cm4.rc \
-    $(LOCAL_PATH)/nvme_format.sh:$(TARGET_COPY_OUT_VENDOR)/etc/init/nvme_format.sh
+GD_NO_DEFAULT_MODEM := true

@@ -4,7 +4,7 @@ LOCAL_PATH=$(pwd)
 
 echo Init repo tree using AOSP manifest
 pushd aosptree
-repo init --depth=1 -u https://android.googlesource.com/platform/manifest -b refs/tags/android-platform-13.0.0_r13
+repo init --depth=2 -u https://android.googlesource.com/platform/manifest -b refs/tags/android-platform-14.0.0_r4 ${GD_REPO_INIT_ARGS}
 cd .repo/manifests
 mv default.xml aosp.xml
 cp ${LOCAL_PATH}/manifests/tesla-android.xml tesla-android.xml
@@ -23,7 +23,7 @@ echo Patch AOSP tree
 patch_dir() {
     pushd aosptree/$1
     repo sync -l .
-    git am ${LOCAL_PATH}/patches-aosp/$1/*
+    git am ${LOCAL_PATH}/patches-aosp/$1/*.patch
     popd
 }
 

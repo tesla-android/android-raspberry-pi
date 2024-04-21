@@ -12,16 +12,16 @@
   <remove-project name="platform/external/mesa3d" />
   <remove-project name="platform/external/v4l2_codec2" />
   <remove-project name="platform/external/drm_hwcomposer" />
+  <remove-project name="platform/external/wpa_supplicant_8" />
 
   <project path="glodroid"                        remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="refs/tags/basedir-v0.9.0" />
-  <project path="glodroid/configuration"          remote="glodroid" name="glodroid_configuration.git" groups="glodroid" revision="1ba92aede3fccf6fb07ef3787a7bdd55f58e03fc" />
 
   <project path="glodroid/apks"                   remote="glodroid" name="glodroid_external_apks.git" groups="glodroid" revision="refs/tags/apps-v0.8.2" />
 
   <!-- gpu+display components (vendor) -->
-  <project path="glodroid/vendor/minigbm"         remote="aosp" name="platform/external/minigbm"        groups="glodroid" revision="84b3a09ef0e620c1b2ec19c7626c327e68a847bc" />
+  <project path="glodroid/vendor/minigbm"         remote="aosp" name="platform/external/minigbm"        groups="glodroid" revision="6a402a9d24b4f9b44b2812850f11ba906418398d" />
   <project path="glodroid/vendor/drm_hwcomposer"  remote="aosp" name="platform/external/drm_hwcomposer" groups="glodroid" revision="5de61b5e4fbf43b78b605dab68465aa6722930c4" />
-  <project path="glodroid/vendor/mesa3d"          remote="aosp" name="platform/external/mesa3d"         groups="glodroid" revision="f88338f80127d8bbbb49269e2399fd9e7e460c5c" />
+  <project path="glodroid/vendor/mesa3d"          remote="aosp" name="platform/external/mesa3d"         groups="glodroid" revision="9b0960cfe39414815b1dc5a786e6312639f49352" />
 
   <!-- camera components (vendor) -->
   <project path="glodroid/vendor/libcamera"                     remote="libcamera" name="libcamera.git"      groups="glodroid" revision="960d0c1e19feaf310321c906e14bd5410c6be629" />
@@ -31,33 +31,26 @@
   <!-- video codecs components (vendor) -->
   <project path="glodroid/vendor/dav1d"           remote="videolan"    name="dav1d.git"          groups="glodroid" revision="refs/tags/1.1.0" />
   <project path="glodroid/vendor/ffmpeg"          remote="github"      name="FFmpeg/FFmpeg.git"  groups="glodroid" revision="refs/tags/n6.0" clone-depth="1" />
-  <project path="glodroid/vendor/ffmpeg_codec2"   remote="glodroid"    name="glodroid_forks.git" groups="glodroid" revision="refs/tags/ffmpeg_codec2-2023w14" clone-depth="1" />
+  <project path="glodroid/vendor/ffmpeg_codec2"   remote="glodroid"    name="glodroid_forks.git" groups="glodroid" revision="refs/tags/ffmpeg_codec2-2023w46" clone-depth="1" />
   <project path="glodroid/vendor/v4l2_codec2" remote="aosp" name="platform/external/v4l2_codec2" groups="glodroid" revision="6a3ebb9202e41f53c2826fb757b869ade5b1e77f" />
 
-  <!-- modem components (vendor) -->
-  <project path="glodroid/vendor/mm-radio"        remote="glodroid"    name="mm-radio.git"     groups="glodroid" revision="90f9f9a8b20ce2e153d39c9fc250ab2733a7fbb9" />
-  <project path="glodroid/vendor/mm-radio/vendor" remote="glodroid"    name="mm-radio.git"     groups="glodroid" revision="refs/tags/cargo-deps-2023w07" clone-depth="1" />
-  <project path="glodroid/vendor/dbus"            remote="dbus"        name="dbus.git"         groups="glodroid" revision="refs/tags/dbus-1.15.2" />
-  <project path="glodroid/vendor/libqmi"          remote="mbroadband"  name="libqmi.git"       groups="glodroid" revision="refs/tags/1.33.4-dev" />
-  <project path="glodroid/vendor/modem_manager"   remote="mbroadband"  name="ModemManager.git" groups="glodroid" revision="652a562aebcd22e16962ec57c0176acdbf41876a" />
-  <project path="glodroid/vendor/libgudev"        remote="gnome"       name="libgudev.git"     groups="glodroid" revision="refs/tags/237" />
-  <project path="glodroid/vendor/glib"            remote="gnome"       name="glib.git"         groups="glodroid" revision="refs/tags/2.75.2" />
-  <project path="glodroid/vendor/glib/subprojects/gvdb" remote="gnome" name="gvdb.git"         groups="glodroid" revision="0854af0fdb6d527a8d1999835ac2c5059976c210" />
-  <project path="glodroid/vendor/glib/subprojects/proxy-libintl" remote="github"  name="frida/proxy-libintl.git" groups="glodroid" revision="refs/tags/0.4" />
-
   <!-- other components (vendor) -->
-  <project path="glodroid/vendor/aospext"         remote="glodroid" name="aospext.git"        groups="glodroid" revision="03accdcd9e5f4dd08b9d9ad05c7f57ef4137b579" />
+  <project path="glodroid/vendor/aospext"         remote="glodroid" name="aospext.git"        groups="glodroid" revision="4c5a5d5fd52c6d7626f615714928435df45aabcd" />
   <project path="glodroid/vendor/iio-sensors-hal" remote="glodroid" name="glodroid_forks.git" groups="glodroid" revision="refs/tags/iio-sensors-hal-v0.9.0" />
   <project path="glodroid/vendor/tinyhal"         remote="github"   name="CirrusLogic/tinyhal.git" groups="glodroid" revision="9c5df120b33ca51f05d4f997da659111ab63498e" />
   <project path="glodroid/vendor/libudev-zero"    remote="glodroid" name="glodroid_forks.git" groups="glodroid" revision="refs/tags/libudev_zero-v0.8.2" />
 
+  <!-- Downgrade wpa_supplicant to Android-13 commit point. TODO: Remove this when the RPI4 WIFI issue is found/fixed -->
+  <project path="external/wpa_supplicant_8"       remote="aosp"     name="platform/external/wpa_supplicant_8"   revision="1d9ae9a55470b894973457e3a4892a8820ca1bd7" />
+
   <!-- bootloader components (platform) -->
   <project path="glodroid/bootloader/u-boot"      remote="github" name="u-boot/u-boot.git"    groups="glodroid" revision="4459ed60cb1e0562bc5b40405e2b4b9bbf766d57" />
+
   <project path="glodroid/bootloader/atf"         name="platform/external/arm-trusted-firmware" groups="glodroid" revision="a127b99d5a063c798d1c6d2e1d4791a630f78355" />
-  <project path="glodroid/bootloader/raspberry-fw"  remote="github"  name="raspberrypi/firmware.git" groups="glodroid" revision="0d3395d1e065f5e9f9b081c90bc3b73100ea8698" clone-depth="1" />
+  <project path="glodroid/bootloader/raspberry-fw"  remote="github"  name="raspberrypi/firmware.git" groups="glodroid" revision="5ffb2e29c0e14dede001447a6977e126e950cf3e" clone-depth="1" />
 
   <!-- kernel/firmware components (platform) -->
-  <project path="glodroid/kernel/broadcom"        remote="glodroid" name="glodroid_forks.git" groups="glodroid" revision="refs/tags/kernel-broadcom-2023w20" />
+  <project path="glodroid/kernel/broadcom"        remote="glodroid" name="glodroid_forks.git" groups="glodroid" revision="refs/tags/kernel-broadcom-2023w49" />
 
   <!-- drm -->
   <project path="vendor/brcm/rpi4" remote="github" name="tesla-android/android-vendor-brcm-rpi4.git" revision="74c1e0cef599c83ef4549b2560e16e93f7dd6714" /> 
@@ -67,7 +60,5 @@
                                            remote="glodroid" name="linaro_gcc_prebuilts.git" groups="glodroid" revision="refs/tags/gcc-linaro-7.4.1-2019.02-x86_64_aarch64-linux-gnu" />
   <project path="prebuilts/gcc/linux-x86/arm/gcc-linaro-arm-eabi"
                                            remote="glodroid" name="linaro_gcc_prebuilts.git" groups="glodroid" revision="refs/tags/gcc-linaro-7.5.0-2019.12-x86_64_arm-eabi" />
-  <project path="glodroid/compilers/rust/1.65.0"
-                                           remote="glodroid" name="linaro_gcc_prebuilts.git" groups="glodroid" revision="refs/tags/rust-v1.65.0-linux-x86" />
 
 </manifest>

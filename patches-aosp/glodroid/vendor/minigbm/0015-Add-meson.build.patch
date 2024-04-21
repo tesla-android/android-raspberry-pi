@@ -1,0 +1,324 @@
+From 3ad6f1e0ff38121946b7d98fd045199d5ffac218 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Sat, 17 Dec 2022 19:44:49 +0200
+Subject: [PATCH 15/18] Add meson.build
+
+Change-Id: I5d5cb9948206b15e833ff63a7dccd2b1002c8cf3
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ cros_gralloc/aidl/Allocator.cpp               |  2 +-
+ cros_gralloc/aidl/allocator_gd.rc             |  7 ++
+ cros_gralloc/aidl/meson.build                 | 29 +++++++
+ cros_gralloc/gralloc0/meson.build             | 10 +++
+ cros_gralloc/gralloc4/meson.build             | 40 +++++++++
+ .../mapper_stablec/mapper.minigbm_gd.xml      |  9 +++
+ cros_gralloc/mapper_stablec/meson.build       | 20 +++++
+ cros_gralloc/meson.build                      | 18 +++++
+ gbm_mesa_driver/meson.build                   | 11 +++
+ meson.build                                   | 81 +++++++++++++++++++
+ 10 files changed, 226 insertions(+), 1 deletion(-)
+ create mode 100644 cros_gralloc/aidl/allocator_gd.rc
+ create mode 100644 cros_gralloc/aidl/meson.build
+ create mode 100644 cros_gralloc/gralloc0/meson.build
+ create mode 100644 cros_gralloc/gralloc4/meson.build
+ create mode 100644 cros_gralloc/mapper_stablec/mapper.minigbm_gd.xml
+ create mode 100644 cros_gralloc/mapper_stablec/meson.build
+ create mode 100644 cros_gralloc/meson.build
+ create mode 100644 gbm_mesa_driver/meson.build
+ create mode 100644 meson.build
+
+diff --git a/cros_gralloc/aidl/Allocator.cpp b/cros_gralloc/aidl/Allocator.cpp
+index 2ea5a0d..c78a82b 100644
+--- a/cros_gralloc/aidl/Allocator.cpp
++++ b/cros_gralloc/aidl/Allocator.cpp
+@@ -229,7 +229,7 @@ ndk::ScopedAStatus Allocator::isSupported(const BufferDescriptorInfo& descriptor
+ }
+ 
+ ndk::ScopedAStatus Allocator::getIMapperLibrarySuffix(std::string* outResult) {
+-    *outResult = "minigbm";
++    *outResult = "minigbm_gd";
+     return ndk::ScopedAStatus::ok();
+ }
+ 
+diff --git a/cros_gralloc/aidl/allocator_gd.rc b/cros_gralloc/aidl/allocator_gd.rc
+new file mode 100644
+index 0000000..7e2ca45
+--- /dev/null
++++ b/cros_gralloc/aidl/allocator_gd.rc
+@@ -0,0 +1,7 @@
++service vendor.graphics.allocator /vendor/bin/hw/android.hardware.graphics.allocator-service.minigbm_gd
++    class hal animation
++    user system
++    group graphics drmrpc
++    capabilities SYS_NICE
++    onrestart restart surfaceflinger
++    task_profiles ServiceCapacityLow
+diff --git a/cros_gralloc/aidl/meson.build b/cros_gralloc/aidl/meson.build
+new file mode 100644
+index 0000000..ad35181
+--- /dev/null
++++ b/cros_gralloc/aidl/meson.build
+@@ -0,0 +1,29 @@
++src_allocator_aidl = files(
++    'Allocator.cpp',
++    'Allocator.h',
++    'Main.cpp',
++)
++
++executable(
++    'android.hardware.graphics.allocator-service.minigbm_gd',
++    src_allocator_aidl + src_gralloc4_utils,
++    link_with : libminigbm_gralloc,
++    dependencies : deps,
++    include_directories: inc_include,
++    install : true,
++    install_dir : get_option('bindir') / 'hw',
++)
++
++configure_file(
++    input: 'allocator_gd.rc',
++    output: '@PLAINNAME@',
++    copy: true,
++    install_dir: get_option('sysconfdir') / 'init',
++)
++
++configure_file(
++    input: 'allocator.xml',
++    output: '@PLAINNAME@',
++    copy: true,
++    install_dir: get_option('sysconfdir') / 'vintf' / 'manifest',
++)
+diff --git a/cros_gralloc/gralloc0/meson.build b/cros_gralloc/gralloc0/meson.build
+new file mode 100644
+index 0000000..6c45399
+--- /dev/null
++++ b/cros_gralloc/gralloc0/meson.build
+@@ -0,0 +1,10 @@
++# gralloc0
++shared_library(
++    'gralloc.minigbm_gd',
++    files('gralloc0.cc'),
++    link_with : libminigbm_gralloc,
++    name_prefix : '',
++    dependencies : deps,
++    install : true,
++    install_dir : get_option('libdir') / 'hw',
++)
+diff --git a/cros_gralloc/gralloc4/meson.build b/cros_gralloc/gralloc4/meson.build
+new file mode 100644
+index 0000000..608cd23
+--- /dev/null
++++ b/cros_gralloc/gralloc4/meson.build
+@@ -0,0 +1,40 @@
++src_gralloc4_utils = files('CrosGralloc4Utils.cc')
++
++src_allocator4 = files(
++    'CrosGralloc4Allocator.cc',
++    'CrosGralloc4AllocatorService.cc',
++    'CrosGralloc4Utils.cc',
++)
++
++src_mapper4 = files(
++    'CrosGralloc4Mapper.cc',
++    'CrosGralloc4Utils.cc',
++)
++
++shared_library(
++    'android.hardware.graphics.mapper@4.0-impl.minigbm_gd',
++    src_mapper4,
++    link_with : libminigbm_gralloc,
++    name_prefix : '',
++    dependencies : deps,
++    include_directories: inc_include,
++    install : true,
++    install_dir : get_option('libdir') / 'hw',
++)
++
++executable(
++    'android.hardware.graphics.allocator@4.0-service.minigbm_gd',
++    src_allocator4,
++    link_with : libminigbm_gralloc,
++    dependencies : deps,
++    include_directories: inc_include,
++    install : true,
++    install_dir : get_option('bindir') / 'hw',
++)
++
++configure_file(
++    input: 'android.hardware.graphics.allocator@4.0-service.minigbm.rc',
++    output: '@PLAINNAME@',
++    copy: true,
++    install_dir: get_option('sysconfdir') / 'init',
++)
+diff --git a/cros_gralloc/mapper_stablec/mapper.minigbm_gd.xml b/cros_gralloc/mapper_stablec/mapper.minigbm_gd.xml
+new file mode 100644
+index 0000000..105167b
+--- /dev/null
++++ b/cros_gralloc/mapper_stablec/mapper.minigbm_gd.xml
+@@ -0,0 +1,9 @@
++<manifest version="1.0" type="device">
++    <hal format="native">
++        <name>mapper</name>
++        <version>5.0</version>
++        <interface>
++            <instance>minigbm_gd</instance>
++        </interface>
++    </hal>
++</manifest>
+diff --git a/cros_gralloc/mapper_stablec/meson.build b/cros_gralloc/mapper_stablec/meson.build
+new file mode 100644
+index 0000000..ba0bd22
+--- /dev/null
++++ b/cros_gralloc/mapper_stablec/meson.build
+@@ -0,0 +1,20 @@
++src_mapper_stablec = files(
++    'Mapper.cpp',
++)
++
++shared_library(
++    'mapper.minigbm_gd',
++    src_mapper_stablec + src_mapper4,
++    link_with : libminigbm_gralloc,
++    name_prefix : '',
++    dependencies : deps,
++    include_directories: inc_include,
++    install : true,
++)
++
++configure_file(
++    input: 'mapper.minigbm_gd.xml',
++    output: '@PLAINNAME@',
++    copy: true,
++    install_dir: get_option('sysconfdir') / 'vintf' / 'manifest',
++)
+diff --git a/cros_gralloc/meson.build b/cros_gralloc/meson.build
+new file mode 100644
+index 0000000..a75163d
+--- /dev/null
++++ b/cros_gralloc/meson.build
+@@ -0,0 +1,18 @@
++src_minigbm_gralloc = files(
++    'cros_gralloc_buffer.cc',
++    'cros_gralloc_driver.cc',
++    'cros_gralloc_helpers.cc',
++)
++
++libminigbm_gralloc = shared_library(
++    'minigbm_gralloc_gd',
++    src_minigbm_gralloc,
++    link_whole: libminigbm,
++    cpp_args: '-DHAS_DMABUF_SYSTEM_HEAP',
++    install : true,
++)
++
++subdir('gralloc0')
++subdir('gralloc4')
++subdir('aidl')
++subdir('mapper_stablec')
+diff --git a/gbm_mesa_driver/meson.build b/gbm_mesa_driver/meson.build
+new file mode 100644
+index 0000000..eb90841
+--- /dev/null
++++ b/gbm_mesa_driver/meson.build
+@@ -0,0 +1,11 @@
++
++src_gbm_mesa_driver = files(
++    'gbm_mesa_driver.cpp',
++    'gbm_mesa_internals.cpp',
++)
++
++shared_library(
++    'gbm_mesa_wrapper',
++    files('gbm_mesa_wrapper.c'),
++    install : true,
++)
+diff --git a/meson.build b/meson.build
+new file mode 100644
+index 0000000..aa0d768
+--- /dev/null
++++ b/meson.build
+@@ -0,0 +1,81 @@
++project(
++    'minigbm',
++    ['c', 'cpp'],
++    license : 'BSD?',
++    meson_version : '>= 0.56',
++    default_options : ['buildtype=debugoptimized', 'b_ndebug=if-release', 'c_std=c11', 'cpp_std=c++20', 'cpp_rtti=false']
++)
++
++inc_include = [include_directories('.')]
++
++cpu_family = host_machine.cpu_family()
++
++deps = [
++    dependency('cutils'),
++    dependency('drm'),
++    dependency('hardware'),
++    dependency('hidlbase'),
++    dependency('log'),
++]
++
++src_x86 = files(
++    'amdgpu.c',
++    'i915.c',
++)
++
++src_arm = files(
++    'rockchip.c',
++    'msm.c',
++    'vc4.c',
++    'mediatek.c',
++)
++
++src_minigbm = files(
++    'drv_array_helpers.c',
++    'drv_helpers.c',
++    'minigbm_helpers.c',
++    'virtgpu.c',
++    'virtgpu_virgl.c',
++    'dri.c',
++    'drv.c',
++    'virtgpu_cross_domain.c',
++    'dmabuf_driver/dmabuf_external_driver.cpp',
++    'dmabuf_driver/dmabuf_internals.cpp',
++)
++
++c_flags = [
++    '-DDRV_DMABUF_HEAP',
++    '-DDRV_GBM_MESA',
++]
++
++if cpu_family == 'x86' or cpu_family == 'x86_64'
++    src_minigbm += src_x86
++    c_flags += [
++        '-DDRV_AMDGPU',
++        '-DDRV_I915',
++        '-DDRV_RADEON',
++    ]
++elif cpu_family == 'arm' or cpu_family == 'aarch64'
++    src_minigbm += src_arm
++    c_flags += [
++#        '-DDRV_MEDIATEK', # require custom libdrm
++        '-DDRV_MESON',
++        '-DDRV_MSM',
++#        '-DDRV_ROCKCHIP', # require custom libdrm
++#        '-DDRV_VC4', # vc4 looks verey dumb, gbm_mesa should work better
++    ]
++elif
++    error('CPU family not supported')
++endif
++
++subdir('gbm_mesa_driver')
++
++libminigbm = static_library(
++    'minigbm',
++    src_minigbm + src_gbm_mesa_driver,
++    c_args : c_flags,
++    cpp_args : c_flags,
++    dependencies : deps,
++)
++
++subdir('cros_gralloc')
+-- 
+2.39.2
+
