@@ -53,7 +53,7 @@
   <project path="glodroid/kernel/broadcom"        remote="glodroid" name="glodroid_forks.git" groups="glodroid" revision="refs/tags/kernel-broadcom-2023w49" />
 
   <!-- drm -->
-  <project path="vendor/brcm/rpi4" remote="github" name="tesla-android/android-vendor-brcm-rpi4.git" revision="74c1e0cef599c83ef4549b2560e16e93f7dd6714" /> 
+  <project path="vendor/brcm/rpi4" remote="github" name="tesla-android/android-vendor-brcm-rpi4.git" revision="main" /> 
 
   <!-- compilers for platform components -->
   <project path="prebuilts/gcc/linux-x86/aarch64/gcc-linaro-aarch64-linux-gnu"
