@@ -1,0 +1,41 @@
+From b45b403592ff6917431a59b68ec84521a76f5cb9 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Sat, 27 Apr 2024 23:46:12 +0000
+Subject: [PATCH] Copy firmware and DTB to vendor-dlkm
+
+---
+ platform/kernel/kernel.mk | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/platform/kernel/kernel.mk b/platform/kernel/kernel.mk
+index d49b729..3deec99 100644
+--- a/platform/kernel/kernel.mk
++++ b/platform/kernel/kernel.mk
+@@ -69,12 +69,24 @@ BOARD_PREBUILT_DTBOIMAGE := $(PRODUCT_OUT)/boot_dtbo.img
+ MKDTBOIMG		:= $(HOST_OUT_EXECUTABLES)/mkdtboimg
+ GEN_DTBCFG		:= $(PRODUCT_OUT)/gen/DTBO/dtbo.cfg
+ 
++RPI_FIRMWARE_DIR := glodroid/bootloader/raspberry-fw
++DTBS_DIR      := $(KERNEL_OUT)/install/dtbs
++
+ $(TARGET_VENDOR_MODULES)/modules.dep: $(KERNEL_TARGET)
+ 	rm -rf $(TARGET_VENDOR_MODULES)/kernel
+ 	rm -f $(TARGET_VENDOR_MODULES)/modules.*
+ 	mkdir -p $(TARGET_VENDOR_MODULES)/kernel
+ 	cp -r $(KERNEL_OUT)/install/modules/lib/modules/GloDroid/kernel/* $(TARGET_VENDOR_MODULES)/kernel/
+ 	cp -r $(KERNEL_OUT)/install/modules/lib/modules/GloDroid/modules.* $(TARGET_VENDOR_MODULES)/
++	mkdir -p $(TARGET_OUT_VENDOR_DLKM)/boot
++	cp -r $(RPI_FIRMWARE_DIR)/boot/bootcode.bin $(TARGET_OUT_VENDOR_DLKM)/boot/bootcode.bin
++	cp -r $(RPI_FIRMWARE_DIR)/boot/start_x.elf $(TARGET_OUT_VENDOR_DLKM)/boot/start_x.elf
++	cp -r $(RPI_FIRMWARE_DIR)/boot/start4x.elf $(TARGET_OUT_VENDOR_DLKM)/boot/start4x.elf
++	cp -r $(RPI_FIRMWARE_DIR)/boot/fixup_x.dat $(TARGET_OUT_VENDOR_DLKM)/boot/fixup_x.dat.elf
++	cp -r $(RPI_FIRMWARE_DIR)/boot/fixup4x.dat $(TARGET_OUT_VENDOR_DLKM)/boot/fixup4x.dat
++	cp -r $(DTBS_DIR)/broadcom/bcm2711-rpi-4-b.dtb $(TARGET_OUT_VENDOR_DLKM)/boot/bcm2711-rpi-4-b.dtb
++	cp -r $(DTBS_DIR)/broadcom/bcm2711-rpi-400.dtb $(TARGET_OUT_VENDOR_DLKM)/boot/bcm2711-rpi-400.dtb
++	cp -r $(DTBS_DIR)/broadcom/bcm2711-rpi-cm4.dtb $(TARGET_OUT_VENDOR_DLKM)/boot/bcm2711-rpi-cm4.dtb
+ 	touch $@
+ 
+ $(PRODUCT_OUT)/kernel: $(KERNEL_TARGET) $(TARGET_VENDOR_MODULES)/modules.dep
+-- 
+2.34.1
+
