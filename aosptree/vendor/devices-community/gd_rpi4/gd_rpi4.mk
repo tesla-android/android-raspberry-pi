@@ -26,7 +26,7 @@ UBOOT_DEFCONFIG := rpi_4_defconfig
 ATF_PLAT        := rpi4
 
 KERNEL_SRC       := glodroid/kernel/broadcom
-KERNEL_DEFCONFIG := $(KERNEL_SRC)/arch/arm64/configs/android_rpi4_defconfig
+KERNEL_DEFCONFIG := $(KERNEL_SRC)/arch/arm64/configs/bcm2711_defconfig
 
 KERNEL_FRAGMENTS := \
     $(LOCAL_PATH)/kernel.config \
