@@ -19,17 +19,12 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/firmware/regulatory.db:$(TARGET_COPY_OUT_VENDOR)/etc/firmware/regulatory.db \
     $(LOCAL_PATH)/firmware/regulatory.db.p7s:$(TARGET_COPY_OUT_VENDOR)/etc/firmware/regulatory.db.p7s \
 
-PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/etc/audio.rpi4.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio.rpi4.xml \
-    $(LOCAL_PATH)/etc/audio.rpi400.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio.rpi400.xml \
-
 # Disable suspend. During running some VTS device suspends, which sometimes causes kernel to crash in WIFI driver and reboot.
 PRODUCT_COPY_FILES += \
     glodroid/configuration/common/no_suspend.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/no_suspend.rpi4.rc \
 
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/etc/power.rpi4.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/power.rpi4.rc \
-    $(LOCAL_PATH)/etc/snd.rpi4.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/snd.rpi4.rc     \
     $(LOCAL_PATH)/etc/uevent.device.rc:$(TARGET_COPY_OUT_VENDOR)/etc/uevent.device.rc \
 
 # drm_hwcomposer
@@ -99,3 +94,40 @@ PRODUCT_VENDOR_PROPERTIES +=    \
 # HACK virtual display size == virtual touchscreen size == phisical display size
 PRODUCT_VENDOR_PROPERTIES +=    \
     debug.drm.mode.force=1024x768
+
+# Audio
+GD_NO_DEFAULT_AUDIO = true
+
+PRODUCT_PACKAGES += \
+    android.hardware.audio.service \
+    android.hardware.audio@7.1-impl \
+    android.hardware.audio.effect@7.0-impl \
+    audio.primary.rpi \
+    audio.r_submix.default \
+    audio.usb.default
+
+PRODUCT_PACKAGES += \
+    tinycap \
+    tinyhostless \
+    tinymix \
+    tinypcminfo \
+    tinyplay
+
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/audio/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_configuration.xml \
+    frameworks/av/media/libeffects/data/audio_effects.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_effects.xml \
+    frameworks/av/services/audiopolicy/config/audio_policy_volumes.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_volumes.xml \
+    frameworks/av/services/audiopolicy/config/default_volume_tables.xml:$(TARGET_COPY_OUT_VENDOR)/etc/default_volume_tables.xml \
+    frameworks/av/services/audiopolicy/config/r_submix_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/r_submix_audio_policy_configuration.xml \
+    frameworks/av/services/audiopolicy/config/usb_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/usb_audio_policy_configuration.xml
+
+PRODUCT_VENDOR_PROPERTIES +=    \
+    persist.audio.pcm.card=0 \
+    persist.audio.pcm.device=0 \
+    ro.config.media_vol_default=100 \
+    ro.config.media_vol_steps=25 \
+    ro.hardware.audio.primary=rpi \
+
+DEVICE_MANIFEST_FILE += \
+    glodroid/configuration/common/audio/android.hardware.audio@7.1.xml \
+    glodroid/configuration/common/audio/android.hardware.audio.effect@7.0.xml \

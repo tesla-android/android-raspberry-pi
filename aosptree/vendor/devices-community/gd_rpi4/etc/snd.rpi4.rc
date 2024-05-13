@@ -1,2 +1,0 @@
-on early-init
-    exec u:r:vendor_modprobe:s0 -- /vendor/bin/modprobe -d /vendor/lib/modules -a snd-dummy
