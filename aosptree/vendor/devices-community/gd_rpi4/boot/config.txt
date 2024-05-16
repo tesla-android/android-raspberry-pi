@@ -41,3 +41,6 @@ dtparam=ant2
 # I2C for argonfan
 dtparam=i2c1=on
 dtparam=i2c_arm=on
+
+# RPI 4 headless boot fix
+hdmi_force_hotplug=1 
