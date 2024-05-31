@@ -95,6 +95,9 @@ PRODUCT_VENDOR_PROPERTIES +=    \
 PRODUCT_VENDOR_PROPERTIES +=    \
     debug.drm.mode.force=1024x768
 
+# Default apps
+GD_NO_DEFAULT_APPS = false
+
 # Audio
 GD_NO_DEFAULT_AUDIO = true
 
