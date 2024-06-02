@@ -1,7 +1,7 @@
-From 5c6c68a5593fe18367ff2a2eb9457ed7caac4bc1 Mon Sep 17 00:00:00 2001
+From 30dbac6df4b6069dacf2070f09b6cf994f261c61 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
 Date: Mon, 4 Jul 2022 02:30:20 +0200
-Subject: [PATCH 1/4] Wi-Fi Hotspot: Remove maximize compatibility setting
+Subject: [PATCH 1/5] Wi-Fi Hotspot: Remove maximize compatibility setting
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit

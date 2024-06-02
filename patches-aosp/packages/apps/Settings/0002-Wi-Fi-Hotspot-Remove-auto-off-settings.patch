@@ -1,7 +1,7 @@
-From 7a44e66c0803014937656a9fb6d70da3e8f897fe Mon Sep 17 00:00:00 2001
+From 2fc8c39151d3f5aeff223b8498a37fd71b0ea41b Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
 Date: Mon, 4 Jul 2022 03:06:29 +0200
-Subject: [PATCH 2/4] Wi-Fi Hotspot: Remove auto off settings
+Subject: [PATCH 2/5] Wi-Fi Hotspot: Remove auto off settings
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit

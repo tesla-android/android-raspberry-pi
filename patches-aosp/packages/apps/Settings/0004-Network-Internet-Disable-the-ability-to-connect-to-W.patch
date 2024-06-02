@@ -1,7 +1,7 @@
-From 2d7e1fb6940f393efcb51ccfb7310df19e8b49b8 Mon Sep 17 00:00:00 2001
+From 523e266ff20f1f588e8bc358f68aca6288e7c799 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
 Date: Mon, 4 Jul 2022 05:43:24 +0200
-Subject: [PATCH 4/4] Network & Internet: Disable the ability to connect to
+Subject: [PATCH 4/5] Network & Internet: Disable the ability to connect to
  Wi-Fi networks. It's a clear conflict with always on Hostspot
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8

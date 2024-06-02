@@ -1,7 +1,7 @@
-From 09b508628a7a0481415a7804b42b8d56f5bb3ce5 Mon Sep 17 00:00:00 2001
+From faa1b5d2337b97780bc8f7d90ed00bfdfb911076 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
 Date: Mon, 4 Jul 2022 04:31:47 +0200
-Subject: [PATCH 3/4] Wi-Fi Hotspot: Disable switchbar
+Subject: [PATCH 3/5] Wi-Fi Hotspot: Disable switchbar
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
