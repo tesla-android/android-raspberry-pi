@@ -1,7 +1,7 @@
-From daa55b12750776c80c7a403b06b11c6079c0d466 Mon Sep 17 00:00:00 2001
+From 5bd380d1843283561d487b2464785e8cb8952268 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Tue, 22 Nov 2022 17:16:29 +0100
-Subject: [PATCH 6/6] cdc_mbim: remove wwan flags
+Subject: [PATCH 06/10] cdc_mbim: remove wwan flags
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit

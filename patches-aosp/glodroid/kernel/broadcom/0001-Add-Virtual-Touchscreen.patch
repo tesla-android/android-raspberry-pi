@@ -1,7 +1,7 @@
-From e0fd1941735e457c4bd5b96777e37b94e396d582 Mon Sep 17 00:00:00 2001
+From 9509a3d2238ba2c18842f2fec49415acbf9313d1 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Tue, 6 Feb 2024 20:01:22 +0000
-Subject: [PATCH 1/6] Add Virtual Touchscreen
+Subject: [PATCH 01/10] Add Virtual Touchscreen
 
 ---
  drivers/input/touchscreen/Kconfig             |   6 +
@@ -11,7 +11,7 @@ Subject: [PATCH 1/6] Add Virtual Touchscreen
  create mode 100644 drivers/input/touchscreen/virtual_touchscreen.c
 
 diff --git a/drivers/input/touchscreen/Kconfig b/drivers/input/touchscreen/Kconfig
-index dc90a3ea5..e4c7fd160 100644
+index dc90a3ea5..3a6591aad 100644
 --- a/drivers/input/touchscreen/Kconfig
 +++ b/drivers/input/touchscreen/Kconfig
 @@ -12,6 +12,12 @@ menuconfig INPUT_TOUCHSCREEN
@@ -41,7 +41,7 @@ index 557f84fd2..095dec637 100644
  obj-$(CONFIG_TOUCHSCREEN_AD7879)	+= ad7879.o
 diff --git a/drivers/input/touchscreen/virtual_touchscreen.c b/drivers/input/touchscreen/virtual_touchscreen.c
 new file mode 100644
-index 000000000..f84c5f051
+index 000000000..553d48cd0
 --- /dev/null
 +++ b/drivers/input/touchscreen/virtual_touchscreen.c
 @@ -0,0 +1,237 @@

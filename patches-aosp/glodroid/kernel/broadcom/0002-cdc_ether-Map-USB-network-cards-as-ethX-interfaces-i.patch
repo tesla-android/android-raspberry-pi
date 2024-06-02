@@ -1,7 +1,7 @@
-From 3ae5a08eb0233e7608505369ddecc764ef6d08f4 Mon Sep 17 00:00:00 2001
+From c1c12a2aeb081cf30ba65c0d3c7388fb8cd3de15 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Tue, 21 Jun 2022 17:54:50 +0200
-Subject: [PATCH 2/6] cdc_ether: Map USB network cards as ethX interfaces in
+Subject: [PATCH 02/10] cdc_ether: Map USB network cards as ethX interfaces in
  order to allow tethering alongside normal network interfaces on Android
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8

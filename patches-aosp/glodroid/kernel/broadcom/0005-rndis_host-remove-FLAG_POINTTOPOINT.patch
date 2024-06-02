@@ -1,7 +1,7 @@
-From 35ff3ba7f58c07ee285f2ec7ec388c9807ee7cdf Mon Sep 17 00:00:00 2001
+From 396bb7ab5c07f8807f7ef92f10ec55efddc91c42 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Tue, 8 Nov 2022 01:41:56 +0100
-Subject: [PATCH 5/6] rndis_host: remove FLAG_POINTTOPOINT
+Subject: [PATCH 05/10] rndis_host: remove FLAG_POINTTOPOINT
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit

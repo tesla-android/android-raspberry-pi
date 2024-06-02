@@ -1,7 +1,7 @@
-From 837eb02a764ef6064417396784cd8d303023220c Mon Sep 17 00:00:00 2001
+From 609be203e9e34c720f209da38cd84a123904912d Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Tue, 8 Nov 2022 01:38:03 +0100
-Subject: [PATCH 4/6] cdc_mbim: add FLAG_ETHER
+Subject: [PATCH 04/10] cdc_mbim: add FLAG_ETHER
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit

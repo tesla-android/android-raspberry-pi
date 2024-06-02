@@ -1,7 +1,7 @@
-From 4192ae1ba522e0c49edc4c7b05967524bab7c4e4 Mon Sep 17 00:00:00 2001
+From 0f4217eea66aa7c0cf79ba7caf1e733f99af4319 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Wed, 7 Feb 2024 13:11:10 +0000
-Subject: [PATCH] Build IPETH
+Subject: [PATCH 08/10] Build IPETH
 
 ---
  arch/arm64/configs/android_rpi4_defconfig | 2 +-

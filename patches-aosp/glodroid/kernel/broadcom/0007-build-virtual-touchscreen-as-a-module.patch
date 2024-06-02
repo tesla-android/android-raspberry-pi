@@ -1,7 +1,7 @@
-From 70e6fe1623ba39909db628049413f8535de814ca Mon Sep 17 00:00:00 2001
+From 3ce2cee11d517267936e1f548875229ab9b17567 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Wed, 7 Feb 2024 12:13:20 +0000
-Subject: [PATCH] build virtual touchscreen as a module
+Subject: [PATCH 07/10] build virtual touchscreen as a module
 
 ---
  arch/arm64/configs/android_rpi4_defconfig | 1 +

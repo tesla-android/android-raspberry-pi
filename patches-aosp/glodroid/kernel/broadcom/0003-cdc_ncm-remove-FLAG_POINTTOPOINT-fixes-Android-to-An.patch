@@ -1,7 +1,7 @@
-From 58312987ba45d28d8326cab6c4f134ff3ddf436d Mon Sep 17 00:00:00 2001
+From df9c0ba419c01381cd8210c5d3d5a22ca7334adf Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Thu, 3 Nov 2022 18:17:03 +0100
-Subject: [PATCH 3/6] cdc_ncm: remove FLAG_POINTTOPOINT, fixes Android to
+Subject: [PATCH 03/10] cdc_ncm: remove FLAG_POINTTOPOINT, fixes Android to
  Android usb tethering
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
