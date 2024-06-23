@@ -313,15 +313,6 @@ static int out_set_volume(struct audio_stream_out *stream, float left,
     return 0;
 }
 
-static int is_empty(char *buf, size_t size)
-{
-    int i;
-    for(i = 0; i < size; i++) {
-        if(buf[i] != 0) return 0;
-    }
-    return 1;
-}
-
 static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
         size_t bytes)
 {
@@ -350,9 +341,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 
     ret = pcm_mmap_write(out->pcm, buffer, out_frames * frame_size);
 
-    if(is_empty((char *)buffer, out_frames * frame_size) == 0) {
-        ws_sendframe_bin(NULL, (char *)buffer, out_frames * frame_size);
-    }
+    ws_sendframe_bin(NULL, (char *)buffer, out_frames * frame_size);
 
     if (ret == 0) {
         out->written += out_frames;
