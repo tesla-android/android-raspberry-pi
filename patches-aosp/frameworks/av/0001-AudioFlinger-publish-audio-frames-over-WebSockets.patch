@@ -1,0 +1,110 @@
+From 6a7f43300d8452d13be722b4b1b66e7c8fce1753 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Sat, 14 Jan 2023 18:44:38 +0100
+Subject: [PATCH 1/2] AudioFlinger: publish audio frames over WebSockets
+
+Change-Id: Ia34124d1cc26f2f678cc8fa4642aeef40829618c
+---
+ services/audioflinger/Android.bp       |  2 ++
+ services/audioflinger/AudioFlinger.cpp | 29 ++++++++++++++++++++++++++
+ services/audioflinger/Threads.cpp      |  3 +++
+ 3 files changed, 34 insertions(+)
+
+diff --git a/services/audioflinger/Android.bp b/services/audioflinger/Android.bp
+index 663df69..511fb4e 100644
+--- a/services/audioflinger/Android.bp
++++ b/services/audioflinger/Android.bp
+@@ -175,6 +175,7 @@ cc_library_shared {
+     include_dirs: [
+         "frameworks/av/services/audiopolicy",
+         "frameworks/av/services/medialog",
++        "external/libws",
+     ],
+ 
+     shared_libs: [
+@@ -210,6 +211,7 @@ cc_library_shared {
+         "libsounddose",
+         "libvibrator",
+         "packagemanager_aidl-cpp",
++        "libws",
+     ],
+ 
+     static_libs: [
+diff --git a/services/audioflinger/AudioFlinger.cpp b/services/audioflinger/AudioFlinger.cpp
+index 325adfa..c9b47fd 100644
+--- a/services/audioflinger/AudioFlinger.cpp
++++ b/services/audioflinger/AudioFlinger.cpp
+@@ -91,6 +91,8 @@
+ 
+ #include "TypedLogger.h"
+ 
++#include <ws.h>
++
+ // ----------------------------------------------------------------------------
+ 
+ // Note: the following macro is used for extremely verbose logging message.  In
+@@ -119,6 +121,28 @@ using android::detail::AudioHalVersionInfo;
+ static const AudioHalVersionInfo kMaxAAudioPropertyDeviceHalVersion =
+         AudioHalVersionInfo(AudioHalVersionInfo::Type::HIDL, 7, 1);
+ 
++static void onopen(ws_cli_conn_t *client) {
++	char *cli;
++	cli = ws_getaddress(client);
++	printf("Connection opened, addr: %s\n", cli);
++}
++
++static void onclose(ws_cli_conn_t *client) {
++	char *cli;
++	cli = ws_getaddress(client);
++	printf("Connection closed, addr: %s\n", cli);
++}
++
++static void onmessage(ws_cli_conn_t *client,
++	const unsigned char *msg, uint64_t size, int type)
++{
++	char *cli;
++	cli = ws_getaddress(client);
++	printf("Message: %s (size: %" PRId64 ", type: %d), from: %s\n",
++		msg, size, type, cli);
++}
++
++
+ static constexpr char kDeadlockedString[] = "AudioFlinger may be deadlocked\n";
+ static constexpr char kHardwareLockedString[] = "Hardware lock is taken\n";
+ static constexpr char kClientLockedString[] = "Client lock is taken\n";
+@@ -313,6 +337,11 @@ void AudioFlinger::instantiate() {
+     sm->addService(String16(IAudioFlinger::DEFAULT_SERVICE_NAME),
+                    new AudioFlingerServerAdapter(new AudioFlinger()), false,
+                    IServiceManager::DUMP_FLAG_PRIORITY_DEFAULT);
++    struct ws_events evs;
++    evs.onopen    = &onopen;
++	evs.onclose   = &onclose;
++	evs.onmessage = &onmessage;
++	ws_socket(&evs, 8080, 1, 1000);
+ }
+ 
+ AudioFlinger::AudioFlinger()
+diff --git a/services/audioflinger/Threads.cpp b/services/audioflinger/Threads.cpp
+index 700bdd2..25907a8 100644
+--- a/services/audioflinger/Threads.cpp
++++ b/services/audioflinger/Threads.cpp
+@@ -96,6 +96,8 @@
+ #include <pthread.h>
+ #include "TypedLogger.h"
+ 
++#include <ws.h>
++
+ // ----------------------------------------------------------------------------
+ 
+ // Note: the following macro is used for extremely verbose logging message.  In
+@@ -3454,6 +3456,7 @@ ssize_t AudioFlinger::PlaybackThread::threadLoop_write()
+ #ifdef TEE_SINK
+             mTee.write((char *)mSinkBuffer + offset, framesWritten);
+ #endif
++			ws_sendframe_bin(NULL, (char *)mSinkBuffer + offset, bytesWritten);
+         } else {
+             bytesWritten = framesWritten;
+         }
+-- 
+2.34.1
+
