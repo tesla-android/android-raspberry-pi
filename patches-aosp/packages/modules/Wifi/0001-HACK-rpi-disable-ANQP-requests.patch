@@ -1,0 +1,88 @@
+From add58eeee99f53ce27ba8a8adf8d538b7e6addcb Mon Sep 17 00:00:00 2001
+From: Konsta <konsta09@gmail.com>
+Date: Tue, 14 Dec 2021 16:10:13 +0200
+Subject: [PATCH] HACK: rpi: disable ANQP requests
+
+* https://github.com/lineage-rpi/android_kernel_brcm_rpi/issues/6
+
+Change-Id: If056e5394ee170a0b68ba6bb4ce0b34b93295218
+---
+ service/java/com/android/server/wifi/ClientModeImpl.java       | 3 ++-
+ .../com/android/server/wifi/ConcreteClientModeManager.java     | 3 ++-
+ service/java/com/android/server/wifi/WifiNative.java           | 3 +++
+ .../android/server/wifi/hotspot2/PasspointEventHandler.java    | 3 +++
+ 4 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/service/java/com/android/server/wifi/ClientModeImpl.java b/service/java/com/android/server/wifi/ClientModeImpl.java
+index 5fe610a0af..b03e74cc38 100644
+--- a/service/java/com/android/server/wifi/ClientModeImpl.java
++++ b/service/java/com/android/server/wifi/ClientModeImpl.java
+@@ -1832,7 +1832,8 @@ public class ClientModeImpl extends StateMachine implements ClientMode {
+ 
+     @Override
+     public boolean requestAnqp(String bssid, Set<Integer> anqpIds, Set<Integer> hs20Subtypes) {
+-        return mWifiNative.requestAnqp(mInterfaceName, bssid, anqpIds, hs20Subtypes);
++        //return mWifiNative.requestAnqp(mInterfaceName, bssid, anqpIds, hs20Subtypes);
++        return false;
+     }
+ 
+     @Override
+diff --git a/service/java/com/android/server/wifi/ConcreteClientModeManager.java b/service/java/com/android/server/wifi/ConcreteClientModeManager.java
+index 0e1e23b886..4d4a590dc2 100644
+--- a/service/java/com/android/server/wifi/ConcreteClientModeManager.java
++++ b/service/java/com/android/server/wifi/ConcreteClientModeManager.java
+@@ -1660,7 +1660,8 @@ public class ConcreteClientModeManager implements ClientModeManager {
+ 
+     @Override
+     public boolean requestAnqp(String bssid, Set<Integer> anqpIds, Set<Integer> hs20Subtypes) {
+-        return getClientMode().requestAnqp(bssid, anqpIds, hs20Subtypes);
++        //return getClientMode().requestAnqp(bssid, anqpIds, hs20Subtypes);
++        return false;
+     }
+ 
+     @Override
+diff --git a/service/java/com/android/server/wifi/WifiNative.java b/service/java/com/android/server/wifi/WifiNative.java
+index 94e19bb4ab..342ddafed4 100644
+--- a/service/java/com/android/server/wifi/WifiNative.java
++++ b/service/java/com/android/server/wifi/WifiNative.java
+@@ -2818,6 +2818,7 @@ public class WifiNative {
+     public boolean requestAnqp(
+             @NonNull String ifaceName, String bssid, Set<Integer> anqpIds,
+             Set<Integer> hs20Subtypes) {
++        /*
+         if (bssid == null || ((anqpIds == null || anqpIds.isEmpty())
+                 && (hs20Subtypes == null || hs20Subtypes.isEmpty()))) {
+             Log.e(TAG, "Invalid arguments for ANQP request.");
+@@ -2831,6 +2832,8 @@ public class WifiNative {
+         hs20SubtypeList.addAll(hs20Subtypes);
+         return mSupplicantStaIfaceHal.initiateAnqpQuery(
+                 ifaceName, bssid, anqpIdList, hs20SubtypeList);
++        */
++        return false;
+     }
+ 
+     /**
+diff --git a/service/java/com/android/server/wifi/hotspot2/PasspointEventHandler.java b/service/java/com/android/server/wifi/hotspot2/PasspointEventHandler.java
+index 0d82947840..6db9839f47 100644
+--- a/service/java/com/android/server/wifi/hotspot2/PasspointEventHandler.java
++++ b/service/java/com/android/server/wifi/hotspot2/PasspointEventHandler.java
+@@ -78,6 +78,7 @@ public class PasspointEventHandler {
+      * @return true if request is sent successfully, false otherwise.
+      */
+     public boolean requestANQP(long bssid, List<Constants.ANQPElementType> elements) {
++        /*
+         Pair<Set<Integer>, Set<Integer>> querySets = buildAnqpIdSet(elements);
+         if (bssid == 0 || querySets == null) return false;
+         if (!mWifiInjector.getActiveModeWarden().getPrimaryClientModeManager().requestAnqp(
+@@ -87,6 +88,8 @@ public class PasspointEventHandler {
+         }
+         Log.d(Utils.hs2LogTag(getClass()), "ANQP initiated on " + Utils.macToString(bssid));
+         return true;
++        */
++        return false;
+     }
+ 
+     /**
+-- 
+2.34.1
+
