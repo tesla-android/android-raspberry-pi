@@ -7,4 +7,4 @@ PRODUCT_MAKEFILES := \
     $(LOCAL_DIR)/gd_cm4.mk
 
 COMMON_LUNCH_CHOICES := \
-    gd_cm4-userdebug
+    gd_cm4-trunk_staging-userdebug
