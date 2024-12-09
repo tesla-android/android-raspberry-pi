@@ -1,14 +1,14 @@
-From 6e61007b19544c573f1c2a4c6060d3d24b8d500e Mon Sep 17 00:00:00 2001
+From a55c318cbce6745c4cfbb898be5ddaa5241d365c Mon Sep 17 00:00:00 2001
 From: John Cox <jc@kynesim.co.uk>
 Date: Tue, 27 Apr 2021 12:37:07 +0100
-Subject: [PATCH 007/122] Reduce mmal compile warnings
+Subject: [PATCH 07/41] Reduce mmal compile warnings
 
 ---
  libavcodec/mmaldec.c | 4 ++++
  1 file changed, 4 insertions(+)
 
 diff --git a/libavcodec/mmaldec.c b/libavcodec/mmaldec.c
-index 3092f58510..6f41b41ac4 100644
+index e42591110f..70cc0ecabc 100644
 --- a/libavcodec/mmaldec.c
 +++ b/libavcodec/mmaldec.c
 @@ -24,6 +24,9 @@
@@ -30,5 +30,5 @@ index 3092f58510..6f41b41ac4 100644
  
  #include "avcodec.h"
 -- 
-2.37.2
+2.43.0
 

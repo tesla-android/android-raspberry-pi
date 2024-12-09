@@ -1,7 +1,7 @@
-From f3eaadb27a5bc6db07d33ce0814d796e8cee623e Mon Sep 17 00:00:00 2001
+From d4d8125f8f5b5405c73da87733958f06ed5cf8ff Mon Sep 17 00:00:00 2001
 From: John Cox <jc@kynesim.co.uk>
 Date: Tue, 27 Apr 2021 11:27:39 +0100
-Subject: [PATCH 002/122] Add sand pix fmts & conversion fns
+Subject: [PATCH 02/41] Add sand pix fmts & conversion fns
 
 ---
  configure                     |   3 +
@@ -22,10 +22,10 @@ Subject: [PATCH 002/122] Add sand pix fmts & conversion fns
  create mode 100644 libavutil/rpi_sand_fns.h
 
 diff --git a/configure b/configure
-index b6616f00b6..27112ced58 100755
+index d77a55b653..9b8161fc52 100755
 --- a/configure
 +++ b/configure
-@@ -344,6 +344,7 @@ External library support:
+@@ -353,6 +353,7 @@ External library support:
    --enable-libvpl          enable Intel oneVPL code via libvpl if libmfx is not used [no]
    --enable-libnpp          enable Nvidia Performance Primitives-based code [no]
    --enable-mmal            enable Broadcom Multi-Media Abstraction Layer (Raspberry Pi) via MMAL [no]
@@ -33,7 +33,7 @@ index b6616f00b6..27112ced58 100755
    --disable-nvdec          disable Nvidia video decoding acceleration (via hwaccel) [autodetect]
    --disable-nvenc          disable Nvidia video encoding code [autodetect]
    --enable-omx             enable OpenMAX IL code [no]
-@@ -1930,6 +1931,7 @@ FEATURE_LIST="
+@@ -2042,6 +2043,7 @@ FEATURE_LIST="
      omx_rpi
      runtime_cpudetect
      safe_bitstream_reader
@@ -41,7 +41,7 @@ index b6616f00b6..27112ced58 100755
      shared
      small
      static
-@@ -2495,6 +2497,7 @@ CONFIG_EXTRA="
+@@ -2621,6 +2623,7 @@ CONFIG_EXTRA="
      rtpdec
      rtpenc_chain
      rv34dsp
@@ -50,10 +50,10 @@ index b6616f00b6..27112ced58 100755
      sinewin
      snappy
 diff --git a/libavutil/Makefile b/libavutil/Makefile
-index dc9012f9a8..e33f5db099 100644
+index 6e6fa8d800..8fa4088509 100644
 --- a/libavutil/Makefile
 +++ b/libavutil/Makefile
-@@ -73,6 +73,7 @@ HEADERS = adler32.h                                                     \
+@@ -76,6 +76,7 @@ HEADERS = adler32.h                                                     \
            rational.h                                                    \
            replaygain.h                                                  \
            ripemd.h                                                      \
@@ -61,7 +61,7 @@ index dc9012f9a8..e33f5db099 100644
            samplefmt.h                                                   \
            sha.h                                                         \
            sha512.h                                                      \
-@@ -192,6 +193,7 @@ OBJS-$(CONFIG_MACOS_KPERF)              += macos_kperf.o
+@@ -201,6 +202,7 @@ OBJS-$(CONFIG_MACOS_KPERF)              += macos_kperf.o
  OBJS-$(CONFIG_MEDIACODEC)               += hwcontext_mediacodec.o
  OBJS-$(CONFIG_OPENCL)                   += hwcontext_opencl.o
  OBJS-$(CONFIG_QSV)                      += hwcontext_qsv.o
@@ -69,7 +69,7 @@ index dc9012f9a8..e33f5db099 100644
  OBJS-$(CONFIG_VAAPI)                    += hwcontext_vaapi.o
  OBJS-$(CONFIG_VIDEOTOOLBOX)             += hwcontext_videotoolbox.o
  OBJS-$(CONFIG_VDPAU)                    += hwcontext_vdpau.o
-@@ -212,6 +214,7 @@ SKIPHEADERS-$(CONFIG_D3D11VA)          += hwcontext_d3d11va.h
+@@ -222,6 +224,7 @@ SKIPHEADERS-$(CONFIG_D3D12VA)          += hwcontext_d3d12va.h
  SKIPHEADERS-$(CONFIG_DXVA2)            += hwcontext_dxva2.h
  SKIPHEADERS-$(CONFIG_QSV)              += hwcontext_qsv.h
  SKIPHEADERS-$(CONFIG_OPENCL)           += hwcontext_opencl.h
@@ -966,12 +966,12 @@ index 0000000000..447f367bea
 +#endif // AVUTIL_ARM_SAND_NEON_H
 +
 diff --git a/libavutil/pixdesc.c b/libavutil/pixdesc.c
-index 62a2ae08d9..cb73521ea7 100644
+index 1c0bcf2232..c1d7dde041 100644
 --- a/libavutil/pixdesc.c
 +++ b/libavutil/pixdesc.c
-@@ -2717,6 +2717,50 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
-         .flags = AV_PIX_FMT_FLAG_RGB | AV_PIX_FMT_FLAG_FLOAT |
-                  AV_PIX_FMT_FLAG_ALPHA,
+@@ -2791,6 +2791,50 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
+         },
+         .flags = AV_PIX_FMT_FLAG_PLANAR,
      },
 +    [AV_PIX_FMT_SAND128] = {
 +        .name = "sand128",
@@ -1021,10 +1021,10 @@ index 62a2ae08d9..cb73521ea7 100644
  
  static const char * const color_range_names[] = {
 diff --git a/libavutil/pixfmt.h b/libavutil/pixfmt.h
-index 37c2c79e01..22f70007c3 100644
+index a7f50e1690..c7c1147b59 100644
 --- a/libavutil/pixfmt.h
 +++ b/libavutil/pixfmt.h
-@@ -377,6 +377,12 @@ enum AVPixelFormat {
+@@ -380,6 +380,12 @@ enum AVPixelFormat {
  
      AV_PIX_FMT_Y210BE,    ///< packed YUV 4:2:2 like YUYV422, 20bpp, data in the high bits, big-endian
      AV_PIX_FMT_Y210LE,    ///< packed YUV 4:2:2 like YUYV422, 20bpp, data in the high bits, little-endian
@@ -1819,5 +1819,5 @@ index 0000000000..634b55e800
 +#endif
 +
 -- 
-2.37.2
+2.43.0
 

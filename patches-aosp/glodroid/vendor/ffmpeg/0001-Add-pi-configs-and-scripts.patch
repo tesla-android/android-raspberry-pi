@@ -1,28 +1,29 @@
-From 504df93cfe5416b394755e79b7b81ee0119cf09c Mon Sep 17 00:00:00 2001
+From 221b6de8ced52018acdeb936530bd49bc94e424c Mon Sep 17 00:00:00 2001
 From: John Cox <jc@kynesim.co.uk>
 Date: Mon, 26 Apr 2021 12:34:50 +0100
-Subject: [PATCH 001/122] Add pi configs and scripts
+Subject: [PATCH 01/41] Add pi configs and scripts
 
 ---
- pi-util/BUILD.txt                  |  59 ++++++++
- pi-util/NOTES.txt                  |  69 +++++++++
- pi-util/TESTMESA.txt               |  82 +++++++++++
- pi-util/clean_usr_libs.sh          |  26 ++++
- pi-util/conf_arm64_native.sh       |  45 ++++++
- pi-util/conf_h265.2016.csv         | 195 ++++++++++++++++++++++++++
- pi-util/conf_h265.2016_HEVC_v1.csv | 147 ++++++++++++++++++++
- pi-util/conf_h265.csv              | 144 +++++++++++++++++++
- pi-util/conf_native.sh             | 108 +++++++++++++++
- pi-util/ffconf.py                  | 215 +++++++++++++++++++++++++++++
- pi-util/ffperf.py                  | 128 +++++++++++++++++
- pi-util/genpatch.sh                |  35 +++++
+ pi-util/BUILD.txt                  |  67 ++++++++
+ pi-util/NOTES.txt                  |  69 ++++++++
+ pi-util/TESTMESA.txt               |  82 +++++++++
+ pi-util/clean_usr_libs.sh          |  42 +++++
+ pi-util/conf_arm64_native.sh       |  45 +++++
+ pi-util/conf_h265.2016.csv         | 195 +++++++++++++++++++++
+ pi-util/conf_h265.2016_HEVC_v1.csv | 147 ++++++++++++++++
+ pi-util/conf_h265.csv              | 144 ++++++++++++++++
+ pi-util/conf_native.sh             | 135 +++++++++++++++
+ pi-util/ffconf.py                  | 267 +++++++++++++++++++++++++++++
+ pi-util/ffperf.py                  | 140 +++++++++++++++
+ pi-util/genpatch.sh                |  35 ++++
  pi-util/make_array.py              |  23 +++
  pi-util/mkinst.sh                  |   5 +
- pi-util/patkodi.sh                 |   9 ++
- pi-util/perfcmp.py                 | 101 ++++++++++++++
- pi-util/qem.sh                     |   9 ++
- pi-util/v3dusage.py                | 128 +++++++++++++++++
- 18 files changed, 1528 insertions(+)
+ pi-util/patkodi.sh                 |   9 +
+ pi-util/perfcmp.py                 | 101 +++++++++++
+ pi-util/qem.sh                     |   9 +
+ pi-util/testfilt.py                |  83 +++++++++
+ pi-util/v3dusage.py                | 128 ++++++++++++++
+ 19 files changed, 1726 insertions(+)
  create mode 100644 pi-util/BUILD.txt
  create mode 100644 pi-util/NOTES.txt
  create mode 100644 pi-util/TESTMESA.txt
@@ -40,14 +41,15 @@ Subject: [PATCH 001/122] Add pi configs and scripts
  create mode 100644 pi-util/patkodi.sh
  create mode 100755 pi-util/perfcmp.py
  create mode 100755 pi-util/qem.sh
+ create mode 100755 pi-util/testfilt.py
  create mode 100755 pi-util/v3dusage.py
 
 diff --git a/pi-util/BUILD.txt b/pi-util/BUILD.txt
 new file mode 100644
-index 0000000000..b050971f63
+index 0000000000..2b62d660c0
 --- /dev/null
 +++ b/pi-util/BUILD.txt
-@@ -0,0 +1,59 @@
+@@ -0,0 +1,67 @@
 +Building Pi FFmpeg
 +==================
 +
@@ -74,6 +76,8 @@ index 0000000000..b050971f63
 +         paths being confused and therefore running the wrong code,  Shared
 +         is what is needed, in most cases, when building for use by other
 +         programs.
++ --usr   Set install dir to /usr (i.e. system default) rather than in
++         <builddir>/install
 +
 +So for a static build
 +---------------------
@@ -87,25 +91,31 @@ index 0000000000..b050971f63
 +For a shared build
 +------------------
 +
++There are two choices here
++
 +$ pi-util/conf_native.sh
-+
-+You will normally want an install target if shared. Note that the script has
-+set this up to be generated in out/<builddir>/install, you don't have to worry
-+about overwriting your system libs.
-+
 +$ make -j8 -C out/<builddir> install
 +
++This sets the install prefix to <builddir>/install and is probably what you
++want if you don't want to overwrite the system files.
++
 +You can now set LD_LIBRARY_PATH appropriately and run ffmpeg from where it was
-+built or install the image on the system - you have to be careful to get rid
-+of all other ffmpeg libs or confusion may result.  There is a little script
-+that wipes all other versions - obviously use with care!
++built. You can copy the contents of <build dir>/install to /usr and that mostly
++works. The only downside is that paths in pkgconfig end up being set to the
++install directory in your build directory which may be less than ideal when
++building other packages.
 +
++The alternative if you just want to replace the system libs is:
++
++$ pi-util/conf_native.sh --usr
++$ make -j8 -C out/<builddir>
 +$ sudo pi-util/clean_usr_libs.sh
++$ sudo make -j8 -C out/<builddir> install
 +
-+Then simply copying from the install to /usr works
-+
-+$ sudo cp -r out/<builddir>/install/* /usr
-+
++The clean_usr_libs.sh step wipes any existing libs & includes (for all
++architectures) from the system which helps avoid confusion when running other
++progs as you can be sure you're not running old code which is unfortunately
++easy to do otherwise.
 +
 diff --git a/pi-util/NOTES.txt b/pi-util/NOTES.txt
 new file mode 100644
@@ -272,11 +282,27 @@ index 0000000000..92bc13a3df
 +
 diff --git a/pi-util/clean_usr_libs.sh b/pi-util/clean_usr_libs.sh
 new file mode 100755
-index 0000000000..b3b2d5509d
+index 0000000000..01bd6a6a22
 --- /dev/null
 +++ b/pi-util/clean_usr_libs.sh
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,42 @@
 +set -e
++U=/usr/include/arm-linux-gnueabihf
++rm -rf $U/libavcodec
++rm -rf $U/libavdevice
++rm -rf $U/libavfilter
++rm -rf $U/libavformat
++rm -rf $U/libavutil
++rm -rf $U/libswresample
++rm -rf $U/libswscale
++U=/usr/include/aarch64-linux-gnu
++rm -rf $U/libavcodec
++rm -rf $U/libavdevice
++rm -rf $U/libavfilter
++rm -rf $U/libavformat
++rm -rf $U/libavutil
++rm -rf $U/libswresample
++rm -rf $U/libswscale
 +U=/usr/lib/arm-linux-gnueabihf
 +rm -f $U/libavcodec.*
 +rm -f $U/libavdevice.*
@@ -355,7 +381,7 @@ index 0000000000..9e3bbfa190
 +# -Wa,-ahls
 diff --git a/pi-util/conf_h265.2016.csv b/pi-util/conf_h265.2016.csv
 new file mode 100644
-index 0000000000..4efd5d1c67
+index 0000000000..177f1c8111
 --- /dev/null
 +++ b/pi-util/conf_h265.2016.csv
 @@ -0,0 +1,195 @@
@@ -489,7 +515,7 @@ index 0000000000..4efd5d1c67
 +3,HEVC_v1/TSUNEQBD_A_MAIN10_Technicolor_2,TSUNEQBD_A_MAIN10_Technicolor_2.bit,TSUNEQBD_A_MAIN10_Technicolor_2_yuv.md5, # unequal bit depth,10
 +1,HEVC_v1/TUSIZE_A_Samsung_1,TUSIZE_A_Samsung_1.bin,TUSIZE_A_Samsung_1.md5,8
 +1,HEVC_v1/VPSID_A_VIDYO_2,VPSID_A_VIDYO_2.bit,VPSID_A_VIDYO_2_yuv.md5,8
-+3,HEVC_v1/VPSSPSPPS_A_MainConcept_1,VPSSPSPPS_A_MainConcept_1.bin,VPSSPSPPS_A_MainConcept_1_md5.txt, # ???,8
++2,HEVC_v1/VPSSPSPPS_A_MainConcept_1,VPSSPSPPS_A_MainConcept_1.bin,VPSSPSPPS_A_MainConcept_1_md5.txt, # ???,8
 +1,HEVC_v1/WP_A_MAIN10_Toshiba_3,WP_A_MAIN10_Toshiba_3.bit,WP_A_MAIN10_Toshiba_3_yuv.md5,10
 +1,HEVC_v1/WP_A_Toshiba_3,WP_A_Toshiba_3.bit,WP_A_Toshiba_3_yuv.md5,8
 +1,HEVC_v1/WP_B_Toshiba_3,WP_B_Toshiba_3.bit,WP_B_Toshiba_3_yuv.md5,8
@@ -859,10 +885,10 @@ index 0000000000..fc14f2a3c2
 +1,WPP_F_ericsson_MAIN_2,WPP_F_ericsson_MAIN_2.bit,WPP_F_ericsson_MAIN_2_yuv.md5
 diff --git a/pi-util/conf_native.sh b/pi-util/conf_native.sh
 new file mode 100755
-index 0000000000..65576846e8
+index 0000000000..0dbaa53e97
 --- /dev/null
 +++ b/pi-util/conf_native.sh
-@@ -0,0 +1,108 @@
+@@ -0,0 +1,135 @@
 +echo "Configure for native build"
 +
 +FFSRC=`pwd`
@@ -874,6 +900,9 @@ index 0000000000..65576846e8
 +
 +NOSHARED=
 +MMAL=
++USR_PREFIX=
++TOOLCHAIN=
++R=rel
 +
 +while [ "$1" != "" ] ; do
 +    case $1 in
@@ -883,8 +912,18 @@ index 0000000000..65576846e8
 +	--mmal)
 +	    MMAL=1
 +	    ;;
++	--usr)
++	    USR_PREFIX=/usr
++	    ;;
++	--tsan)
++	    TOOLCHAIN="--toolchain=gcc-tsan"
++	    R=tsan
++	    ;;
 +	*)
-+	    echo "Usage $0: [--noshared] [--mmal]"
++	    echo "Usage $0: [--noshared] [--mmal] [--usr]"
++	    echo "  noshared  Build static libs and executable - good for testing"
++	    echo "  mmal      Build mmal decoders"
++	    echo "  usr       Set install prefix to /usr [default=<build-dir>/install]"
 +	    exit 1
 +	    ;;
 +    esac
@@ -898,18 +937,28 @@ index 0000000000..65576846e8
 +RPI_DEFINES=
 +RPI_EXTRALIBS=
 +
-+if [ "$MC" == "arm64" ]; then
-+  echo "M/C aarch64"
-+  A=aarch64-linux-gnu
-+  B=arm64
-+elif [ "$MC" == "armhf" ]; then
-+  echo "M/C armv7"
-+  A=arm-linux-gnueabihf
-+  B=armv7
-+  MCOPTS="--arch=armv6t2 --cpu=cortex-a7"
-+  RPI_DEFINES=-mfpu=neon-vfpv4
++# uname -m gives kernel type which may not have the same
++# 32/64bitness as userspace :-( getconf shoudl provide the answer
++# but use uname to check we are on the right processor
++MC=`uname -m`
++LB=`getconf LONG_BIT`
++if [ "$MC" == "armv7l" ] || [ "$MC" == "aarch64" ]; then
++  if [ "$LB" == "32" ]; then
++    echo "M/C armv7"
++    A=arm-linux-gnueabihf
++    B=armv7
++    MCOPTS="--arch=armv6t2 --cpu=cortex-a7"
++    RPI_DEFINES=-mfpu=neon-vfpv4
++  elif [ "$LB" == "64" ]; then
++    echo "M/C aarch64"
++    A=aarch64-linux-gnu
++    B=arm64
++  else
++    echo "Unknown LONG_BIT name: $LB"
++    exit 1
++  fi
 +else
-+  echo Unexpected architecture $MC
++  echo "Unknown machine name: $MC"
 +  exit 1
 +fi
 +
@@ -919,9 +968,9 @@ index 0000000000..65576846e8
 +  RPI_LIBDIRS="-L$RPI_OPT_VC/lib"
 +  RPI_DEFINES="$RPI_DEFINES -D__VCCOREVER__=0x4000000"
 +  RPI_EXTRALIBS="-Wl,--start-group -lbcm_host -lmmal -lmmal_util -lmmal_core -lvcos -lvcsm -lvchostif -lvchiq_arm -Wl,--end-group"
-+  RPIOPTS="--enable-mmal --enable-rpi"
++  RPIOPTS="--enable-mmal"
 +else
-+  RPIOPTS="--disable-mmal --enable-sand"
++  RPIOPTS="--disable-mmal"
 +fi
 +
 +C=`lsb_release -sc`
@@ -930,14 +979,16 @@ index 0000000000..65576846e8
 +SHARED_LIBS="--enable-shared"
 +if [ $NOSHARED ]; then
 +  SHARED_LIBS="--disable-shared"
-+  OUT=$BUILDBASE/$B-$C-$V-static-rel
++  OUT=$BUILDBASE/$B-$C-$V-static-$R
 +  echo Static libs
 +else
 +  echo Shared libs
-+  OUT=$BUILDBASE/$B-$C-$V-shared-rel
++  OUT=$BUILDBASE/$B-$C-$V-shared-$R
 +fi
 +
-+USR_PREFIX=$OUT/install
++if [ ! $USR_PREFIX ]; then
++  USR_PREFIX=$OUT/install
++fi
 +LIB_PREFIX=$USR_PREFIX/lib/$A
 +INC_PREFIX=$USR_PREFIX/include/$A
 +
@@ -952,14 +1003,15 @@ index 0000000000..65576846e8
 + --libdir=$LIB_PREFIX\
 + --incdir=$INC_PREFIX\
 + $MCOPTS\
++ $TOOLCHAIN\
 + --disable-stripping\
 + --disable-thumb\
++ --enable-sand\
 + --enable-v4l2-request\
 + --enable-libdrm\
-+ --enable-epoxy\
-+ --enable-libudev\
 + --enable-vout-egl\
 + --enable-vout-drm\
++ --enable-gpl\
 + $SHARED_LIBS\
 + $RPIOPTS\
 + --extra-cflags="-ggdb $RPI_KEEPS $RPI_DEFINES $RPI_INCLUDES"\
@@ -968,15 +1020,16 @@ index 0000000000..65576846e8
 + --extra-libs="$RPI_EXTRALIBS"\
 + --extra-version="rpi"
 +
++echo "Configured into $OUT"
 +
 +# gcc option for getting asm listing
 +# -Wa,-ahls
 diff --git a/pi-util/ffconf.py b/pi-util/ffconf.py
 new file mode 100755
-index 0000000000..657568014e
+index 0000000000..26091f3c07
 --- /dev/null
 +++ b/pi-util/ffconf.py
-@@ -0,0 +1,215 @@
+@@ -0,0 +1,267 @@
 +#!/usr/bin/env python3
 +
 +import string
@@ -993,7 +1046,12 @@ index 0000000000..657568014e
 +HWACCEL_DRM     = 3
 +HWACCEL_VAAPI   = 4
 +
-+def testone(fileroot, srcname, es_file, md5_file, pix, dectype, vcodec, ffmpeg_exec):
++def testone(fileroot, srcname, es_file, md5_file, pix, dectype, vcodec, args):
++    ffmpeg_exec = args.ffmpeg
++    gen_yuv = args.gen_yuv
++    valgrind = args.valgrind
++    rv = 0
++
 +    hwaccel = ""
 +    if dectype == HWACCEL_RPI:
 +        hwaccel = "rpi"
@@ -1027,17 +1085,29 @@ index 0000000000..657568014e
 +    except:
 +        pass
 +
-+    flog = open(os.path.join(tmp_root, name + ".log"), "wt")
++    yuv_file = os.path.join(tmp_root, name + ".dec.yuv")
++    try:
++        os.remove(yuv_file)
++    except:
++        pass
 +
-+    ffargs = [ffmpeg_exec, "-flags", "unaligned", "-hwaccel", hwaccel, "-vcodec", "hevc", "-i", os.path.join(fileroot, es_file)] + pix_fmt + ["-f", "md5", dec_file]
++    flog = open(os.path.join(tmp_root, name + ".log"), "w+t")
++
++    ffargs = [ffmpeg_exec, "-flags", "unaligned"] +\
++        (["-hwaccel", hwaccel] if hwaccel else []) +\
++        ["-vcodec", "hevc", "-i", os.path.join(fileroot, es_file)] +\
++        pix_fmt +\
++        ([yuv_file] if gen_yuv else ["-f", "md5", dec_file])
++
++    if valgrind:
++        ffargs = ['valgrind', '--leak-check=full'] + ffargs
 +
 +    # Unaligned needed for cropping conformance
-+    if hwaccel:
-+        rstr = subprocess.call(ffargs, stdout=flog, stderr=subprocess.STDOUT)
-+    else:
-+        rstr = subprocess.call(
-+            [ffmpeg_exec, "-flags", "unaligned", "-vcodec", vcodec, "-i", os.path.join(fileroot, es_file), "-f", "md5", dec_file],
-+            stdout=flog, stderr=subprocess.STDOUT)
++    rstr = subprocess.call(ffargs, stdout=flog, stderr=subprocess.STDOUT)
++
++    if gen_yuv:
++        with open(dec_file, 'wt') as f:
++            subprocess.call(["md5sum", yuv_file], stdout=f, stderr=subprocess.STDOUT)
 +
 +    try:
 +        m1 = None
@@ -1053,9 +1123,21 @@ index 0000000000..657568014e
 +    except:
 +        pass
 +
++    if valgrind:
++        flog.seek(0)
++        leak = True
++        valerr = True
++
++        for line in flog:
++            if re.search("^==[0-9]+== All heap blocks were freed", line):
++                leak = False
++            if re.search("^==[0-9]+== ERROR SUMMARY: 0 errors", line):
++                valerr = False
++        if leak or valerr:
++            rv = 4
++
 +    if  m1 and m2 and m1.group() == m2.group():
 +        print("Match: " + m1.group(), file=flog)
-+        rv = 0
 +    elif not m1:
 +        print("****** Cannot find m1", file=flog)
 +        rv = 3
@@ -1100,7 +1182,7 @@ index 0000000000..657568014e
 +            return True
 +    return False
 +
-+def doconf(csva, tests, test_root, vcodec, dectype, ffmpeg_exec):
++def doconf(csva, tests, test_root, vcodec, dectype, args):
 +    unx_failures = []
 +    unx_success = []
 +    failures = 0
@@ -1112,7 +1194,7 @@ index 0000000000..657568014e
 +            print ("==== ", name, end="")
 +            sys.stdout.flush()
 +
-+            rv = testone(os.path.join(test_root, name), name, a[2], a[3], a[4], dectype=dectype, vcodec=vcodec, ffmpeg_exec=ffmpeg_exec)
++            rv = testone(os.path.join(test_root, name), name, a[2], a[3], a[4], dectype=dectype, vcodec=vcodec, args=args)
 +            if (rv == 0):
 +                successes += 1
 +            else:
@@ -1137,6 +1219,8 @@ index 0000000000..657568014e
 +                    print(": * CRASH *")
 +                elif (rv == 3) :
 +                    print(": * MD5 MISSING *")
++                elif (rv == 4) :
++                    print(": * VALGRIND *")
 +                else :
 +                    print(": * BANG *")
 +
@@ -1145,6 +1229,8 @@ index 0000000000..657568014e
 +        print("Unexpected Success: ", unx_success)
 +    else:
 +        print("All tests normal:", successes, "ok,", failures, "failed")
++
++    return unx_failures + unx_success
 +
 +
 +class ConfCSVDialect(csv.Dialect):
@@ -1167,8 +1253,15 @@ index 0000000000..657568014e
 +    argp.add_argument("--csvgen", action='store_true', help="Generate CSV file for dir")
 +    argp.add_argument("--csv", default="pi-util/conf_h265.2016.csv", help="CSV filename")
 +    argp.add_argument("--vcodec", default="hevc_rpi", help="vcodec name to use")
-+    argp.add_argument("--ffmpeg", default="./ffmpeg", help="ffmpeg exec name")
++    argp.add_argument("--ffmpeg", default="./ffmpeg", help="ffmpeg exec name; if directory given use <dir>/ffmpeg")
++    argp.add_argument("--valgrind", action='store_true', help="Run valgrind on tests")
++    argp.add_argument("--gen_yuv", action='store_true', help="Create yuv file (stored with log under /tmp)")
++    argp.add_argument("--loop", default=0, type=int, help="Loop n times, or until unexpected result")
 +    args = argp.parse_args()
++
++    if not os.path.isdir(args.test_root):
++        print("Test root dir '%s' not found" % args.test_root)
++        exit(1)
 +
 +    if args.csvgen:
 +        csv.writer(sys.stdout).writerows(scandir(args.test_root))
@@ -1190,16 +1283,29 @@ index 0000000000..657568014e
 +    elif args.vaapi:
 +        dectype = HWACCEL_VAAPI
 +
-+    doconf(csva, args.tests, args.test_root, args.vcodec, dectype, args.ffmpeg)
++    if os.path.isdir(args.ffmpeg):
++        args.ffmpeg = os.path.join(args.ffmpeg, "ffmpeg")
++    if not os.path.isfile(args.ffmpeg):
++        print("FFmpeg file '%s' not found" % args.ffmpeg)
++        exit(1)
++
++    i = 0
++    while True:
++        i = i + 1
++        if args.loop:
++            print("== Loop ", i)
++        if doconf(csva, args.tests, args.test_root, args.vcodec, dectype, args) or (args.loop >= 0 and i > args.loop):
++            break
 +
 diff --git a/pi-util/ffperf.py b/pi-util/ffperf.py
 new file mode 100755
-index 0000000000..65c5224cd8
+index 0000000000..767efe2de2
 --- /dev/null
 +++ b/pi-util/ffperf.py
-@@ -0,0 +1,128 @@
+@@ -0,0 +1,140 @@
 +#!/usr/bin/env python3
 +
++import shlex
 +import time
 +import string
 +import os
@@ -1236,14 +1342,20 @@ index 0000000000..65c5224cd8
 +    def __gt__(self, other):
 +        return self.elapsed > other.elapsed
 +
-+    def time_file(name, prefix, ffmpeg="./ffmpeg"):
++    def time_file(name, prefix, args):
++        cmdargs = [args.ffmpeg]
++        for x in args.args :
++            if x == '{INPUT}':
++                cmdargs.append(prefix + name)
++            elif x == '{NULL}':
++                cmdargs.append(os.devnull)
++            else:
++                cmdargs.append(x)
++
 +        stats = tstats()
 +        stats.name = name
 +        start_time = time.clock_gettime(time.CLOCK_MONOTONIC);
-+        cproc = subprocess.Popen([ffmpeg, "-no_cvt_hw",
-+                                  "-vcodec", "hevc_rpi",
-+                                  "-t", "30", "-i", prefix + name,
-+                                  "-f", "vout_rpi", os.devnull], bufsize=-1, stdout=flog, stderr=flog);
++        cproc = subprocess.Popen(cmdargs, bufsize=-1, stdout=flog, stderr=flog);
 +        pinfo = os.wait4(cproc.pid, 0)
 +        end_time = time.clock_gettime(time.CLOCK_MONOTONIC);
 +        stats.elapsed = end_time - start_time
@@ -1267,6 +1379,10 @@ index 0000000000..65c5224cd8
 +""")
 +
 +    argp.add_argument("streams", nargs='*')
++    argp.add_argument("--args", default='-t 30 -i {INPUT} -f null {NULL}', help="""
++ffmpeg arguments, default='-t 30 -i {INPUT} -f null {NULL}';
++  {INPUT} is replaced by current inputfile path;
++  {NULL} is replaced by the system null device""")
 +    argp.add_argument("--csv_out", default="ffperf_out.csv", help="CSV output filename")
 +    argp.add_argument("--csv_in", help="CSV input filename")
 +    argp.add_argument("--prefix", help="Filename prefix (include terminal '/' if a directory).")
@@ -1274,6 +1390,7 @@ index 0000000000..65c5224cd8
 +    argp.add_argument("--ffmpeg", default="./ffmpeg", help="FFmpeg executable")
 +
 +    args = argp.parse_args()
++    args.args = shlex.split(args.args)
 +
 +    csv_out = csv.DictWriter(open(args.csv_out, 'w', newline=''), ["name", "elapsed", "user", "sys"])
 +    csv_out.writeheader()
@@ -1307,7 +1424,7 @@ index 0000000000..65c5224cd8
 +
 +        t0 = tstats({"name":f, "elapsed":999, "user":999, "sys":999})
 +        for i in range(args.repeat):
-+            t = tstats.time_file(f, prefix, args.ffmpeg)
++            t = tstats.time_file(f, prefix, args)
 +            print ("...", t.times_str())
 +            if t0 > t:
 +                t0 = t
@@ -1544,6 +1661,95 @@ index 0000000000..a4dbb6eacd
 +$QASM -mc_c:$DST_BASE,$DST_BASE,$DST_BASE $SRC_FILE > $TARGET_DIR/$DST_BASE.c
 +$QASM -mc_h:$DST_BASE,$DST_BASE,$DST_BASE $SRC_FILE > $TARGET_DIR/$DST_BASE.h
 +
+diff --git a/pi-util/testfilt.py b/pi-util/testfilt.py
+new file mode 100755
+index 0000000000..b322dac0c2
+--- /dev/null
++++ b/pi-util/testfilt.py
+@@ -0,0 +1,83 @@
++#!/usr/bin/env python3
++
++import string
++import os
++import subprocess
++import re
++import argparse
++import sys
++import csv
++from stat import *
++
++class validator:
++    def __init__(self):
++        self.ok = False
++
++    def isok(self):
++        return self.ok
++
++    def setok(self):
++        self.ok = True
++
++class valid_regex(validator):
++    def __init__(self, regex):
++        super().__init__()
++        self.regex = re.compile(regex)
++
++    def scanline(self, line):
++        if self.isok() or self.regex.search(line):
++            self.setok()
++
++
++def validate(validators, flog):
++    for line in flog:
++        for v in validators:
++            v.scanline(line)
++
++    ok = True
++    for v in validators:
++        if not v.isok():
++            ok = False
++            # complain
++            print("Test failed")
++
++    if ok:
++        print("OK")
++    return ok
++
++def runtest(name, ffmpeg, args, suffix, validators):
++    log_root = os.path.join("/tmp", "testfilt", name)
++    ofilename = os.path.join(log_root, name + suffix)
++
++    if not os.path.exists(log_root):
++        os.makedirs(log_root)
++
++    try:
++        os.remove(ofilename)
++    except:
++        pass
++
++    flog = open(os.path.join(log_root, name + ".log"), "wb")
++    ffargs = [ffmpeg] + args + [ofilename]
++
++    subprocess.call(ffargs, stdout=flog, stderr=subprocess.STDOUT, text=False)
++    flog.close
++
++    flog = open(os.path.join(log_root, name + ".log"), "rt")
++    return validate(validators, flog)
++
++def sayok(log_root, flog):
++    print("Woohoo")
++    return True
++
++if __name__ == '__main__':
++
++    argp = argparse.ArgumentParser(description="FFmpeg filter tester")
++    argp.add_argument("--ffmpeg", default="./ffmpeg", help="ffmpeg exec name")
++    args = argp.parse_args()
++
++    runtest("ATest", args.ffmpeg, ["-v", "verbose", "-no_cvt_hw", "-an", "-c:v", "h264_v4l2m2m", "-i",
++                                   "/home/johncox/server/TestMedia/Sony/jellyfish-10-mbps-hd-h264.mkv",
++#                                    "/home/jc/rpi/streams/jellyfish-3-mbps-hd-h264.mkv",
++                                   "-c:v", "h264_v4l2m2m", "-b:v", "2M"], ".mkv",
++            [valid_regex(r'Output stream #0:0 \(video\): 900 frames encoded; 900 packets muxed')])
 diff --git a/pi-util/v3dusage.py b/pi-util/v3dusage.py
 new file mode 100755
 index 0000000000..5935a11ca5
@@ -1679,5 +1885,5 @@ index 0000000000..5935a11ca5
 +    do_logparse(args.logfile)
 +
 -- 
-2.37.2
+2.43.0
 

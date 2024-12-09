@@ -1,20 +1,164 @@
-From 89b8d6ac2a886749d4594656083753e682de05a7 Mon Sep 17 00:00:00 2001
+From becebb55238122bdba334fa8be4686e4443a4217 Mon Sep 17 00:00:00 2001
 From: John Cox <jc@kynesim.co.uk>
 Date: Tue, 27 Apr 2021 11:36:47 +0100
-Subject: [PATCH 003/122] Add aarch64 asm sand conv functions
+Subject: [PATCH 03/41] Add aarch64 asm sand conv functions
 
 Many thanks to eiler.mike@gmail.com (Michael Eiler) for these
 optimizations
 ---
+ libavcodec/raw.c                  |   6 +
+ libavcodec/rawenc.c               |  92 +++-
  libavutil/aarch64/Makefile        |   2 +
- libavutil/aarch64/rpi_sand_neon.S | 676 ++++++++++++++++++++++++++++++
- libavutil/aarch64/rpi_sand_neon.h |  55 +++
+ libavutil/aarch64/rpi_sand_neon.S | 672 ++++++++++++++++++++++++++++++
+ libavutil/aarch64/rpi_sand_neon.h |  59 +++
+ libavutil/arm/rpi_sand_neon.S     | 239 +++++++++--
+ libavutil/arm/rpi_sand_neon.h     |  11 +
+ libavutil/pixfmt.h                |   2 +
  libavutil/rpi_sand_fn_pw.h        |   4 +-
- libavutil/rpi_sand_fns.c          |   3 +
- 5 files changed, 738 insertions(+), 2 deletions(-)
+ libavutil/rpi_sand_fns.c          | 100 ++++-
+ libavutil/rpi_sand_fns.h          |   5 +
+ 11 files changed, 1144 insertions(+), 48 deletions(-)
  create mode 100644 libavutil/aarch64/rpi_sand_neon.S
  create mode 100644 libavutil/aarch64/rpi_sand_neon.h
 
+diff --git a/libavcodec/raw.c b/libavcodec/raw.c
+index b73b80e5fd..7ca36ac849 100644
+--- a/libavcodec/raw.c
++++ b/libavcodec/raw.c
+@@ -297,6 +297,12 @@ static const PixelFormatTag raw_pix_fmt_tags[] = {
+     { AV_PIX_FMT_RGB565LE,MKTAG( 3 ,  0 ,  0 ,  0 ) }, /* flipped RGB565LE */
+     { AV_PIX_FMT_YUV444P, MKTAG('Y', 'V', '2', '4') }, /* YUV444P, swapped UV */
+ 
++    /* RPI (Might as well define for everything) */
++    { AV_PIX_FMT_SAND128,     MKTAG('S', 'A', 'N', 'D') },
++    { AV_PIX_FMT_RPI4_8,      MKTAG('S', 'A', 'N', 'D') },
++    { AV_PIX_FMT_SAND64_10,   MKTAG('S', 'N', 'D', 'A') },
++    { AV_PIX_FMT_RPI4_10,     MKTAG('S', 'N', 'D', 'B') },
++
+     { AV_PIX_FMT_NONE, 0 },
+ };
+ 
+diff --git a/libavcodec/rawenc.c b/libavcodec/rawenc.c
+index 8c577006d9..594a77c42a 100644
+--- a/libavcodec/rawenc.c
++++ b/libavcodec/rawenc.c
+@@ -24,6 +24,7 @@
+  * Raw Video Encoder
+  */
+ 
++#include "config.h"
+ #include "avcodec.h"
+ #include "codec_internal.h"
+ #include "encode.h"
+@@ -33,6 +34,10 @@
+ #include "libavutil/intreadwrite.h"
+ #include "libavutil/imgutils.h"
+ #include "libavutil/internal.h"
++#include "libavutil/avassert.h"
++#if CONFIG_SAND
++#include "libavutil/rpi_sand_fns.h"
++#endif
+ 
+ static av_cold int raw_encode_init(AVCodecContext *avctx)
+ {
+@@ -46,12 +51,95 @@ static av_cold int raw_encode_init(AVCodecContext *avctx)
+     return 0;
+ }
+ 
++#if CONFIG_SAND
++static int raw_sand8_as_yuv420(AVCodecContext *avctx, AVPacket *pkt,
++                      const AVFrame *frame)
++{
++    const int width = av_frame_cropped_width(frame);
++    const int height = av_frame_cropped_height(frame);
++    const int x0 = frame->crop_left;
++    const int y0 = frame->crop_top;
++    const int size = width * height * 3 / 2;
++    uint8_t * dst;
++    int ret;
++
++    if ((ret = ff_get_encode_buffer(avctx, pkt, size, 0)) < 0)
++        return ret;
++
++    dst = pkt->data;
++
++    av_rpi_sand_to_planar_y8(dst, width, frame->data[0], frame->linesize[0], frame->linesize[3], x0, y0, width, height);
++    dst += width * height;
++    av_rpi_sand_to_planar_c8(dst, width / 2, dst + width * height / 4, width / 2,
++                          frame->data[1], frame->linesize[1], av_rpi_sand_frame_stride2(frame), x0 / 2, y0 / 2, width / 2, height / 2);
++    return 0;
++}
++
++static int raw_sand16_as_yuv420(AVCodecContext *avctx, AVPacket *pkt,
++                      const AVFrame *frame)
++{
++    const int width = av_frame_cropped_width(frame);
++    const int height = av_frame_cropped_height(frame);
++    const int x0 = frame->crop_left;
++    const int y0 = frame->crop_top;
++    const int size = width * height * 3;
++    uint8_t * dst;
++    int ret;
++
++    if ((ret = ff_get_encode_buffer(avctx, pkt, size, 0)) < 0)
++        return ret;
++
++    dst = pkt->data;
++
++    av_rpi_sand_to_planar_y16(dst, width * 2, frame->data[0], frame->linesize[0], frame->linesize[3], x0 * 2, y0, width * 2, height);
++    dst += width * height * 2;
++    av_rpi_sand_to_planar_c16(dst, width, dst + width * height / 2, width,
++                          frame->data[1], frame->linesize[1], av_rpi_sand_frame_stride2(frame), x0, y0 / 2, width, height / 2);
++    return 0;
++}
++
++static int raw_sand30_as_yuv420(AVCodecContext *avctx, AVPacket *pkt,
++                      const AVFrame *frame)
++{
++    const int width = av_frame_cropped_width(frame);
++    const int height = av_frame_cropped_height(frame);
++    const int x0 = frame->crop_left;
++    const int y0 = frame->crop_top;
++    const int size = width * height * 3;
++    uint8_t * dst;
++    int ret;
++
++    if ((ret = ff_get_encode_buffer(avctx, pkt, size, 0)) < 0)
++        return ret;
++
++    dst = pkt->data;
++
++    av_rpi_sand30_to_planar_y16(dst, width * 2, frame->data[0], frame->linesize[0], frame->linesize[3], x0, y0, width, height);
++    dst += width * height * 2;
++    av_rpi_sand30_to_planar_c16(dst, width, dst + width * height / 2, width,
++                          frame->data[1], frame->linesize[1], av_rpi_sand_frame_stride2(frame), x0/2, y0 / 2, width/2, height / 2);
++    return 0;
++}
++#endif
++
++
+ static int raw_encode(AVCodecContext *avctx, AVPacket *pkt,
+                       const AVFrame *frame, int *got_packet)
+ {
+-    int ret = av_image_get_buffer_size(frame->format,
+-                                       frame->width, frame->height, 1);
++    int ret;
+ 
++#if CONFIG_SAND
++    if (av_rpi_is_sand_frame(frame)) {
++        ret = av_rpi_is_sand8_frame(frame) ? raw_sand8_as_yuv420(avctx, pkt, frame) :
++            av_rpi_is_sand16_frame(frame) ? raw_sand16_as_yuv420(avctx, pkt, frame) :
++            av_rpi_is_sand30_frame(frame) ? raw_sand30_as_yuv420(avctx, pkt, frame) : -1;
++        *got_packet = (ret == 0);
++        return ret;
++    }
++#endif
++
++    ret = av_image_get_buffer_size(frame->format,
++                                       frame->width, frame->height, 1);
+     if (ret < 0)
+         return ret;
+ 
 diff --git a/libavutil/aarch64/Makefile b/libavutil/aarch64/Makefile
 index eba0151337..1b44beab39 100644
 --- a/libavutil/aarch64/Makefile
@@ -27,10 +171,10 @@ index eba0151337..1b44beab39 100644
 +
 diff --git a/libavutil/aarch64/rpi_sand_neon.S b/libavutil/aarch64/rpi_sand_neon.S
 new file mode 100644
-index 0000000000..cdcf71ee67
+index 0000000000..3a6bc3de74
 --- /dev/null
 +++ b/libavutil/aarch64/rpi_sand_neon.S
-@@ -0,0 +1,676 @@
+@@ -0,0 +1,672 @@
 +/*
 +Copyright (c) 2021 Michael Eiler
 +
@@ -281,419 +425,189 @@ index 0000000000..cdcf71ee67
 +    ret
 +endfunc
 +
-+//void ff_rpi_sand30_lines_to_planar_y16(
-+//  uint8_t * dest,             // [x0]
-+//  unsigned int dst_stride,    // [w1] -> assumed to be equal to _w
-+//  const uint8_t * src,        // [x2]
-+//  unsigned int src_stride1,   // [w3] -> 128
-+//  unsigned int src_stride2,   // [w4]
-+//  unsigned int _x,            // [w5]
-+//  unsigned int y,             // [w6]
-+//  unsigned int _w,            // [w7]
-+//  unsigned int h);            // [sp, #0]
++// Unzip chroma
++//
++// On entry:
++// a0 = V0, U2,  ...
++// a1 = U0, V1,  ...
++// a2 = U1, V2,  ...
++// b0 = V8, U10, ...
++// b1 = U8, V9,  ...
++// b2 = U9, V10, ...
++//
++// On exit:
++// d0 = U0, U3, ...
++// ...
++// a0 = V0, V3, ..
++// ...
++//
++// Reg order for USAND is a1, a0, a2 (i.e. swap natural order of 1st 2 dest regs)
 +
-+function ff_rpi_sand30_lines_to_planar_y16, export=1
-+    stp x19, x20, [sp, #-48]!
-+    stp x21, x22, [sp, #16]
-+    stp x23, x24, [sp, #32]
++.macro UZPH_C d0, d1, d2, a0, a1, a2, b0, b1, b2
++                uzp1            \d0\().8h, \a1\().8h, \b1\().8h
++                uzp1            \d1\().8h, \a2\().8h, \b2\().8h
++                uzp2            \d2\().8h, \a0\().8h, \b0\().8h
 +
-+    // w6 = argument h
-+    ldr w6, [sp, #48]
-+
-+    // slice_inc = ((stride2 - 1) * stride1)
-+    mov w5, w4
-+    sub w5, w5, #1
-+    lsl w5, w5, #7
-+
-+    // total number of bytes per row = (width / 3) * 4
-+    mov w8, w7
-+    mov w9, #3
-+    udiv w8, w8, w9
-+    lsl w8, w8, #2
-+
-+    // number of full 128 byte blocks to be processed
-+    mov w9, #96
-+    udiv w9, w7, w9 // = (width * 4) / (3*128) = width/96
-+
-+    // w10 = number of full integers to process (4 bytes)
-+    // w11 = remaning zero to two 10bit values still to copy over
-+    mov w12, #96
-+    mul w12, w9, w12
-+    sub w12, w7, w12  // width - blocks*96 = remaining points per row
-+    mov w11, #3
-+    udiv w10, w12, w11 // full integers to process = w12 / 3 
-+    mul w11, w10, w11  // #integers *3
-+    sub w11, w12, w11  // remaining 0-2 points = remaining points - integers*3
-+
-+    // increase w9 by one if w10+w11 is not zero, and decrease the row count by one
-+    // this is to efficiently copy incomplete blocks at the end of the rows
-+    // the last row is handled explicitly to avoid writing out of bounds
-+    add w22, w10, w11
-+    cmp w22, #0
-+    cset w22, ne // 1 iff w10+w11 not zero, 0 otherwise
-+    add w9, w9, w22
-+    sub w6, w6, #1
-+
-+    // store the number of bytes in w20 which we copy too much for every row
-+    // when the width of the frame is not a multiple of 96 (128bytes storing 96 10bit values)
-+    mov w20, #96*2
-+    mul w20, w20, w9
-+    sub w20, w1, w20
-+
-+    mov w23, #0 // flag to check whether the last line had already been processed
-+    
-+    // bitmask to clear the uppper 6bits of the result values
-+    mov x19, #0x03ff03ff03ff03ff
-+    dup v22.2d, x19
-+
-+    // row counter = 0
-+    eor w12, w12, w12
-+row_loop_y16:
-+    cmp w12, w6               // jump to row_loop_y16_fin if we processed all rows
-+    bge row_loop_y16_fin
-+
-+    mov x13, x2               // row src
-+    eor w14, w14, w14         // full block counter
-+block_loop_y16:
-+    cmp w14, w9
-+    bge block_loop_y16_fin
-+
-+    // load 64 bytes
-+    ld1 { v0.4s,  v1.4s, v2.4s, v3.4s }, [x13], #64
-+   
-+    // process v0 and v1
-+    xtn v16.4h, v0.4s
-+    ushr v0.4s, v0.4s, #10
-+    xtn v17.4h, v0.4s
-+    ushr v0.4s, v0.4s, #10
-+    xtn v18.4h, v0.4s
-+   
-+    xtn2 v16.8h, v1.4s
-+    and v16.16b, v16.16b, v22.16b
-+    ushr v1.4s, v1.4s, #10
-+    xtn2 v17.8h, v1.4s
-+    and v17.16b, v17.16b, v22.16b
-+    ushr v1.4s, v1.4s, #10
-+    xtn2 v18.8h, v1.4s
-+    and v18.16b, v18.16b, v22.16b
-+
-+    st3 { v16.8h, v17.8h, v18.8h }, [x0], #48
-+
-+    // process v2 and v3
-+    xtn v23.4h, v2.4s
-+    ushr v2.4s, v2.4s, #10
-+    xtn v24.4h, v2.4s
-+    ushr v2.4s, v2.4s, #10
-+    xtn v25.4h, v2.4s
-+    
-+    xtn2 v23.8h, v3.4s
-+    and v23.16b, v23.16b, v22.16b
-+    ushr v3.4s, v3.4s, #10
-+    xtn2 v24.8h, v3.4s
-+    and v24.16b, v24.16b, v22.16b
-+    ushr v3.4s, v3.4s, #10
-+    xtn2 v25.8h, v3.4s
-+    and v25.16b, v25.16b, v22.16b
-+
-+    st3 { v23.8h, v24.8h, v25.8h }, [x0], #48
-+
-+    // load the second half of the block -> 64 bytes into registers v4-v7
-+    ld1 { v4.4s,  v5.4s,  v6.4s,  v7.4s }, [x13], #64
-+    
-+    // process v4 and v5
-+    xtn v16.4h, v4.4s
-+    ushr v4.4s, v4.4s, #10
-+    xtn v17.4h, v4.4s
-+    ushr v4.4s, v4.4s, #10
-+    xtn v18.4h, v4.4s
-+   
-+    xtn2 v16.8h, v5.4s 
-+    and v16.16b, v16.16b, v22.16b
-+    ushr v5.4s, v5.4s, #10
-+    xtn2 v17.8h, v5.4s
-+    and v17.16b, v17.16b, v22.16b
-+    ushr v5.4s, v5.4s, #10
-+    xtn2 v18.8h, v5.4s
-+    and v18.16b, v18.16b, v22.16b
-+
-+    st3 { v16.8h, v17.8h, v18.8h }, [x0], #48
-+
-+    // v6 and v7
-+    xtn v23.4h, v6.4s
-+    ushr v6.4s, v6.4s, #10
-+    xtn v24.4h, v6.4s
-+    ushr v6.4s, v6.4s, #10
-+    xtn v25.4h, v6.4s
-+   
-+    xtn2 v23.8h, v7.4s 
-+    and v23.16b, v23.16b, v22.16b
-+    ushr v7.4s, v7.4s, #10
-+    xtn2 v24.8h, v7.4s
-+    and v24.16b, v24.16b, v22.16b
-+    ushr v7.4s, v7.4s, #10
-+    xtn2 v25.8h, v7.4s
-+    and v25.16b, v25.16b, v22.16b
-+
-+    st3 { v23.8h, v24.8h, v25.8h }, [x0], #48
-+ 
-+    add x13, x13, x5          // row src += slice_inc
-+    add w14, w14, #1
-+    b block_loop_y16
-+block_loop_y16_fin:
-+
-+    
-+
-+
-+    add x2, x2, #128          // src += stride1 (start of the next row)
-+    add x0, x0, w20, sxtw     // subtract the bytes we copied too much from dst
-+    add w12, w12, #1
-+    b row_loop_y16
-+row_loop_y16_fin:
-+
-+    // check whether we have incomplete blocks at the end of every row
-+    // in that case decrease row block count by one
-+    // change height back to it's original value (meaning increase it by 1)
-+    // and jump back to another iteration of row_loop_y16
-+
-+    cmp w23, #1
-+    beq row_loop_y16_fin2 // don't continue here if we already processed the last row
-+    add w6, w6, #1    // increase height to the original value
-+    sub w9, w9, w22   // block count - 1 or 0, depending on the remaining bytes count
-+    mov w23, #1
-+    b row_loop_y16
-+row_loop_y16_fin2:
-+
-+    sub x0, x0, w20, sxtw // with the last row we didn't actually move the dst ptr to far ahead, therefore readd the diference
-+
-+    // now we've got to handle the last block in the last row
-+    eor w12, w12, w12 // w12 = 0 = counter
-+integer_loop_y16:
-+    cmp w12, w10
-+    bge integer_loop_y16_fin
-+    ldr w14, [x13], #4
-+    and w15, w14, #0x3ff
-+    strh w15, [x0], #2
-+    lsr w14, w14, #10
-+    and w15, w14, #0x3ff
-+    strh w15, [x0], #2
-+    lsr w14, w14, #10
-+    and w15, w14, #0x3ff
-+    strh w15, [x0], #2
-+    add w12, w12, #1
-+    b integer_loop_y16
-+integer_loop_y16_fin:
-+
-+final_values_y16:
-+    // remaining point count = w11
-+    ldr w14, [x13], #4
-+    cmp w11, #0
-+    beq final_values_y16_fin
-+    and w15, w14, #0x3ff
-+    strh w15, [x0], #2
-+    cmp w11, #1
-+    beq final_values_y16_fin
-+    lsr w14, w14, #10
-+    and w15, w14, #0x3ff
-+    strh w15, [x0], #2
-+final_values_y16_fin:
-+
-+    ldp x23, x24, [sp, #32]
-+    ldp x21, x22, [sp, #16]
-+    ldp x19, x20, [sp], #48
-+    ret
-+endfunc
-+
-+//void ff_rpi_sand30_lines_to_planar_c16(
-+//  uint8_t * dst_u,            // [x0]
-+//  unsigned int dst_stride_u,  // [w1] == _w*2
-+//  uint8_t * dst_v,            // [x2]
-+//  unsigned int dst_stride_v,  // [w3] == _w*2
-+//  const uint8_t * src,        // [x4]
-+//  unsigned int stride1,       // [w5] == 128
-+//  unsigned int stride2,       // [w6] 
-+//  unsigned int _x,            // [w7] == 0
-+//  unsigned int y,             // [sp, #0] == 0
-+//  unsigned int _w,            // [sp, #8] -> w3
-+//  unsigned int h);            // [sp, #16] -> w7
-+
-+.macro rpi_sand30_lines_to_planar_c16_block_half
-+    ld1 { v0.4s,  v1.4s, v2.4s, v3.4s }, [x13], #64
-+
-+    xtn v4.4h, v0.4s
-+    ushr v0.4s, v0.4s, #10
-+    xtn v5.4h, v0.4s
-+    ushr v0.4s, v0.4s, #10
-+    xtn v6.4h, v0.4s
-+    xtn2 v4.8h, v1.4s
-+    ushr v1.4s, v1.4s, #10
-+    xtn2 v5.8h, v1.4s
-+    ushr v1.4s, v1.4s, #10
-+    xtn2 v6.8h, v1.4s
-+    and v4.16b, v4.16b, v16.16b
-+    and v5.16b, v5.16b, v16.16b
-+    and v6.16b, v6.16b, v16.16b
-+    st3 { v4.8h, v5.8h, v6.8h }, [sp], #48
-+    
-+    xtn v4.4h, v2.4s
-+    ushr v2.4s, v2.4s, #10
-+    xtn v5.4h, v2.4s
-+    ushr v2.4s, v2.4s, #10
-+    xtn v6.4h, v2.4s
-+    xtn2 v4.8h, v3.4s
-+    ushr v3.4s, v3.4s, #10
-+    xtn2 v5.8h, v3.4s
-+    ushr v3.4s, v3.4s, #10
-+    xtn2 v6.8h, v3.4s
-+    and v4.16b, v4.16b, v16.16b
-+    and v5.16b, v5.16b, v16.16b
-+    and v6.16b, v6.16b, v16.16b
-+    st3 { v4.8h, v5.8h, v6.8h }, [sp]
-+    sub sp, sp, #48
++                uzp1            \a0\().8h, \a0\().8h, \b0\().8h
++                uzp2            \a1\().8h, \a1\().8h, \b1\().8h
++                uzp2            \a2\().8h, \a2\().8h, \b2\().8h
 +.endm
 +
++// SAND30 -> 10bit
++.macro USAND10 d0, d1, d2, a0, a1
++                shrn            \d2\().4h, \a0\().4s, #14
++                shrn            \d1\().4h, \a0\().4s, #10
++
++                shrn2           \d2\().8h, \a1\().4s, #14
++                shrn2           \d1\().8h, \a1\().4s, #10
++                uzp1            \d0\().8h, \a0\().8h, \a1\().8h
++
++                ushr            \d2\().8h, \d2\().8h, #6
++                bic             \d0\().8h, #0xfc,     lsl #8
++                bic             \d1\().8h, #0xfc,     lsl #8
++.endm
++
++// SAND30 -> 8bit
++.macro USAND8 d0, d1, d2, a0, a1, a2, a3, t0, t1, t2
++                shrn            \d1\().4h,  \a0\().4s,  #12
++                shrn2           \d1\().8h,  \a1\().4s,  #12
++                uzp1            \d0\().8h,  \a0\().8h,  \a1\().8h
++                uzp2            \d2\().8h,  \a0\().8h,  \a1\().8h
++
++                shrn            \t1\().4h,  \a2\().4s,  #12
++                shrn2           \t1\().8h,  \a3\().4s,  #12
++                uzp1            \t0\().8h,  \a2\().8h,  \a3\().8h
++                uzp2            \t2\().8h,  \a2\().8h,  \a3\().8h
++
++                shrn            \d0\().8b,  \d0\().8h,  #2
++                shrn2           \d0\().16b, \t0\().8h,  #2
++                shrn            \d2\().8b,  \d2\().8h,  #6
++                shrn2           \d2\().16b, \t2\().8h,  #6
++                uzp1            \d1\().16b, \d1\().16b, \t1\().16b
++.endm
++
++
++// void ff_rpi_sand30_lines_to_planar_c16(
++//   uint8_t * dst_u,            // [x0]
++//   unsigned int dst_stride_u,  // [w1]
++//   uint8_t * dst_v,            // [x2]
++//   unsigned int dst_stride_v,  // [w3]
++//   const uint8_t * src,        // [x4]
++//   unsigned int stride1,       // [w5]      128
++//   unsigned int stride2,       // [w6]
++//   unsigned int _x,            // [w7]      0
++//   unsigned int y,             // [sp, #0]
++//   unsigned int _w,            // [sp, #8]  w9
++//   unsigned int h);            // [sp, #16] w10
++
 +function ff_rpi_sand30_lines_to_planar_c16, export=1
-+    stp x19, x20, [sp, #-48]!
-+    stp x21, x22, [sp, #16]
-+    stp x23, x24, [sp, #32]
++                ldr             w7,  [sp, #0]                   // y
++                ldr             w8,  [sp, #8]                   // _w
++                ldr             w10, [sp, #16]                  // h
++                lsl             w6,  w6,  #7                    // Fixup stride2
++                sub             w6,  w6,  #64
++                uxtw            x6,  w6
++                sub             w1,  w1,  w8,  LSL #1           // Fixup chroma strides
++                sub             w3,  w3,  w8,  LSL #1
++                lsl             w7,  w7,  #7                    // Add y to src
++                add             x4,  x4,  w7,  UXTW
++10:
++                mov             w13, #0
++                mov             x5,  x4
++                mov             w9,  w8
++1:
++                ld1             {v0.4s-v3.4s}, [x5], #64
++                ld1             {v4.4s-v7.4s}, [x5], x6
++                subs            w9,  w9,  #48
 +
-+    ldr w3, [sp, #48+8]    // w3 = width
-+    ldr w7, [sp, #48+16]   // w7 = height
++                USAND10         v17, v16, v18, v0, v1
++                USAND10         v20, v19, v21, v2, v3
++                UZPH_C          v0, v1, v2, v16, v17, v18, v19, v20, v21
++                USAND10         v23, v22, v24, v4, v5
++                USAND10         v26, v25, v27, v6, v7
++                UZPH_C          v4, v5, v6, v22, v23, v24, v25, v26, v27
 +
-+    // reserve space on the stack for intermediate results
-+    sub sp, sp, #256
++                blt             2f
 +
-+    // number of 128byte blocks per row, w8 = width / 48
-+    mov w9, #48
-+    udiv w8, w3, w9
++                st3             {v0.8h-v2.8h},   [x0], #48
++                st3             {v4.8h-v6.8h},   [x0], #48
++                st3             {v16.8h-v18.8h}, [x2], #48
++                st3             {v22.8h-v24.8h}, [x2], #48
 +
-+    // remaining pixels (rem_pix) per row, w9 = width - w8 * 48
-+    mul w9, w8, w9
-+    sub w9, w3, w9
++                bne             1b
++11:
++                subs            w10, w10, #1
++                add             x4,  x4,  #128
++                add             x0,  x0,  w1,  UXTW
++                add             x2,  x2,  w3,  UXTW
++                bne             10b
++99:
++                ret
 +
-+    // row offset, the beginning of the next row to process
-+    eor w10, w10, w10
-+
-+    // offset to the beginning of the next block, w11 = stride2 * 128 - 128
-+    lsl w11, w6, #7
-+    sub w11, w11, #128
-+
-+    // decrease the height by one and in case of remaining pixels increase the block count by one
-+    sub w7, w7, #1
-+    cmp w9, #0
-+    cset w19, ne    // w19 == 1 iff reamining pixels != 0
-+    add w8, w8, w19
-+
-+    // bytes we have to move dst back by at the end of every row
-+    mov w21, #48*2
-+    mul w21, w21, w8
-+    sub w21, w1, w21
-+
-+    mov w20, #0     // w20 = flag, last row processed
-+
-+    mov x12, #0x03ff03ff03ff03ff
-+    dup v16.2d, x12
-+
-+    // iterate through rows, row counter = w12 = 0
-+    eor w12, w12, w12
-+row_loop_c16:
-+    cmp w12, w7
-+    bge row_loop_c16_fin
-+
-+    // address of row data = src + row_offset
-+    mov x13, x4
-+    add x13, x13, x10
-+
-+    eor w14, w14, w14
-+block_loop_c16:
-+    cmp w14, w8
-+    bge block_loop_c16_fin
-+
-+    rpi_sand30_lines_to_planar_c16_block_half
-+
-+    ld2 { v0.8h, v1.8h }, [sp], #32
-+    ld2 { v2.8h, v3.8h }, [sp], #32
-+    ld2 { v4.8h, v5.8h }, [sp]
-+    sub sp, sp, #64
-+
-+    st1 { v0.8h }, [x0], #16
-+    st1 { v2.8h }, [x0], #16
-+    st1 { v4.8h }, [x0], #16
-+    st1 { v1.8h }, [x2], #16
-+    st1 { v3.8h }, [x2], #16
-+    st1 { v5.8h }, [x2], #16
-+
-+    rpi_sand30_lines_to_planar_c16_block_half
-+
-+    ld2 { v0.8h, v1.8h }, [sp], #32
-+    ld2 { v2.8h, v3.8h }, [sp], #32
-+    ld2 { v4.8h, v5.8h }, [sp]
-+    sub sp, sp, #64
-+
-+    st1 { v0.8h }, [x0], #16
-+    st1 { v2.8h }, [x0], #16
-+    st1 { v4.8h }, [x0], #16
-+    st1 { v1.8h }, [x2], #16
-+    st1 { v3.8h }, [x2], #16
-+    st1 { v5.8h }, [x2], #16
-+
-+    add x13, x13, x11 // offset to next block
-+    add w14, w14, #1
-+    b block_loop_c16
-+block_loop_c16_fin:
-+
-+    add w10, w10, #128
-+    add w12, w12, #1
-+    add x0, x0, w21, sxtw  // move dst pointers back by x21
-+    add x2, x2, w21, sxtw
-+    b row_loop_c16
-+row_loop_c16_fin:
-+
-+    cmp w20, #1
-+    beq row_loop_c16_fin2
-+    mov w20, #1
-+    sub w8, w8, w19 // decrease block count by w19
-+    add w7, w7, #1 // increase height
-+    b row_loop_c16
-+
-+row_loop_c16_fin2:
-+    sub x0, x0, w21, sxtw // readd x21 in case of the last row
-+    sub x2, x2, w21, sxtw // so that we can write out the few remaining pixels
-+
-+    // last incomplete block to be finished
-+    // read operations are fine, stride2 is more than large enough even if rem_pix is 0
-+    rpi_sand30_lines_to_planar_c16_block_half
-+    ld2 { v0.8h, v1.8h }, [sp], #32
-+    ld2 { v2.8h, v3.8h }, [sp], #32
-+    ld2 { v4.8h, v5.8h }, [sp], #32
-+    rpi_sand30_lines_to_planar_c16_block_half
-+    ld2 { v0.8h, v1.8h }, [sp], #32
-+    ld2 { v2.8h, v3.8h }, [sp], #32
-+    ld2 { v4.8h, v5.8h }, [sp]
-+    sub sp, sp, #160
-+
-+    mov x4, sp
-+    eor w20, w20, w20
-+rem_pix_c16_loop:
-+    cmp w20, w9
-+    bge rem_pix_c16_fin
-+
-+    ldr w22, [x4], #4
-+    str w22, [x0], #2
-+    lsr w22, w22, #16
-+    str w22, [x2], #2 
-+
-+    add w20, w20, #1
-+    b rem_pix_c16_loop
-+rem_pix_c16_fin:
-+
-+    add sp, sp, #256
-+
-+    ldp x23, x24, [sp, #32]
-+    ldp x21, x22, [sp, #16]
-+    ldp x19, x20, [sp], #48
-+    ret
++// Partial final write
++2:
++                cmp             w9,  #24-48
++                blt             1f
++                st3             {v0.8h  - v2.8h},  [x0], #48
++                st3             {v16.8h - v18.8h}, [x2], #48
++                beq             11b
++                mov             v0.16b,  v4.16b
++                mov             v1.16b,  v5.16b
++                sub             w9,  w9,  #24
++                mov             v2.16b,  v6.16b
++                mov             v16.16b, v22.16b
++                mov             v17.16b, v23.16b
++                mov             v18.16b, v24.16b
++1:
++                cmp             w9,  #12-48
++                blt             1f
++                st3             {v0.4h  - v2.4h},  [x0], #24
++                st3             {v16.4h - v18.4h}, [x2], #24
++                beq             11b
++                mov             v0.d[0],  v0.d[1]
++                sub             w9,  w9,  #12
++                mov             v1.d[0],  v1.d[1]
++                mov             v2.d[0],  v2.d[1]
++                mov             v16.d[0], v16.d[1]
++                mov             v17.d[0], v17.d[1]
++                mov             v18.d[0], v18.d[1]
++1:
++                cmp             w9,  #6-48
++                blt             1f
++                st3             {v0.h  - v2.h}[0],  [x0], #6
++                st3             {v0.h  - v2.h}[1],  [x0], #6
++                st3             {v16.h - v18.h}[0], [x2], #6
++                st3             {v16.h - v18.h}[1], [x2], #6
++                beq             11b
++                mov             v0.s[0],  v0.s[1]
++                sub             w9,  w9,  #6
++                mov             v1.s[0],  v1.s[1]
++                mov             v2.s[0],  v2.s[1]
++                mov             v16.s[0], v16.s[1]
++                mov             v17.s[0], v17.s[1]
++                mov             v18.s[0], v18.s[1]
++1:
++                cmp             w9,  #3-48
++                blt             1f
++                st3             {v0.h  - v2.h}[0],  [x0], #6
++                st3             {v16.h - v18.h}[0], [x2], #6
++                beq             11b
++                mov             v0.h[0],  v0.h[1]
++                sub             w9,  w9,  #3
++                mov             v1.h[0],  v1.h[1]
++                mov             v16.h[0], v16.h[1]
++                mov             v17.h[0], v17.h[1]
++1:
++                cmp             w9,  #2-48
++                blt             1f
++                st2             {v0.h  - v1.h}[0],  [x0], #4
++                st2             {v16.h - v17.h}[0], [x2], #4
++                b               11b
++1:
++                st1             {v0.h}[0],  [x0], #2
++                st1             {v16.h}[0], [x2], #2
++                b               11b
 +endfunc
-+
 +
 +
 +//void ff_rpi_sand30_lines_to_planar_p010(
@@ -707,12 +621,238 @@ index 0000000000..cdcf71ee67
 +//  unsigned int _w,
 +//  unsigned int h);
 +
++// void ff_rpi_sand30_lines_to_planar_y8(
++//   uint8_t * dest,            : x0
++//   unsigned int dst_stride,   : w1
++//   const uint8_t * src,       : x2
++//   unsigned int src_stride1,  : w3, always 128
++//   unsigned int src_stride2,  : w4
++//   unsigned int _x,           : w5
++//   unsigned int y,            : w6
++//   unsigned int _w,           : w7
++//   unsigned int h);           : [sp, #0]
++//
++// Assumes that we are starting on a stripe boundary and that overreading
++// within the stripe is OK. However it does respect the dest size for wri
++
++function ff_rpi_sand30_lines_to_planar_y16, export=1
++                lsl             w4,  w4,  #7
++                sub             w4,  w4,  #64
++                uxtw            x4,  w4
++                sub             w1,  w1,  w7, lsl #1
++                uxtw            x6,  w6
++                add             x8,  x2,  x6, lsl #7
++                ldr             w6,  [sp, #0]
++
++10:
++                mov             x2,  x8
++                mov             w5,  w7
++1:
++                ld1             {v0.4s, v1.4s, v2.4s, v3.4s}, [x2], #64
++                ld1             {v4.4s, v5.4s, v6.4s, v7.4s}, [x2], x4
++
++                subs            w5,  w5,  #96
++
++                USAND10         v16, v17, v18, v0, v1
++                USAND10         v19, v20, v21, v2, v3
++                USAND10         v22, v23, v24, v4, v5
++                USAND10         v25, v26, v27, v6, v7
++
++                blt             2f
++
++                st3             {v16.8h, v17.8h, v18.8h}, [x0], #48
++                st3             {v19.8h, v20.8h, v21.8h}, [x0], #48
++                st3             {v22.8h, v23.8h, v24.8h}, [x0], #48
++                st3             {v25.8h, v26.8h, v27.8h}, [x0], #48
++
++                bne             1b
++
++11:
++                subs            w6,  w6,  #1
++                add             x0,  x0,  w1,  uxtw
++                add             x8,  x8,  #128
++                bne             10b
++
++                ret
++
++// Partial final write
++2:
++                cmp             w5,  #48-96
++                blt             1f
++                st3             {v16.8h, v17.8h, v18.8h}, [x0], #48
++                st3             {v19.8h, v20.8h, v21.8h}, [x0], #48
++                beq             11b
++                mov             v16.16b, v22.16b
++                mov             v17.16b, v23.16b
++                sub             w5,  w5,  #48
++                mov             v18.16b, v24.16b
++                mov             v19.16b, v25.16b
++                mov             v20.16b, v26.16b
++                mov             v21.16b, v27.16b
++1:
++                cmp             w5,  #24-96
++                blt             1f
++                st3             {v16.8h, v17.8h, v18.8h}, [x0], #48
++                beq             11b
++                mov             v16.16b, v19.16b
++                mov             v17.16b, v20.16b
++                sub             w5,  w5,  #24
++                mov             v18.16b, v21.16b
++1:
++                cmp             w5,  #12-96
++                blt             1f
++                st3             {v16.4h, v17.4h, v18.4h}, [x0], #24
++                beq             11b
++                mov             v16.d[0], v16.d[1]
++                sub             w5,  w5,  #12
++                mov             v17.d[0], v17.d[1]
++                mov             v18.d[0], v18.d[1]
++1:
++                cmp             w5,  #6-96
++                blt             1f
++                st3             {v16.h, v17.h, v18.h}[0], [x0], #6
++                st3             {v16.h, v17.h, v18.h}[1], [x0], #6
++                beq             11b
++                mov             v16.s[0], v16.s[1]
++                sub             w5,  w5,  #6
++                mov             v17.s[0], v17.s[1]
++                mov             v18.s[0], v18.s[1]
++1:
++                cmp             w5,  #3-96
++                blt             1f
++                st3             {v16.h, v17.h, v18.h}[0], [x0], #6
++                beq             11b
++                mov             v16.h[0], v16.h[1]
++                sub             w5,  w5,  #3
++                mov             v17.h[0], v17.h[1]
++1:
++                cmp             w5,  #2-96
++                blt             1f
++                st2             {v16.h, v17.h}[0], [x0], #4
++                b               11b
++1:
++                st1             {v16.h}[0], [x0], #2
++                b               11b
++
++endfunc
++
++// void ff_rpi_sand30_lines_to_planar_y8(
++//   uint8_t * dest,            : x0
++//   unsigned int dst_stride,   : w1
++//   const uint8_t * src,       : x2
++//   unsigned int src_stride1,  : w3, always 128
++//   unsigned int src_stride2,  : w4
++//   unsigned int _x,           : w5
++//   unsigned int y,            : w6
++//   unsigned int _w,           : w7
++//   unsigned int h);           : [sp, #0]
++//
++// Assumes that we are starting on a stripe boundary and that overreading
++// within the stripe is OK. However it does respect the dest size for wri
++
++function ff_rpi_sand30_lines_to_planar_y8, export=1
++                lsl             w4,  w4,  #7
++                sub             w4,  w4,  #64
++                uxtw            x4,  w4
++                sub             w1,  w1,  w7
++                uxtw            x6,  w6
++                add             x8,  x2,  x6, lsl #7
++                ldr             w6,  [sp, #0]
++
++10:
++                mov             x2,  x8
++                mov             w5,  w7
++1:
++                ld1             {v0.4s, v1.4s, v2.4s, v3.4s}, [x2], #64
++                ld1             {v4.4s, v5.4s, v6.4s, v7.4s}, [x2], x4
++
++                subs            w5,  w5,  #96
++
++                // v0, v1
++                USAND8          v16, v17, v18, v0, v1, v2, v3, v22, v23, v24
++                USAND8          v19, v20, v21, v4, v5, v6, v7, v22, v23, v24
++
++                blt             2f
++
++                st3             {v16.16b, v17.16b, v18.16b}, [x0], #48
++                st3             {v19.16b, v20.16b, v21.16b}, [x0], #48
++
++                bne             1b
++
++11:
++                subs            w6,  w6,  #1
++                add             x0,  x0,  w1,  uxtw
++                add             x8,  x8,  #128
++                bne             10b
++
++                ret
++
++// Partial final write
++2:
++                cmp             w5,  #48-96
++                blt             1f
++                st3             {v16.16b, v17.16b, v18.16b}, [x0], #48
++                beq             11b
++                mov             v16.16b, v22.16b
++                mov             v17.16b, v23.16b
++                sub             w5,  w5,  #48
++                mov             v18.16b, v24.16b
++1:
++                cmp             w5,  #24-96
++                blt             1f
++                st3             {v16.8b, v17.8b, v18.8b}, [x0], #24
++                beq             11b
++                mov             v16.d[0], v16.d[1]
++                sub             w5,  w5,  #24
++                mov             v17.d[0], v17.d[1]
++                mov             v18.d[0], v18.d[1]
++1:
++                cmp             w5,  #12-96
++                blt             1f
++                st3             {v16.b, v17.b, v18.b}[0], [x0], #3
++                st3             {v16.b, v17.b, v18.b}[1], [x0], #3
++                st3             {v16.b, v17.b, v18.b}[2], [x0], #3
++                st3             {v16.b, v17.b, v18.b}[3], [x0], #3
++                beq             11b
++                mov             v16.s[0], v16.s[1]
++                sub             w5,  w5,  #12
++                mov             v17.s[0], v17.s[1]
++                mov             v18.s[0], v18.s[1]
++1:
++                cmp             w5,  #6-96
++                blt             1f
++                st3             {v16.b, v17.b, v18.b}[0], [x0], #3
++                st3             {v16.b, v17.b, v18.b}[1], [x0], #3
++                beq             11b
++                mov             v16.h[0], v16.h[1]
++                sub             w5,  w5,  #6
++                mov             v17.h[0], v17.h[1]
++                mov             v18.h[0], v18.h[1]
++1:
++                cmp             w5,  #3-96
++                blt             1f
++                st3             {v16.b, v17.b, v18.b}[0], [x0], #3
++                beq             11b
++                mov             v16.b[0], v16.b[1]
++                sub             w5,  w5,  #3
++                mov             v17.b[0], v17.b[1]
++1:
++                cmp             w5,  #2-96
++                blt             1f
++                st2             {v16.b, v17.b}[0], [x0], #2
++                b               11b
++1:
++                st1             {v16.b}[0], [x0], #1
++                b               11b
++
++endfunc
++
 diff --git a/libavutil/aarch64/rpi_sand_neon.h b/libavutil/aarch64/rpi_sand_neon.h
 new file mode 100644
-index 0000000000..b3aa481ea4
+index 0000000000..2a56135bc3
 --- /dev/null
 +++ b/libavutil/aarch64/rpi_sand_neon.h
-@@ -0,0 +1,55 @@
+@@ -0,0 +1,59 @@
 +/*
 +Copyright (c) 2021 Michael Eiler
 +
@@ -764,10 +904,358 @@ index 0000000000..b3aa481ea4
 +  uint8_t * dst_v, unsigned int dst_stride_v, const uint8_t * src, unsigned int stride1,
 +  unsigned int stride2, unsigned int _x, unsigned int y, unsigned int _w, unsigned int h);
 +
++void ff_rpi_sand30_lines_to_planar_y8(uint8_t * dest, unsigned int dst_stride,
++  const uint8_t * src, unsigned int src_stride1, unsigned int src_stride2,
++  unsigned int _x, unsigned int y, unsigned int _w, unsigned int h);
++
 +#ifdef __cplusplus
 +}
 +#endif
 +
+diff --git a/libavutil/arm/rpi_sand_neon.S b/libavutil/arm/rpi_sand_neon.S
+index 80890fe985..60e697f681 100644
+--- a/libavutil/arm/rpi_sand_neon.S
++++ b/libavutil/arm/rpi_sand_neon.S
+@@ -360,7 +360,6 @@ function ff_rpi_sand30_lines_to_planar_y16, export=1
+                 ldr             r6,  [sp, #36]
+                 ldr             r7,  [sp, #32]  @ y
+                 mov             r12, #48
+-                vmov.u16        q15, #0x3ff
+                 sub             r3,  #1
+                 lsl             r3,  #7
+                 sub             r1,  r1,  r6,  lsl #1
+@@ -376,37 +375,33 @@ function ff_rpi_sand30_lines_to_planar_y16, export=1
+                 vldm            r2!, {q10-q13}
+                 add             lr,  #64
+ 
+-                vshr.u32        q14, q10, #20    @ Cannot vshrn.u32 #20!
++                vshrn.u32       d4 , q10, #14    @ Cannot vshrn.u32 #20!
+                 ands            lr,  #127
+                 vshrn.u32       d2,  q10, #10
+                 vmovn.u32       d0,  q10
+-                vmovn.u32       d4,  q14
+ 
+-                vshr.u32        q14, q11, #20
++                vshrn.u32       d5,  q11, #14
+                 it              eq
+                 addeq           r2,  r3
+                 vshrn.u32       d3,  q11, #10
+                 vmovn.u32       d1,  q11
+-                vmovn.u32       d5,  q14
+ 
+                 subs            r5,  #48
+-                vand            q0,  q15
+-                vand            q1,  q15
+-                vand            q2,  q15
++                vshr.u16        q2,  #6
++                vbic.u16        q0,  #0xfc00
++                vbic.u16        q1,  #0xfc00
+ 
+-                vshr.u32        q14, q12, #20
++                vshrn.u32       d20, q12, #14
+                 vshrn.u32       d18, q12, #10
+                 vmovn.u32       d16, q12
+-                vmovn.u32       d20, q14
+ 
+-                vshr.u32        q14, q13, #20
++                vshrn.u32       d21, q13, #14
+                 vshrn.u32       d19, q13, #10
+                 vmovn.u32       d17, q13
+-                vmovn.u32       d21, q14
+ 
+-                vand            q8,  q15
+-                vand            q9,  q15
+-                vand            q10, q15
++                vshr.u16        q10, #6
++                vbic.u16        q8,  #0xfc00
++                vbic.u16        q9 , #0xfc00
+                 blt             2f
+ 
+                 vst3.16         {d0,  d2,  d4},  [r0], r12
+@@ -499,7 +494,6 @@ function ff_rpi_sand30_lines_to_planar_c16, export=1
+                 ldr             r7,  [sp, #48]
+                 ldr             r9,  [sp, #52]
+                 mov             r12, #48
+-                vmov.u16        q15, #0x3ff
+                 sub             r8,  #1
+                 lsl             r8,  #7
+                 add             r5,  r5,  r7,  lsl #7
+@@ -515,48 +509,44 @@ function ff_rpi_sand30_lines_to_planar_c16, export=1
+                 add             lr,  #64
+ 
+                 @ N.B. unpack [0,1,2] -> (reg order) 1, 0, 2
+-                vshr.u32        q14, q0,  #20
+-                vshrn.u32       d16, q0,  #10
++                vshrn.u32       d20, q0,  #14
+                 vmovn.u32       d18, q0
++                vshrn.u32       d0,  q0,  #10
+                 ands            lr,  #127
+-                vmovn.u32       d20, q14
+ 
+-                vshr.u32        q14, q1,  #20
+-                vshrn.u32       d17, q1,  #10
++                vshrn.u32       d21, q1,  #14
+                 vmovn.u32       d19, q1
+-                vmovn.u32       d21, q14
++                vshrn.u32       d1,  q1,  #10
+ 
+-                vshr.u32        q14, q2,  #20
+                 vshrn.u32       d22, q2,  #10
+-                vmovn.u32       d24, q2
+-                vmovn.u32       d26, q14
++                vmovn.u32       d2,  q2
++                vshrn.u32       d4,  q2,  #14
+ 
+-                vshr.u32        q14, q3,  #20
+-                vshrn.u32       d23, q3,  #10
+-                vmovn.u32       d25, q3
+                 add             r10, r0,  #24
+-                vmovn.u32       d27, q14
++                vshrn.u32       d23, q3,  #10
++                vmovn.u32       d3,  q3
++                vshrn.u32       d5,  q3,  #14
+ 
+                 it              eq
+                 addeq           r4,  r8
+-                vuzp.16         q8,  q11
+-                vuzp.16         q9,  q12
+-                vuzp.16         q10, q13
++                vuzp.16         q0,  q11
++                vuzp.16         q9,  q1
++                vuzp.16         q10, q2
+ 
+-                @ q8   V0, V3,.. -> q0
++                @ q0   V0, V3,..
+                 @ q9   U0, U3...
+                 @ q10  U1, U4...
+                 @ q11  U2, U5,..
+-                @ q12  V1, V4,.. -> q1
+-                @ q13  V2, V5,.. -> q2
++                @ q1   V1, V4,
++                @ q2   V2, V5,..
+ 
+                 subs            r6,  #24
+-                vand            q11, q15
+-                vand            q9,  q15
+-                vand            q10, q15
+-                vand            q0,  q8,  q15
+-                vand            q1,  q12, q15
+-                vand            q2,  q13, q15
++                vbic.u16        q11, #0xfc00
++                vbic.u16        q9,  #0xfc00
++                vshr.u16        q10, #6
++                vshr.u16        q2,  #6
++                vbic.u16        q0,  #0xfc00
++                vbic.u16        q1,  #0xfc00
+ 
+                 blt             2f
+ 
+@@ -765,4 +755,171 @@ function ff_rpi_sand30_lines_to_planar_p010, export=1
+ endfunc
+ 
+ 
++@ void ff_rpi_sand30_lines_to_planar_y8(
++@   uint8_t * dest,             // [r0]
++@   unsigned int dst_stride,    // [r1]
++@   const uint8_t * src,        // [r2]
++@   unsigned int src_stride1,   // [r3]      Ignored - assumed 128
++@   unsigned int src_stride2,   // [sp, #0]  -> r3
++@   unsigned int _x,            // [sp, #4]  Ignored - 0
++@   unsigned int y,             // [sp, #8]  (r7 in prefix)
++@   unsigned int _w,            // [sp, #12] -> r6 (cur r5)
++@   unsigned int h);            // [sp, #16] -> r7
++@
++@ Assumes that we are starting on a stripe boundary and that overreading
++@ within the stripe is OK. However it does respect the dest size for wri
++
++function ff_rpi_sand30_lines_to_planar_y8, export=1
++                push            {r4-r8, lr}     @ +24
++                ldr             r3,  [sp, #24]
++                ldr             r6,  [sp, #36]
++                ldr             r7,  [sp, #32]  @ y
++                mov             r12, #48
++                lsl             r3,  #7
++                sub             r1,  r1,  r6
++                add             r8,  r2,  r7,  lsl #7
++                ldr             r7,  [sp, #40]
++
++10:
++                mov             r2,  r8
++                add             r4,  r0,  #24
++                mov             r5,  r6
++1:
++                vldm            r2,  {q8-q15}
++
++                subs            r5,  #96
++
++                vmovn.u32       d0,  q8
++                vshrn.u32       d2,  q8,  #12
++                vshrn.u32       d4,  q8,  #16    @ Cannot vshrn.u32 #20!
++
++                add             r2,  r3
++
++                vmovn.u32       d1,  q9
++                vshrn.u32       d3,  q9,  #12
++                vshrn.u32       d5,  q9,  #16
++
++                pld             [r2, #0]
++
++                vshrn.u16       d0,  q0,  #2
++                vmovn.u16       d1,  q1
++                vshrn.u16       d2,  q2,  #6
++
++                vmovn.u32       d16, q10
++                vshrn.u32       d18, q10, #12
++                vshrn.u32       d20, q10, #16
++
++                vmovn.u32       d17, q11
++                vshrn.u32       d19, q11, #12
++                vshrn.u32       d21, q11, #16
++
++                pld             [r2, #64]
++
++                vshrn.u16       d4,  q8,  #2
++                vmovn.u16       d5,  q9
++                vshrn.u16       d6,  q10, #6
++
++                vmovn.u32       d16, q12
++                vshrn.u32       d18, q12, #12
++                vshrn.u32       d20, q12, #16
++
++                vmovn.u32       d17, q13
++                vshrn.u32       d19, q13, #12
++                vshrn.u32       d21, q13, #16
++
++                vshrn.u16       d16, q8,  #2
++                vmovn.u16       d17, q9
++                vshrn.u16       d18, q10, #6
++
++                vmovn.u32       d20, q14
++                vshrn.u32       d22, q14, #12
++                vshrn.u32       d24, q14, #16
++
++                vmovn.u32       d21, q15
++                vshrn.u32       d23, q15, #12
++                vshrn.u32       d25, q15, #16
++
++                vshrn.u16       d20, q10, #2
++                vmovn.u16       d21, q11
++                vshrn.u16       d22, q12, #6
++
++                blt             2f
++
++                vst3.8          {d0,  d1,  d2},  [r0], r12
++                vst3.8          {d4,  d5,  d6},  [r4], r12
++                vst3.8          {d16, d17, d18}, [r0], r12
++                vst3.8          {d20, d21, d22}, [r4], r12
++
++                bne             1b
++
++11:
++                subs            r7,  #1
++                add             r0,  r1
++                add             r8,  #128
++                bne             10b
++
++                pop             {r4-r8, pc}
++
++@ Partial final write
++2:
++                cmp             r5,  #48-96
++                blt             1f
++                vst3.8          {d0,  d1,  d2},  [r0], r12
++                vst3.8          {d4,  d5,  d6},  [r4], r12
++                beq             11b
++                vmov            q0,  q8
++                vmov            q2,  q10
++                sub             r5,  #48
++                vmov            d2,  d18
++                vmov            d6,  d22
++1:
++                cmp             r5,  #24-96
++                blt             1f
++                vst3.8          {d0,  d1,  d2},  [r0]!
++                beq             11b
++                vmov            q0,  q2
++                sub             r5,  #24
++                vmov            d2,  d6
++1:
++                cmp             r5,  #12-96
++                blt             1f
++                vst3.8          {d0[0], d1[0], d2[0]}, [r0]!
++                vst3.8          {d0[1], d1[1], d2[1]}, [r0]!
++                vst3.8          {d0[2], d1[2], d2[2]}, [r0]!
++                vst3.8          {d0[3], d1[3], d2[3]}, [r0]!
++                beq             11b
++                vmov            s0,  s1
++                sub             r5,  #12
++                vmov            s2,  s3
++                vmov            s4,  s5
++1:
++                cmp             r5,  #6-96
++                blt             1f
++                vst3.8          {d0[0], d1[0], d2[0]}, [r0]!
++                vst3.8          {d0[1], d1[1], d2[1]}, [r0]!
++                add             r0,  #12
++                beq             11b
++                vshr.u32        d0,  #16
++                sub             r5,  #6
++                vshr.u32        d1,  #16
++                vshr.u32        d2,  #16
++1:
++                cmp             r5, #3-96
++                blt             1f
++                vst3.8          {d0[0], d1[0], d2[0]}, [r0]!
++                beq             11b
++                sub             r5, #3
++                vshr.u32        d0, #8
++                vshr.u32        d1, #8
++1:
++                cmp             r5, #2-96
++                blt             1f
++                vst2.8          {d0[0], d1[0]}, [r0]!
++                b               11b
++1:
++                vst1.8          {d0[0]}, [r0]!
++                b               11b
++
++endfunc
++
+ 
+diff --git a/libavutil/arm/rpi_sand_neon.h b/libavutil/arm/rpi_sand_neon.h
+index 447f367bea..d457c10870 100644
+--- a/libavutil/arm/rpi_sand_neon.h
++++ b/libavutil/arm/rpi_sand_neon.h
+@@ -95,5 +95,16 @@ void ff_rpi_sand30_lines_to_planar_p010(
+   unsigned int _w,            // [sp, #12] -> r6 (cur r5)
+   unsigned int h);            // [sp, #16] -> r7
+ 
++void ff_rpi_sand30_lines_to_planar_y8(
++  uint8_t * dest,             // [r0]
++  unsigned int dst_stride,    // [r1]
++  const uint8_t * src,        // [r2]
++  unsigned int src_stride1,   // [r3]      Ignored - assumed 128
++  unsigned int src_stride2,   // [sp, #0]  -> r3
++  unsigned int _x,            // [sp, #4]  Ignored - 0
++  unsigned int y,             // [sp, #8]  (r7 in prefix)
++  unsigned int _w,            // [sp, #12] -> r6 (cur r5)
++  unsigned int h);            // [sp, #16] -> r7
++
+ #endif // AVUTIL_ARM_SAND_NEON_H
+ 
+diff --git a/libavutil/pixfmt.h b/libavutil/pixfmt.h
+index c7c1147b59..f3f5a38584 100644
+--- a/libavutil/pixfmt.h
++++ b/libavutil/pixfmt.h
+@@ -381,6 +381,8 @@ enum AVPixelFormat {
+     AV_PIX_FMT_Y210BE,    ///< packed YUV 4:2:2 like YUYV422, 20bpp, data in the high bits, big-endian
+     AV_PIX_FMT_Y210LE,    ///< packed YUV 4:2:2 like YUYV422, 20bpp, data in the high bits, little-endian
+ // RPI - not on ifdef so can be got at by calling progs
++// #define so code that uses this can know it is there
++#define AVUTIL_HAVE_PIX_FMT_SAND 1
+     AV_PIX_FMT_SAND128,    ///< 4:2:0  8-bit 128x*Y stripe, 64x*UV stripe, then next x stripe, mysterious padding
+     AV_PIX_FMT_SAND64_10,  ///< 4:2:0 10-bit  64x*Y stripe, 32x*UV stripe, then next x stripe, mysterious padding
+     AV_PIX_FMT_SAND64_16,  ///< 4:2:0 16-bit  64x*Y stripe, 32x*UV stripe, then next x stripe, mysterious padding
 diff --git a/libavutil/rpi_sand_fn_pw.h b/libavutil/rpi_sand_fn_pw.h
 index 0324f6826d..0d5d203dc3 100644
 --- a/libavutil/rpi_sand_fn_pw.h
@@ -791,19 +1279,167 @@ index 0324f6826d..0d5d203dc3 100644
          ff_rpi_sand8_lines_to_planar_c8(dst_u, dst_stride_u, dst_v, dst_stride_v,
                                       src, stride1, stride2, _x, y, _w, h);
 diff --git a/libavutil/rpi_sand_fns.c b/libavutil/rpi_sand_fns.c
-index ed0261b02f..1f543e9357 100644
+index ed0261b02f..0626bb06cb 100644
 --- a/libavutil/rpi_sand_fns.c
 +++ b/libavutil/rpi_sand_fns.c
-@@ -37,6 +37,9 @@ Authors: John Cox
+@@ -35,7 +35,12 @@ Authors: John Cox
+ #include "frame.h"
+ 
  #if ARCH_ARM && HAVE_NEON
- #include "arm/rpi_sand_neon.h"
- #define HAVE_SAND_ASM 1
-+#elif ARCH_AARCH64 && HAVE_NEON
-+#include "aarch64/rpi_sand_neon.h"
+-#include "arm/rpi_sand_neon.h"
++#include "libavutil/arm/cpu.h"
++#include "libavutil/arm/rpi_sand_neon.h"
 +#define HAVE_SAND_ASM 1
++#elif ARCH_AARCH64 && HAVE_NEON
++#include "libavutil/aarch64/cpu.h"
++#include "libavutil/aarch64/rpi_sand_neon.h"
+ #define HAVE_SAND_ASM 1
  #else
  #define HAVE_SAND_ASM 0
- #endif
+@@ -94,7 +99,7 @@ void av_rpi_sand30_to_planar_y16(uint8_t * dst, const unsigned int dst_stride,
+     const unsigned int slice_inc = ((stride2 - 1) * stride1) >> 2;  // RHS of a stripe to LHS of next in words
+ 
+ #if HAVE_SAND_ASM
+-    if (_x == 0) {
++    if (_x == 0 && have_neon(av_get_cpu_flags())) {
+         ff_rpi_sand30_lines_to_planar_y16(dst, dst_stride, src, stride1, stride2, _x, y, _w, h);
+         return;
+     }
+@@ -160,7 +165,7 @@ void av_rpi_sand30_to_planar_c16(uint8_t * dst_u, const unsigned int dst_stride_
+     const unsigned int slice_inc = ((stride2 - 1) * stride1) >> 2;  // RHS of a stripe to LHS of next in words
+ 
+ #if HAVE_SAND_ASM
+-    if (_x == 0) {
++    if (_x == 0 && have_neon(av_get_cpu_flags())) {
+         ff_rpi_sand30_lines_to_planar_c16(dst_u, dst_stride_u, dst_v, dst_stride_v,
+                                        src, stride1, stride2, _x, y, _w, h);
+         return;
+@@ -226,6 +231,75 @@ void av_rpi_sand30_to_planar_c16(uint8_t * dst_u, const unsigned int dst_stride_
+     }
+ }
+ 
++// Fetches a single patch - offscreen fixup not done here
++// w <= stride1
++// single lose bottom 2 bits truncation
++// _x & _w in pixels, strides in bytes
++void av_rpi_sand30_to_planar_y8(uint8_t * dst, const unsigned int dst_stride,
++                             const uint8_t * src,
++                             unsigned int stride1, unsigned int stride2,
++                             unsigned int _x, unsigned int y,
++                             unsigned int _w, unsigned int h)
++{
++    const unsigned int x0 = (_x / 3) * 4; // Byte offset of the word
++    const unsigned int xskip0 = _x - (x0 >> 2) * 3;
++    const unsigned int x1 = ((_x + _w) / 3) * 4;
++    const unsigned int xrem1 = _x + _w - (x1 >> 2) * 3;
++    const unsigned int mask = stride1 - 1;
++    const uint8_t * p0 = src + (x0 & mask) + y * stride1 + (x0 & ~mask) * stride2;
++    const unsigned int slice_inc = ((stride2 - 1) * stride1) >> 2;  // RHS of a stripe to LHS of next in words
++
++#if HAVE_SAND_ASM
++    if (_x == 0) {
++        ff_rpi_sand30_lines_to_planar_y8(dst, dst_stride, src, stride1, stride2, _x, y, _w, h);
++        return;
++    }
++#endif
++
++    if (x0 == x1) {
++        // *******************
++        // Partial single word xfer
++        return;
++    }
++
++    for (unsigned int i = 0; i != h; ++i, dst += dst_stride, p0 += stride1)
++    {
++        unsigned int x = x0;
++        const uint32_t * p = (const uint32_t *)p0;
++        uint8_t * d = dst;
++
++        if (xskip0 != 0) {
++            const uint32_t p3 = *p++;
++
++            if (xskip0 == 1)
++                *d++ = (p3 >> 12) & 0xff;
++            *d++ = (p3 >> 22) & 0xff;
++
++            if (((x += 4) & mask) == 0)
++                p += slice_inc;
++        }
++
++        while (x != x1) {
++            const uint32_t p3 = *p++;
++            *d++ = (p3 >> 2) & 0xff;
++            *d++ = (p3 >> 12) & 0xff;
++            *d++ = (p3 >> 22) & 0xff;
++
++            if (((x += 4) & mask) == 0)
++                p += slice_inc;
++        }
++
++        if (xrem1 != 0) {
++            const uint32_t p3 = *p;
++
++            *d++ = (p3 >> 2) & 0xff;
++            if (xrem1 == 2)
++                *d++ = (p3 >> 12) & 0xff;
++        }
++    }
++}
++
++
+ 
+ // w/h in pixels
+ void av_rpi_sand16_to_sand8(uint8_t * dst, const unsigned int dst_stride1, const unsigned int dst_stride2,
+@@ -307,6 +381,16 @@ int av_rpi_sand_to_planar_frame(AVFrame * const dst, const AVFrame * const src)
+                                              av_rpi_sand_frame_stride1(src), av_rpi_sand_frame_stride2(src),
+                                              x/2, y/2,  w/2, h/2);
+                     break;
++                case AV_PIX_FMT_NV12:
++                    av_rpi_sand_to_planar_y8(dst->data[0], dst->linesize[0],
++                                             src->data[0],
++                                             av_rpi_sand_frame_stride1(src), av_rpi_sand_frame_stride2(src),
++                                             x, y, w, h);
++                    av_rpi_sand_to_planar_y8(dst->data[1], dst->linesize[1],
++                                             src->data[1],
++                                             av_rpi_sand_frame_stride1(src), av_rpi_sand_frame_stride2(src),
++                                             x/2, y/2, w, h/2);
++                    break;
+                 default:
+                     return -1;
+             }
+@@ -341,6 +425,16 @@ int av_rpi_sand_to_planar_frame(AVFrame * const dst, const AVFrame * const src)
+                                              av_rpi_sand_frame_stride1(src), av_rpi_sand_frame_stride2(src),
+                                              x/2, y/2, w/2, h/2);
+                     break;
++                case AV_PIX_FMT_NV12:
++                    av_rpi_sand30_to_planar_y8(dst->data[0], dst->linesize[0],
++                                             src->data[0],
++                                             av_rpi_sand_frame_stride1(src), av_rpi_sand_frame_stride2(src),
++                                             x, y, w, h);
++                    av_rpi_sand30_to_planar_y8(dst->data[1], dst->linesize[1],
++                                             src->data[1],
++                                             av_rpi_sand_frame_stride1(src), av_rpi_sand_frame_stride2(src),
++                                             x/2, y/2, w, h/2);
++                    break;
+                 default:
+                     return -1;
+             }
+diff --git a/libavutil/rpi_sand_fns.h b/libavutil/rpi_sand_fns.h
+index 634b55e800..462ccb8abd 100644
+--- a/libavutil/rpi_sand_fns.h
++++ b/libavutil/rpi_sand_fns.h
+@@ -85,6 +85,11 @@ void av_rpi_sand30_to_planar_c16(uint8_t * dst_u, const unsigned int dst_stride_
+                              unsigned int _x, unsigned int y,
+                              unsigned int _w, unsigned int h);
+ 
++void av_rpi_sand30_to_planar_y8(uint8_t * dst, const unsigned int dst_stride,
++                             const uint8_t * src,
++                             unsigned int stride1, unsigned int stride2,
++                             unsigned int _x, unsigned int y,
++                             unsigned int _w, unsigned int h);
+ 
+ // w/h in pixels
+ void av_rpi_sand16_to_sand8(uint8_t * dst, const unsigned int dst_stride1, const unsigned int dst_stride2,
 -- 
-2.37.2
+2.43.0
 

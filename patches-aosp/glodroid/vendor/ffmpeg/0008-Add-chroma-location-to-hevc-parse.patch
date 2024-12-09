@@ -1,42 +1,18 @@
-From 01aff455665e8f889330519096912ad0005add3c Mon Sep 17 00:00:00 2001
+From d7e69aac2b91e1331e19cd6c6bb81ed1be85f944 Mon Sep 17 00:00:00 2001
 From: John Cox <jc@kynesim.co.uk>
 Date: Tue, 27 Apr 2021 17:56:16 +0100
-Subject: [PATCH 008/122] Add chroma location to hevc parse
+Subject: [PATCH 08/41] Add chroma location to hevc parse
 
 ---
- libavcodec/hevc_parser.c | 13 +++++++++++++
- libavcodec/hevcdec.c     | 13 +++++++++++++
+ libavcodec/hevc/hevcdec.c | 13 +++++++++++++
+ libavcodec/hevc/parser.c  | 13 +++++++++++++
  2 files changed, 26 insertions(+)
 
-diff --git a/libavcodec/hevc_parser.c b/libavcodec/hevc_parser.c
-index 59f9a0ff3e..4ae7222e8b 100644
---- a/libavcodec/hevc_parser.c
-+++ b/libavcodec/hevc_parser.c
-@@ -97,6 +97,19 @@ static int hevc_parse_slice_header(AVCodecParserContext *s, H2645NAL *nal,
-     avctx->profile  = ps->sps->ptl.general_ptl.profile_idc;
-     avctx->level    = ps->sps->ptl.general_ptl.level_idc;
- 
-+    if (ps->sps->chroma_format_idc == 1) {
-+        avctx->chroma_sample_location = ps->sps->vui.common.chroma_loc_info_present_flag ?
-+            ps->sps->vui.common.chroma_sample_loc_type_top_field + 1 :
-+            AVCHROMA_LOC_LEFT;
-+    }
-+    else if (ps->sps->chroma_format_idc == 2 ||
-+             ps->sps->chroma_format_idc == 3) {
-+        avctx->chroma_sample_location = AVCHROMA_LOC_TOPLEFT;;
-+    }
-+    else {
-+        avctx->chroma_sample_location = AVCHROMA_LOC_UNSPECIFIED;
-+    }
-+
-     if (ps->vps->vps_timing_info_present_flag) {
-         num = ps->vps->vps_num_units_in_tick;
-         den = ps->vps->vps_time_scale;
-diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index 567e8d81d4..b6cfea64d3 100644
---- a/libavcodec/hevcdec.c
-+++ b/libavcodec/hevcdec.c
-@@ -347,6 +347,19 @@ static void export_stream_params(HEVCContext *s, const HEVCSPS *sps)
+diff --git a/libavcodec/hevc/hevcdec.c b/libavcodec/hevc/hevcdec.c
+index 0dc24f82f8..31323557fa 100644
+--- a/libavcodec/hevc/hevcdec.c
++++ b/libavcodec/hevc/hevcdec.c
+@@ -366,6 +366,19 @@ static void export_stream_params(HEVCContext *s, const HEVCSPS *sps)
      else
          avctx->color_range = AVCOL_RANGE_MPEG;
  
@@ -56,6 +32,30 @@ index 567e8d81d4..b6cfea64d3 100644
      if (sps->vui.common.colour_description_present_flag) {
          avctx->color_primaries = sps->vui.common.colour_primaries;
          avctx->color_trc       = sps->vui.common.transfer_characteristics;
+diff --git a/libavcodec/hevc/parser.c b/libavcodec/hevc/parser.c
+index 16b40e2b10..cf9830648a 100644
+--- a/libavcodec/hevc/parser.c
++++ b/libavcodec/hevc/parser.c
+@@ -93,6 +93,19 @@ static int hevc_parse_slice_header(AVCodecParserContext *s, H2645NAL *nal,
+     avctx->profile  = sps->ptl.general_ptl.profile_idc;
+     avctx->level    = sps->ptl.general_ptl.level_idc;
+ 
++    if (sps->chroma_format_idc == 1) {
++        avctx->chroma_sample_location = sps->vui.common.chroma_loc_info_present_flag ?
++            sps->vui.common.chroma_sample_loc_type_top_field + 1 :
++            AVCHROMA_LOC_LEFT;
++    }
++    else if (sps->chroma_format_idc == 2 ||
++             sps->chroma_format_idc == 3) {
++        avctx->chroma_sample_location = AVCHROMA_LOC_TOPLEFT;;
++    }
++    else {
++        avctx->chroma_sample_location = AVCHROMA_LOC_UNSPECIFIED;
++    }
++
+     if (sps->vps->vps_timing_info_present_flag) {
+         num = sps->vps->vps_num_units_in_tick;
+         den = sps->vps->vps_time_scale;
 -- 
-2.37.2
+2.43.0
 

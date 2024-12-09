@@ -1,21 +1,40 @@
-From c80aad5d2fb373f7564e4257b1272f2decb06dd0 Mon Sep 17 00:00:00 2001
+From 5877376f164fc31e6bc0393a17fa80161d56933c Mon Sep 17 00:00:00 2001
 From: John Cox <jc@kynesim.co.uk>
 Date: Mon, 26 Sep 2022 18:20:50 +0100
-Subject: [PATCH 009/122] hwaccel: Add .abort_frame & use in hevcdec
+Subject: [PATCH 09/41] hwaccel: Add .abort_frame & use in hevcdec
 
 ---
- libavcodec/avcodec.h | 11 +++++++++++
- libavcodec/hevcdec.c |  7 ++++++-
+ libavcodec/hevc/hevcdec.c     |  7 ++++++-
+ libavcodec/hwaccel_internal.h | 11 +++++++++++
  2 files changed, 17 insertions(+), 1 deletion(-)
 
-diff --git a/libavcodec/avcodec.h b/libavcodec/avcodec.h
-index 39881a1d2b..32bc78e2be 100644
---- a/libavcodec/avcodec.h
-+++ b/libavcodec/avcodec.h
-@@ -2221,6 +2221,17 @@ typedef struct AVHWAccel {
-      * that avctx->hwaccel_priv_data is invalid.
+diff --git a/libavcodec/hevc/hevcdec.c b/libavcodec/hevc/hevcdec.c
+index 31323557fa..ef43b230d3 100644
+--- a/libavcodec/hevc/hevcdec.c
++++ b/libavcodec/hevc/hevcdec.c
+@@ -3763,8 +3763,13 @@ static int hevc_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+     }
+ 
+     ret    = decode_nal_units(s, avpkt->data, avpkt->size);
+-    if (ret < 0)
++    if (ret < 0) {
++        // Ensure that hwaccel knows this frame is over
++        if (FF_HW_HAS_CB(avctx, abort_frame))
++            FF_HW_SIMPLE_CALL(avctx, abort_frame);
++
+         return ret;
++    }
+ 
+ do_output:
+     if (ff_container_fifo_read(s->output_fifo, frame) >= 0) {
+diff --git a/libavcodec/hwaccel_internal.h b/libavcodec/hwaccel_internal.h
+index b0cc22bb68..d319f2abe1 100644
+--- a/libavcodec/hwaccel_internal.h
++++ b/libavcodec/hwaccel_internal.h
+@@ -161,6 +161,17 @@ typedef struct FFHWAccel {
+      * Callback to flush the hwaccel state.
       */
-     int (*frame_params)(AVCodecContext *avctx, AVBufferRef *hw_frames_ctx);
+     void (*flush)(AVCodecContext *avctx);
 +
 +    /**
 +     * Called if parsing fails
@@ -27,28 +46,9 @@ index 39881a1d2b..32bc78e2be 100644
 +     * @param avctx the codec context
 +     */
 +    void (*abort_frame)(AVCodecContext *avctx);
- } AVHWAccel;
+ } FFHWAccel;
  
- /**
-diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
-index b6cfea64d3..8a0246fa21 100644
---- a/libavcodec/hevcdec.c
-+++ b/libavcodec/hevcdec.c
-@@ -3375,8 +3375,13 @@ static int hevc_decode_frame(AVCodecContext *avctx, AVFrame *rframe,
- 
-     s->ref = NULL;
-     ret    = decode_nal_units(s, avpkt->data, avpkt->size);
--    if (ret < 0)
-+    if (ret < 0) {
-+        // Ensure that hwaccel knows this frame is over
-+        if (s->avctx->hwaccel && s->avctx->hwaccel->abort_frame)
-+            s->avctx->hwaccel->abort_frame(s->avctx);
-+
-         return ret;
-+    }
- 
-     if (avctx->hwaccel) {
-         if (s->ref && (ret = avctx->hwaccel->end_frame(avctx)) < 0) {
+ static inline const FFHWAccel *ffhwaccel(const AVHWAccel *codec)
 -- 
-2.37.2
+2.43.0
 
