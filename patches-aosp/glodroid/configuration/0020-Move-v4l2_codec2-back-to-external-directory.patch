@@ -1,0 +1,26 @@
+From bf11f9fffea6c727762f4eca061444ef5409bfe3 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Tue, 10 Dec 2024 15:42:52 +0200
+Subject: [PATCH 20/20] Move v4l2_codec2 back to external/ directory
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ common/codecs/device.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/common/codecs/device.mk b/common/codecs/device.mk
+index c9a607e..53769a7 100644
+--- a/common/codecs/device.mk
++++ b/common/codecs/device.mk
+@@ -4,7 +4,7 @@
+ #
+ # Copyright (C) 2022 Roman Stratiienko (r.stratiienko@gmail.com)
+ 
+-PRODUCT_SOONG_NAMESPACES += glodroid/vendor/v4l2_codec2
++PRODUCT_SOONG_NAMESPACES += external/v4l2_codec2
+ 
+ PRODUCT_PACKAGES += \
+     android.hardware.media.c2@1.0-service \
+-- 
+2.43.0
+

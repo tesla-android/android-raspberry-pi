@@ -27,7 +27,7 @@
   <!-- video codecs components (vendor) -->
   <project path="glodroid/vendor/ffmpeg"          remote="github"      name="FFmpeg/FFmpeg.git"  groups="glodroid" revision="refs/tags/n7.1" clone-depth="1" />
   <project path="glodroid/vendor/ffmpeg_codec2"   remote="glodroid"    name="glodroid_forks.git" groups="glodroid" revision="refs/tags/ffmpeg_codec2-2023w46" clone-depth="1" />
-  <project path="glodroid/vendor/v4l2_codec2" remote="aosp" name="platform/external/v4l2_codec2" groups="glodroid" revision="6a3ebb9202e41f53c2826fb757b869ade5b1e77f" />
+  <project path="external/v4l2_codec2"            remote="aosp" name="platform/external/v4l2_codec2" groups="glodroid" revision="6a3ebb9202e41f53c2826fb757b869ade5b1e77f" />
 
   <!-- other components (vendor) -->
   <project path="glodroid/vendor/aospext"         remote="glodroid" name="aospext.git"        groups="glodroid" revision="4c5a5d5fd52c6d7626f615714928435df45aabcd" />
