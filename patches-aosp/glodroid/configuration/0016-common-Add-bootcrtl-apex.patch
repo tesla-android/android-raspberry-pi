@@ -1,0 +1,27 @@
+From f2b52322ff2e124c97c3a508e706eb99e60bd1fb Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Fri, 25 Oct 2024 12:54:42 +0300
+Subject: [PATCH 16/19] common: Add bootcrtl apex
+
+If missing, the update_verifier triggers a boot loop.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ common/base/device.mk | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/common/base/device.mk b/common/base/device.mk
+index 45f3137..e3e6200 100644
+--- a/common/base/device.mk
++++ b/common/base/device.mk
+@@ -77,6 +77,7 @@ PRODUCT_PACKAGES += \
+     update_engine_client \
+     update_verifier \
+     update_engine_sideload \
++    com.android.hardware.boot \
+ 
+ # ro.frp.pst points to a partition that contains factory reset protection information.
+ PRODUCT_VENDOR_PROPERTIES += ro.frp.pst=/dev/block/by-name/frp
+-- 
+2.43.0
+
