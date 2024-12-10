@@ -1,7 +1,7 @@
-From c343610ede9570b138ab15fb4dd052641e3f454e Mon Sep 17 00:00:00 2001
+From 03adde3ace345d63aa9ce4f5f25135b583a689ca Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Mon, 6 Nov 2023 04:27:26 +0200
-Subject: [PATCH 14/18] cros_gralloc: Use property to select custom backends
+Subject: [PATCH 12/16] cros_gralloc: Use property to select custom backends
 
 property name: vendor.gralloc.minigbm.backend
 possible values:
@@ -86,7 +86,7 @@ index 4a31ca7..fbd2b83 100644
  {
  	int fd = drv_get_fd(drv);
 diff --git a/drv.c b/drv.c
-index 078c23d..0fd9144 100644
+index 040a16f..d407473 100644
 --- a/drv.c
 +++ b/drv.c
 @@ -28,15 +28,12 @@
@@ -111,7 +111,7 @@ index 078c23d..0fd9144 100644
  #ifdef DRV_AMDGPU
  extern const struct backend backend_amdgpu;
  #endif
-@@ -119,7 +116,6 @@ static const struct backend *drv_get_backend(int fd)
+@@ -121,7 +118,6 @@ static const struct backend *drv_get_backend(int fd)
  	drmFreeVersion(drm_version);
  	return NULL;
  }
@@ -119,8 +119,8 @@ index 078c23d..0fd9144 100644
  
  struct driver *drv_create(int fd)
  {
-@@ -136,8 +132,20 @@ struct driver *drv_create(int fd)
- 	drv->compression = (minigbm_debug == NULL) || (strstr(minigbm_debug, "nocompression") == NULL);
+@@ -139,8 +135,20 @@ struct driver *drv_create(int fd)
+ 	    (minigbm_debug == NULL) || (strstr(minigbm_debug, "nocompression") == NULL);
  	drv->log_bos = (minigbm_debug && strstr(minigbm_debug, "log_bos") != NULL);
  
 -	drv->fd = fd;
@@ -143,7 +143,7 @@ index 078c23d..0fd9144 100644
  	if (!drv->backend)
  		goto free_driver;
 diff --git a/drv.h b/drv.h
-index 1beadf3..f099ccb 100644
+index 79e4d36..15570d8 100644
 --- a/drv.h
 +++ b/drv.h
 @@ -16,6 +16,9 @@ extern "C" {
@@ -157,5 +157,5 @@ index 1beadf3..f099ccb 100644
  
  // clang-format off
 -- 
-2.39.2
+2.43.0
 

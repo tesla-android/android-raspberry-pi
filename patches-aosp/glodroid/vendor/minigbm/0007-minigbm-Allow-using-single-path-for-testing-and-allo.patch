@@ -1,7 +1,7 @@
-From d4a8f06e1e942dc218ff448135cb6344677a9c04 Mon Sep 17 00:00:00 2001
+From 1b0593b5da8b64a49e77e7e950a02dca369f6b20 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Thu, 22 Dec 2022 13:31:15 +0200
-Subject: [PATCH 09/18] minigbm: Allow using single path for testing and
+Subject: [PATCH 07/16] minigbm: Allow using single path for testing and
  allocation
 
 At this moment minigbm require 2 separate logic to be implemented by the
@@ -82,10 +82,10 @@ index 2d0ac32..f7c6c93 100644
  
  	num_planes = drv_bo_get_num_planes(bo);
 diff --git a/drv.c b/drv.c
-index 46910d6..078c23d 100644
+index 47e5f05..040a16f 100644
 --- a/drv.c
 +++ b/drv.c
-@@ -353,10 +353,10 @@ static bool drv_bo_release(struct bo *bo)
+@@ -356,10 +356,10 @@ static bool drv_bo_release(struct bo *bo)
  	return true;
  }
  
@@ -99,7 +99,7 @@ index 46910d6..078c23d 100644
  	struct bo *bo;
  	bool is_test_alloc;
  
-@@ -366,10 +366,15 @@ struct bo *drv_bo_create(struct driver *drv, uint32_t width, uint32_t height, ui
+@@ -369,10 +369,15 @@ struct bo *drv_bo_create(struct driver *drv, uint32_t width, uint32_t height, ui
  	bo = drv_bo_new(drv, width, height, format, use_flags, is_test_alloc);
  
  	if (!bo)
@@ -119,7 +119,7 @@ index 46910d6..078c23d 100644
  		ret = drv->backend->bo_compute_metadata(bo, width, height, format, use_flags, NULL,
  							0);
  		if (!is_test_alloc && ret == 0)
-@@ -378,10 +383,9 @@ struct bo *drv_bo_create(struct driver *drv, uint32_t width, uint32_t height, ui
+@@ -381,10 +386,9 @@ struct bo *drv_bo_create(struct driver *drv, uint32_t width, uint32_t height, ui
  		ret = drv->backend->bo_create(bo, width, height, format, use_flags);
  	}
  
@@ -132,7 +132,7 @@ index 46910d6..078c23d 100644
  	}
  
  	drv_bo_acquire(bo);
-@@ -389,7 +393,8 @@ struct bo *drv_bo_create(struct driver *drv, uint32_t width, uint32_t height, ui
+@@ -392,7 +396,8 @@ struct bo *drv_bo_create(struct driver *drv, uint32_t width, uint32_t height, ui
  	if (drv->log_bos)
  		drv_bo_log_info(bo, "legacy created");
  
@@ -143,10 +143,10 @@ index 46910d6..078c23d 100644
  
  struct bo *drv_bo_create_with_modifiers(struct driver *drv, uint32_t width, uint32_t height,
 diff --git a/drv.h b/drv.h
-index 777a767..1beadf3 100644
+index f8f220a..79e4d36 100644
 --- a/drv.h
 +++ b/drv.h
-@@ -162,8 +162,8 @@ struct combination *drv_get_combination(struct driver *drv, uint32_t format, uin
+@@ -170,8 +170,8 @@ struct combination *drv_get_combination(struct driver *drv, uint32_t format, uin
  struct bo *drv_bo_new(struct driver *drv, uint32_t width, uint32_t height, uint32_t format,
  		      uint64_t use_flags, bool is_test_buffer);
  
@@ -158,10 +158,10 @@ index 777a767..1beadf3 100644
  struct bo *drv_bo_create_with_modifiers(struct driver *drv, uint32_t width, uint32_t height,
  					uint32_t format, const uint64_t *modifiers, uint32_t count);
 diff --git a/drv_priv.h b/drv_priv.h
-index 424b358..57aeb6f 100644
+index 29e8302..891f48c 100644
 --- a/drv_priv.h
 +++ b/drv_priv.h
-@@ -82,6 +82,8 @@ struct backend {
+@@ -83,6 +83,8 @@ struct backend {
  	void (*close)(struct driver *drv);
  	int (*bo_create)(struct bo *bo, uint32_t width, uint32_t height, uint32_t format,
  			 uint64_t use_flags);
@@ -171,10 +171,10 @@ index 424b358..57aeb6f 100644
  					uint32_t format, const uint64_t *modifiers, uint32_t count);
  	// Either both or neither _metadata functions must be implemented.
 diff --git a/gbm.c b/gbm.c
-index 190347e..b14543e 100644
+index 408fb98..2098a77 100644
 --- a/gbm.c
 +++ b/gbm.c
-@@ -130,6 +130,7 @@ PUBLIC struct gbm_bo *gbm_bo_create(struct gbm_device *gbm, uint32_t width, uint
+@@ -141,6 +141,7 @@ PUBLIC struct gbm_bo *gbm_bo_create(struct gbm_device *gbm, uint32_t width, uint
  				    uint32_t format, uint32_t usage)
  {
  	struct gbm_bo *bo;
@@ -182,7 +182,7 @@ index 190347e..b14543e 100644
  
  	if (!gbm_device_is_format_supported(gbm, format, usage))
  		return NULL;
-@@ -147,10 +148,12 @@ PUBLIC struct gbm_bo *gbm_bo_create(struct gbm_device *gbm, uint32_t width, uint
+@@ -158,10 +159,12 @@ PUBLIC struct gbm_bo *gbm_bo_create(struct gbm_device *gbm, uint32_t width, uint
  	if (format == GBM_FORMAT_YVU420 && (usage & GBM_BO_USE_LINEAR))
  		format = DRM_FORMAT_YVU420_ANDROID;
  
@@ -198,5 +198,5 @@ index 190347e..b14543e 100644
  	}
  
 -- 
-2.39.2
+2.43.0
 

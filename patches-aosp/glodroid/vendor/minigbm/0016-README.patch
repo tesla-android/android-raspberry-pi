@@ -1,7 +1,7 @@
-From bb5a88874b9fb17625f72b4a2eed2433293542ab Mon Sep 17 00:00:00 2001
+From c9e491bf48183a9fa7ab20518ffb780aed177df1 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Sat, 26 Aug 2023 12:48:05 +0300
-Subject: [PATCH 18/18] README
+Subject: [PATCH 16/16] README
 
 This series brings 2 additional backends to minigbm:
 1. Generic (gbm_mesa). It works similarly to gbm_gralloc but has the benefits
@@ -24,5 +24,5 @@ diff --git a/_aospext_patched b/_aospext_patched
 new file mode 100644
 index 0000000..e69de29
 -- 
-2.39.2
+2.43.0
 

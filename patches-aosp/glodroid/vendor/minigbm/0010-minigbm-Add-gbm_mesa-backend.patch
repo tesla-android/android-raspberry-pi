@@ -1,7 +1,7 @@
-From b21e33a6d53b523dbf225d22ae081371a28c582f Mon Sep 17 00:00:00 2001
+From 3ec3792e579069bf09149f1ae5c3470d2201bc9a Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Tue, 13 Jul 2021 13:25:31 +0300
-Subject: [PATCH 12/18] minigbm: Add gbm_mesa backend
+Subject: [PATCH 10/16] minigbm: Add gbm_mesa backend
 
 This is adaptation of the Rob Herring's gbm_gralloc HAL [1] to work
 as minigbm backend, optimised to work in modern Android conditions.
@@ -1180,5 +1180,5 @@ index 0000000..653cb8e
 +	void (*unmap)(struct gbm_bo *bo, void *map_data);
 +};
 -- 
-2.39.2
+2.43.0
 

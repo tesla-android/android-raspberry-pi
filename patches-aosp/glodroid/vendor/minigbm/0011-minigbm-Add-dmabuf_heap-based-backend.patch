@@ -1,7 +1,7 @@
-From 3d744867852fa529a69ef9e9bfde2269f96ede96 Mon Sep 17 00:00:00 2001
+From 1f54f7b797b091b86d71a5887839a3722eb47f75 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Wed, 23 Jun 2021 17:14:23 +0300
-Subject: [PATCH 13/18] minigbm: Add dmabuf_heap-based backend
+Subject: [PATCH 11/16] minigbm: Add dmabuf_heap-based backend
 
 WIP at this moment.
 Working on RPI4. (v3d+vc4).
@@ -598,5 +598,5 @@ index 0000000..62db751
 +
 +int dmabuf_bo_get_plane_fd(struct bo *bo, size_t plane);
 -- 
-2.39.2
+2.43.0
 

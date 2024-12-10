@@ -1,7 +1,7 @@
-From 3ad6f1e0ff38121946b7d98fd045199d5ffac218 Mon Sep 17 00:00:00 2001
+From 19a60103d5d434a47d4545d9824d8691a1662302 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Sat, 17 Dec 2022 19:44:49 +0200
-Subject: [PATCH 15/18] Add meson.build
+Subject: [PATCH 13/16] Add meson.build
 
 Change-Id: I5d5cb9948206b15e833ff63a7dccd2b1002c8cf3
 Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
@@ -28,10 +28,10 @@ Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
  create mode 100644 meson.build
 
 diff --git a/cros_gralloc/aidl/Allocator.cpp b/cros_gralloc/aidl/Allocator.cpp
-index 2ea5a0d..c78a82b 100644
+index 89c439e..ffb2e51 100644
 --- a/cros_gralloc/aidl/Allocator.cpp
 +++ b/cros_gralloc/aidl/Allocator.cpp
-@@ -229,7 +229,7 @@ ndk::ScopedAStatus Allocator::isSupported(const BufferDescriptorInfo& descriptor
+@@ -240,7 +240,7 @@ ndk::ScopedAStatus Allocator::isSupported(const BufferDescriptorInfo& descriptor
  }
  
  ndk::ScopedAStatus Allocator::getIMapperLibrarySuffix(std::string* outResult) {
@@ -320,5 +320,5 @@ index 0000000..aa0d768
 +
 +subdir('cros_gralloc')
 -- 
-2.39.2
+2.43.0
 

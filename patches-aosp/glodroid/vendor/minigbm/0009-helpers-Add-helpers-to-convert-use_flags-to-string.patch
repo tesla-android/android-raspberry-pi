@@ -1,7 +1,7 @@
-From 712c83d7cadd85d6f69aab0831afbf5c8a6f5d4d Mon Sep 17 00:00:00 2001
+From 85c43cb9c604bba2383c64ac93f9c4c8e90d2d2d Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Sun, 25 Sep 2022 19:22:53 +0300
-Subject: [PATCH 11/18] helpers: Add helpers to convert use_flags to string
+Subject: [PATCH 09/16] helpers: Add helpers to convert use_flags to string
 
 Change-Id: Icce8164cde8da483d683c06a4936ffde05b6f515
 Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
@@ -11,10 +11,10 @@ Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
  2 files changed, 52 insertions(+)
 
 diff --git a/drv_helpers.c b/drv_helpers.c
-index 83d5ac0..03808e5 100644
+index fcc44e5..fb1fe89 100644
 --- a/drv_helpers.c
 +++ b/drv_helpers.c
-@@ -691,3 +691,52 @@ void lru_init(struct lru *lru, int max)
+@@ -696,3 +696,52 @@ void lru_init(struct lru *lru, int max)
  	lru->count = 0;
  	lru->max = max;
  }
@@ -80,5 +80,5 @@ index 6b315cf..35c2969 100644
 +
  #endif
 -- 
-2.39.2
+2.43.0
 
