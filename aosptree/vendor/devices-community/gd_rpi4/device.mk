@@ -30,7 +30,9 @@ PRODUCT_COPY_FILES += \
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/etc/power.rpi4.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/power.rpi4.rc \
     $(LOCAL_PATH)/etc/snd.rpi4.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/snd.rpi4.rc     \
+    $(LOCAL_PATH)/etc/other.rpi4.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/other.rpi4.rc \
     $(LOCAL_PATH)/etc/uevent.device.rc:$(TARGET_COPY_OUT_VENDOR)/etc/uevent.device.rc \
+    $(LOCAL_PATH)/etc/modules.blocklist:$(TARGET_COPY_OUT_VENDOR_DLKM)/lib/modules/modules.blocklist \
 
 # drm_hwcomposer
 # RPI4's hardware doesn't have hardware CTM support, while GPU is slow
