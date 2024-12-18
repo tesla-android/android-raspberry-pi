@@ -1,0 +1,182 @@
+From da9f86906130fe29b9e31d63bb70cb0dc98d28b4 Mon Sep 17 00:00:00 2001
+From: Deyao Ren <deyaoren@google.com>
+Date: Wed, 3 May 2023 21:33:22 +0000
+Subject: [PATCH 4/5] Convert wpa_supplicant to soong for cuttlefish
+
+Bug: 274020242
+Test: CtsWifiTestCases, launch cvd, m checkbuild
+Change-Id: I0ccb8176bb43842529c8d08d4941dd6c742f2b9d
+Merged-In: I0ccb8176bb43842529c8d08d4941dd6c742f2b9d
+(cherry picked from commit 1d7e56dee59fb1645b343fabfc8023746a5fccc2)
+---
+ wpa_supplicant/Android.bp                     |  2 +-
+ wpa_supplicant/wpa_supplicant/Android.bp      | 52 +++++++++++++++++++
+ .../libdrivercmdfallback/Android.bp           | 32 ++++++++++++
+ .../libdrivercmdfallback/driver_cmd_nl80211.c | 45 ++++++++++++++++
+ 4 files changed, 130 insertions(+), 1 deletion(-)
+ create mode 100644 wpa_supplicant/wpa_supplicant/Android.bp
+ create mode 100644 wpa_supplicant/wpa_supplicant/libdrivercmdfallback/Android.bp
+ create mode 100644 wpa_supplicant/wpa_supplicant/libdrivercmdfallback/driver_cmd_nl80211.c
+
+diff --git a/wpa_supplicant/Android.bp b/wpa_supplicant/Android.bp
+index db113875..e7e4acc2 100644
+--- a/wpa_supplicant/Android.bp
++++ b/wpa_supplicant/Android.bp
+@@ -414,4 +414,4 @@ filegroup {
+         "wpa_supplicant.c",
+         "wps_supplicant.c",
+     ],
+-}
++}
+\ No newline at end of file
+diff --git a/wpa_supplicant/wpa_supplicant/Android.bp b/wpa_supplicant/wpa_supplicant/Android.bp
+new file mode 100644
+index 00000000..b70e5b92
+--- /dev/null
++++ b/wpa_supplicant/wpa_supplicant/Android.bp
+@@ -0,0 +1,52 @@
++// Copyright (C) 2023 The Android Open Source Project
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++soong_namespace {
++
++}
++
++package {
++    default_applicable_licenses: [
++        // Inherits SPDX-license-identifier-BSD-3-Clause
++        "external_wpa_supplicant_8_license",
++    ],
++}
++
++soong_config_module_type_import {
++    from: "frameworks/opt/net/wifi/libwifi_hal/Android.bp",
++    module_types: ["wifi_cc_defaults"],
++}
++
++wifi_cc_defaults {
++    name: "lib_vendor_wpa_supplicant",
++    soong_config_variables: {
++        board_wlan_device: {
++            emulator: {
++                static_libs: ["lib_driver_cmd_simulated_cf_bp"],
++            },
++            // TODO(b/295186835): Convert lib_driver_cmd_* to soong
++            conditions_default: {
++                static_libs: ["lib_driver_cmd_fallback"],
++            },
++        }
++    }
++}
++
++cc_binary {
++    name: "wpa_supplicant",
++    defaults: [
++        "wpa_supplicant_defaults",
++        "lib_vendor_wpa_supplicant",
++    ],
++}
+diff --git a/wpa_supplicant/wpa_supplicant/libdrivercmdfallback/Android.bp b/wpa_supplicant/wpa_supplicant/libdrivercmdfallback/Android.bp
+new file mode 100644
+index 00000000..3fe900b2
+--- /dev/null
++++ b/wpa_supplicant/wpa_supplicant/libdrivercmdfallback/Android.bp
+@@ -0,0 +1,32 @@
++//
++// Copyright (C) 2023 The Android Open Source Project
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package {
++    default_applicable_licenses: ["Android-Apache-2.0"],
++}
++
++cc_library_static {
++    name: "lib_driver_cmd_fallback",
++    srcs: ["driver_cmd_nl80211.c"],
++    header_libs: [
++        "wpa_supplicant_headers",
++    ],
++    cflags: [
++        "-Werror",
++        "-Wno-unused-parameter",
++        "-Wno-macro-redefined",
++    ],
++    soc_specific: true,
++}
+\ No newline at end of file
+diff --git a/wpa_supplicant/wpa_supplicant/libdrivercmdfallback/driver_cmd_nl80211.c b/wpa_supplicant/wpa_supplicant/libdrivercmdfallback/driver_cmd_nl80211.c
+new file mode 100644
+index 00000000..6cdc57a5
+--- /dev/null
++++ b/wpa_supplicant/wpa_supplicant/libdrivercmdfallback/driver_cmd_nl80211.c
+@@ -0,0 +1,45 @@
++/*
++ * Copyright (C) 2023 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++/*
++ * Driver interaction with extended Linux CFG8021
++ */
++
++#include "includes.h"
++
++#include "common.h"
++
++int wpa_driver_nl80211_driver_cmd(void* priv, char* cmd, char* buf,
++                                  size_t buf_len) {
++  return 0;
++}
++
++int wpa_driver_set_p2p_noa(void* priv, u8 count, int start, int duration) {
++  return 0;
++}
++
++int wpa_driver_get_p2p_noa(void* priv, u8* buf, size_t len) {
++  return 0;
++}
++
++int wpa_driver_set_p2p_ps(void* priv, int legacy_ps, int opp_ps, int ctwindow) {
++  return -1;
++}
++
++int wpa_driver_set_ap_wps_p2p_ie(void* priv, const struct wpabuf* beacon,
++                                 const struct wpabuf* proberesp,
++                                 const struct wpabuf* assocresp) {
++  return 0;
++}
+-- 
+2.43.0
+
