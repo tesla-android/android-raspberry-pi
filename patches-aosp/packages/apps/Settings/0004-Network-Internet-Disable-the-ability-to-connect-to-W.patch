@@ -1,4 +1,4 @@
-From 523e266ff20f1f588e8bc358f68aca6288e7c799 Mon Sep 17 00:00:00 2001
+From e53422da6bd4564485694531bb165c406c3a498e Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
 Date: Mon, 4 Jul 2022 05:43:24 +0200
 Subject: [PATCH 4/5] Network & Internet: Disable the ability to connect to
@@ -11,11 +11,11 @@ Change-Id: I37cfa88c598762684cae5848cfb11f1aa5e9a106
 Signed-off-by: Michał Gapiński <mike@gapinski.eu>
 ---
  res/xml/network_provider_internet.xml                 | 11 -----------
- .../settings/network/NetworkDashboardFragment.java    |  5 -----
- 2 files changed, 16 deletions(-)
+ .../settings/network/NetworkDashboardFragment.java    |  7 -------
+ 2 files changed, 18 deletions(-)
 
 diff --git a/res/xml/network_provider_internet.xml b/res/xml/network_provider_internet.xml
-index ef6ed16..873b228 100644
+index 2a08aae..330d386 100644
 --- a/res/xml/network_provider_internet.xml
 +++ b/res/xml/network_provider_internet.xml
 @@ -20,17 +20,6 @@
@@ -37,28 +37,23 @@ index ef6ed16..873b228 100644
          android:key="calls_and_sms"
          android:title="@string/calls_and_sms"
 diff --git a/src/com/android/settings/network/NetworkDashboardFragment.java b/src/com/android/settings/network/NetworkDashboardFragment.java
-index 4ea3464..8621eaa 100644
+index 3bc5358..eef290a 100644
 --- a/src/com/android/settings/network/NetworkDashboardFragment.java
 +++ b/src/com/android/settings/network/NetworkDashboardFragment.java
-@@ -97,8 +97,6 @@ public class NetworkDashboardFragment extends DashboardFragment implements
-             MobilePlanPreferenceHost mobilePlanHost, LifecycleOwner lifecycleOwner) {
-         final MobilePlanPreferenceController mobilePlanPreferenceController =
-                 new MobilePlanPreferenceController(context, mobilePlanHost);
--        final InternetPreferenceController internetPreferenceController =
--                new InternetPreferenceController(context, lifecycle, lifecycleOwner);
- 
-         final VpnPreferenceController vpnPreferenceController =
-                 new VpnPreferenceController(context);
-@@ -118,9 +116,6 @@ public class NetworkDashboardFragment extends DashboardFragment implements
+@@ -91,13 +91,6 @@ public class NetworkDashboardFragment extends DashboardFragment implements
+         controllers.add(new MobileNetworkSummaryController(context, lifecycle, lifecycleOwner));
          controllers.add(vpnPreferenceController);
-         controllers.add(new ProxyPreferenceController(context));
-         controllers.add(mobilePlanPreferenceController);
--        if (internetPreferenceController != null) {
--            controllers.add(internetPreferenceController);
--        }
-         controllers.add(privateDnsPreferenceController);
-         controllers.add(new NetworkProviderCallsSmsController(context, lifecycle, lifecycleOwner));
  
+-        if (Flags.internetPreferenceControllerV2()) {
+-            controllers.add(
+-                    new InternetPreferenceControllerV2(context, InternetPreferenceController.KEY));
+-        } else {
+-            controllers.add(new InternetPreferenceController(context, lifecycle, lifecycleOwner));
+-        }
+-
+         controllers.add(privateDnsPreferenceController);
+ 
+         // Start SettingsDumpService after the MobileNetworkRepository is created.
 -- 
 2.34.1
 
