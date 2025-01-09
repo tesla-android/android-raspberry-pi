@@ -1,7 +1,7 @@
-From d239508fcfe7569e0ba179e3fae293595aecd32d Mon Sep 17 00:00:00 2001
+From ec3c11736bb3d66329d8f93e2898a3c4992a6ffc Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Tue, 29 Oct 2024 22:33:20 +0200
-Subject: [PATCH 19/19] common: graphics: Remove legacy mapper4 in a favour of
+Subject: [PATCH 15/16] common: graphics: Remove legacy mapper4 in a favour of
  mapper5
 
 Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
@@ -54,5 +54,5 @@ index 2c83415..3850c8d 100644
      mapper.minigbm_gd.xml \
      libminigbm_gralloc_gd \
 -- 
-2.43.0
+2.34.1
 

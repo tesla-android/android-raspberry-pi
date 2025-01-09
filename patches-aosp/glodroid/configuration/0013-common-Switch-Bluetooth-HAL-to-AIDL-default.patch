@@ -1,7 +1,7 @@
-From dbf690be82df89b5e29eadc32ff5c2e562a7073e Mon Sep 17 00:00:00 2001
+From 8e466fc25c8a96b220bf24ece0249392eb1a5df0 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Fri, 25 Oct 2024 12:56:49 +0300
-Subject: [PATCH 17/19] common: Switch Bluetooth HAL to AIDL default
+Subject: [PATCH 13/16] common: Switch Bluetooth HAL to AIDL default
 
 Android-15 does not include a legacy one.
 
@@ -58,5 +58,5 @@ index f3bd3f7..462207b 100644
      frameworks/native/data/etc/android.hardware.bluetooth.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.bluetooth.xml \
      frameworks/native/data/etc/android.hardware.bluetooth_le.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.bluetooth_le.xml \
 -- 
-2.43.0
+2.34.1
 

@@ -1,7 +1,7 @@
-From 6398302f51342d2e389dcf7bd56b3db4b0ad5aa2 Mon Sep 17 00:00:00 2001
+From b5b313374054c91bb5eddf1d572f5bb2c000452b Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Fri, 25 Oct 2024 12:53:24 +0300
-Subject: [PATCH 7/9] common: Change fstab target name
+Subject: [PATCH 04/16] common: Change fstab target name
 
 Otherwise the fstab.<TARGET> won't appear on the partition
 due to Android15 new restrictions.
@@ -13,7 +13,7 @@ Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
  2 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/common/base/device.mk b/common/base/device.mk
-index df473b6..b3a39ec 100644
+index 29113d0..2d1e349 100644
 --- a/common/base/device.mk
 +++ b/common/base/device.mk
 @@ -50,7 +50,7 @@ PRODUCT_COPY_FILES += \
@@ -48,5 +48,5 @@ index 554b121..f26f08a 100644
  LOCAL_PROPRIETARY_MODULE := true
  LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR)/etc/
 -- 
-2.43.0
+2.34.1
 

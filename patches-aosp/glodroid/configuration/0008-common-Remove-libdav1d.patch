@@ -1,7 +1,7 @@
-From 2b5835f56084267bb8addcd7d771f77029a62230 Mon Sep 17 00:00:00 2001
+From 0b4f566b09667f6c007ae02c588e2028e23f834e Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Mon, 21 Oct 2024 01:41:03 +0300
-Subject: [PATCH 3/3] common: Remove libdav1d
+Subject: [PATCH 08/16] common: Remove libdav1d
 
 Android-15 (And LOS21) has it embedded into the framework code already.
 
@@ -25,5 +25,5 @@ index fed5d9b..7881392 100644
  BOARD_FFMPEG_SRC_DIR := glodroid/vendor/ffmpeg
  
 -- 
-2.43.0
+2.34.1
 

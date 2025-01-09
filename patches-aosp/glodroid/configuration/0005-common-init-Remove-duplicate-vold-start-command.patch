@@ -1,7 +1,7 @@
-From 00f6277a526f758685dd431f38b4caec15dd11dc Mon Sep 17 00:00:00 2001
+From 562dc963d5b9294b6fc72c35b25a364740356894 Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Fri, 25 Oct 2024 12:55:24 +0300
-Subject: [PATCH 8/9] common: init: Remove duplicate vold start command
+Subject: [PATCH 05/16] common: init: Remove duplicate vold start command
 
 Framework's common init.rc already has it.
 
@@ -25,5 +25,5 @@ index edced2c..500ff01 100644
      mount_all /vendor/etc/fstab.${ro.hardware} --early
  
 -- 
-2.43.0
+2.34.1
 

@@ -1,7 +1,7 @@
-From 5722471b732b3b7f70410eb1f50efa967b57a760 Mon Sep 17 00:00:00 2001
+From e7da7bfc0da23d4bdb14a0fbd0b85f5333edf1ee Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Mon, 9 Dec 2024 12:59:18 +0200
-Subject: [PATCH 10/10] common/graphics: Add dri_gbm shared library
+Subject: [PATCH 07/16] common/graphics: Add dri_gbm shared library
 
 Required by libgbm on the latest mesa3d.
 
@@ -23,5 +23,5 @@ index bb01de3..2c83415 100644
  ##
  
 -- 
-2.43.0
+2.34.1
 

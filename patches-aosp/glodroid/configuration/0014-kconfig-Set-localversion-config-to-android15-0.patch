@@ -1,7 +1,7 @@
-From a7b4317336d8d09c68d6a9b782904ab5c6008baf Mon Sep 17 00:00:00 2001
+From 0a8e228dd7ebce53a45603f3b63daf8631395d5b Mon Sep 17 00:00:00 2001
 From: Roman Stratiienko <r.stratiienko@gmail.com>
 Date: Fri, 25 Oct 2024 21:40:48 +0300
-Subject: [PATCH 18/19] kconfig: Set localversion config to -android15-0
+Subject: [PATCH 14/16] kconfig: Set localversion config to -android15-0
 
 Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
 ---
@@ -22,5 +22,5 @@ index ee9d502..db2e116 100644
  # Set to y, otherwise a set of essential kernel configs will be force-disabled. (like CONFIG_TRACE_GPU_MEM)
  CONFIG_GKI_HACKS_TO_FIX=y
 -- 
-2.43.0
+2.34.1
 
