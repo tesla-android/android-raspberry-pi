@@ -1,18 +1,22 @@
-From 31c3c42b67bed2b31af09554eda1080381d0346b Mon Sep 17 00:00:00 2001
+From 58a6b3f8c54661ddce3b7ff517eeb097722a2a11 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Mon, 15 Jan 2024 17:53:29 +0000
-Subject: [PATCH 1/1] Skip VINTF check
+Subject: [PATCH 2/3] Skip VINTF check
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 
 Change-Id: I378012bd18038f1eb379f5412367c01931ef6cf8
+Signed-off-by: Michał Gapiński <mike@gapinski.eu>
 ---
  tools/releasetools/check_target_files_vintf.py | 2 ++
  1 file changed, 2 insertions(+)
 
 diff --git a/tools/releasetools/check_target_files_vintf.py b/tools/releasetools/check_target_files_vintf.py
-index 5b71c72..d71c520 100755
+index b8dcd84..3fe47c5 100755
 --- a/tools/releasetools/check_target_files_vintf.py
 +++ b/tools/releasetools/check_target_files_vintf.py
-@@ -356,6 +356,8 @@ def CheckVintfIfTrebleEnabled(target_files, target_info):
+@@ -288,6 +288,8 @@ def CheckVintfIfTrebleEnabled(target_files, target_info):
      target_info: The BuildInfo instance that holds the target build info.
    """
  
