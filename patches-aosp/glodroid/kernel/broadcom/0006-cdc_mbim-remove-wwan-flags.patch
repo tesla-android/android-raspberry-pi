@@ -1,4 +1,4 @@
-From 5bd380d1843283561d487b2464785e8cb8952268 Mon Sep 17 00:00:00 2001
+From e3427e7bfd66d8d6dfd20f607e1f195f0bd050ba Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Tue, 22 Nov 2022 17:16:29 +0100
 Subject: [PATCH 06/10] cdc_mbim: remove wwan flags
