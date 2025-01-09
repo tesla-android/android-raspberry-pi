@@ -1,7 +1,7 @@
-From 4a756c1f2c91a55339f189bb99915942e26b3880 Mon Sep 17 00:00:00 2001
+From cd02e28659b197e6a62e2a4f18087ca8168d2129 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Mon, 31 Oct 2022 19:24:53 +0100
-Subject: [PATCH 3/4] Ignore build warnings about inconsistent builds
+Subject: [PATCH 2/2] Ignore build warnings about inconsistent builds
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -12,10 +12,10 @@ Signed-off-by: Michał Gapiński <mike@gapinski.eu>
  1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/core/java/android/os/Build.java b/core/java/android/os/Build.java
-index 0b956f8b..38012973 100755
+index 30d2dec8b..aa238f501 100644
 --- a/core/java/android/os/Build.java
 +++ b/core/java/android/os/Build.java
-@@ -1248,6 +1248,7 @@ public class Build {
+@@ -1329,6 +1329,7 @@ public class Build {
       * @hide
       */
      public static boolean isBuildConsistent() {
@@ -23,7 +23,7 @@ index 0b956f8b..38012973 100755
          // Don't care on eng builds.  Incremental build may trigger false negative.
          if (IS_ENG) return true;
  
-@@ -1286,7 +1287,7 @@ public class Build {
+@@ -1365,7 +1366,7 @@ public class Build {
              }
          }
  
@@ -32,7 +32,7 @@ index 0b956f8b..38012973 100755
          if (!TextUtils.isEmpty(bootimage)) {
              if (!Objects.equals(system, bootimage)) {
                  Slog.e(TAG, "Mismatched fingerprints; system reported " + system
-@@ -1311,7 +1312,7 @@ public class Build {
+@@ -1390,7 +1391,7 @@ public class Build {
              }
          }
          */
