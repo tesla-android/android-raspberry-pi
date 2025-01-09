@@ -1,28 +1,24 @@
-From af8f5decb85168034738900c98919672e2efc394 Mon Sep 17 00:00:00 2001
+From 974b4b5a2fad1a903a3089fd557f0e1f292e7f51 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Tue, 16 May 2023 17:06:03 +0000
 Subject: [PATCH 4/4] SoftAp: add option to start tether from shell with stored
  configuration
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 
 Change-Id: I22908c9b6b515100f427182948ffb927ff001a9e
+Signed-off-by: Michał Gapiński <mike@gapinski.eu>
 ---
- .../android/server/wifi/WifiShellCommand.java   | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ .../android/server/wifi/WifiShellCommand.java    | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
 diff --git a/service/java/com/android/server/wifi/WifiShellCommand.java b/service/java/com/android/server/wifi/WifiShellCommand.java
-index ad50e0a..4061aa2 100644
+index 8b68e3a..a0e28dc 100644
 --- a/service/java/com/android/server/wifi/WifiShellCommand.java
 +++ b/service/java/com/android/server/wifi/WifiShellCommand.java
-@@ -162,6 +162,7 @@ public class WifiShellCommand extends BasicShellCommandHandler {
-             "set-multi-internet-state",
-             "start-scan",
-             "start-softap",
-+            "start-softap-with-existing-config",
-             "status",
-             "stop-softap",
-             "query-interface",
-@@ -805,6 +806,20 @@ public class WifiShellCommand extends BasicShellCommandHandler {
-                     mWifiService.unregisterSoftApCallback(softApCallback);
+@@ -860,6 +860,20 @@ public class WifiShellCommand extends BasicShellCommandHandler {
+                     mWifiService.unregisterLocalOnlyHotspotSoftApCallback(softApCallback, extras);
                      return 0;
                  }
 +                case "start-softap-with-existing-config": {
@@ -39,18 +35,18 @@ index ad50e0a..4061aa2 100644
 +                    mWifiService.unregisterSoftApCallback(softApCallback);
 +                    return 0;
 +                }
-                 case "stop-lohs": {
-                     mWifiService.stopLocalOnlyHotspot();
-                     pw.println("Lohs stopped successfully");
-@@ -2515,6 +2530,8 @@ public class WifiShellCommand extends BasicShellCommandHandler {
-         pw.println("  reset-connected-score");
-         pw.println("    Turns on the default connected scorer.");
-         pw.println("    Note: Will clear any external scorer set.");
+                 case "start-softap": {
+                     CountDownLatch countDownLatch = new CountDownLatch(1);
+                     SoftApConfiguration config = buildSoftApConfiguration(pw);
+@@ -3043,6 +3057,8 @@ public class WifiShellCommand extends BasicShellCommandHandler {
+         pw.println("    Clears the user disabled networks list.");
+         pw.println("  send-link-probe");
+         pw.println("    Manually triggers a link probe.");
 +        pw.println("  start-softap-with-current-config");
 +        pw.println("    Start softap with current/default params");
-         pw.println("  start-softap <ssid> (open|wpa2|wpa3|wpa3_transition|owe|owe_transition) "
-                 + "<passphrase> [-b 2|5|6|any|bridged|bridged_2_5|bridged_2_6|bridged_5_6] [-x]"
-                 + " [-f <int> [<int>]]");
+         pw.println(
+                 "  start-softap <ssid> (open|wpa2|wpa3|wpa3_transition|owe|owe_transition)"
+                         + " <passphrase> [-b 2|5|6|any|bridged|bridged_2_5|bridged_2_6|bridged_5_6]"
 -- 
 2.34.1
 
