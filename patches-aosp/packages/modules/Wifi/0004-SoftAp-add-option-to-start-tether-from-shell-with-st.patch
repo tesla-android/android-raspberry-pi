@@ -1,7 +1,7 @@
-From 974b4b5a2fad1a903a3089fd557f0e1f292e7f51 Mon Sep 17 00:00:00 2001
+From b9e581244a442eb2dc5ad096d08e2ee865058637 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Tue, 16 May 2023 17:06:03 +0000
-Subject: [PATCH 4/4] SoftAp: add option to start tether from shell with stored
+Subject: [PATCH 4/5] SoftAp: add option to start tether from shell with stored
  configuration
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8

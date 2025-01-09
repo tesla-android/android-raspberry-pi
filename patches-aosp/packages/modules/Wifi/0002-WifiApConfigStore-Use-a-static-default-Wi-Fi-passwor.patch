@@ -1,7 +1,7 @@
-From 41a40db5ec4a9e38de203dbffb0d678d7d05bec6 Mon Sep 17 00:00:00 2001
+From 28bf57be3ba57450472fe803e75b7ec690c92479 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
 Date: Mon, 4 Jul 2022 04:58:36 +0200
-Subject: [PATCH 2/4] WifiApConfigStore: Use a static default Wi-Fi password
+Subject: [PATCH 2/5] WifiApConfigStore: Use a static default Wi-Fi password
  instead of a geneerated one
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
