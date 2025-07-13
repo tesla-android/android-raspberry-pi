@@ -13,7 +13,7 @@
   <project path="external/libws" remote="tesla-android" name="android-external-libws.git" revision="9410e20982ed15017961b10bcddc00b63c348c13" />
   <project path="external/usb-modeswitch" remote="tesla-android" name="android-external-usb-modeswitch.git" revision="31c78410637978b7b71accf1e3719658a7a247f0" />
   <project path="external/tesla-android-virtual-gnss" remote="tesla-android" name="android-external-tesla-android-virtual-gnss.git" revision="83f4b4c730db9842133f8ffc5df4f0dc115a7fd4" />
-  <project path="external/tesla-android-virtual-display" remote="tesla-android" name="android-external-tesla-android-virtual-display.git" revision="d0698968811883f364a974e756f33bb6c798feee" />
+  <project path="external/tesla-android-virtual-display" remote="tesla-android" name="android-external-tesla-android-virtual-display.git" revision="624a30001576a02d9eef6d17696eaac9d2390861" />
   <project path="external/tesla-android-virtual-touchscreen" remote="tesla-android" name="android-external-tesla-android-virtual-touchscreen.git" revision="fb1795a1c86dd13563d2c44757fd3e6d9e838421" />
   <project path="external/tesla-android-usb-networking-initialiser" remote="tesla-android" name="android-external-tesla-android-usb-networking-initialiser.git" revision="2f161ece9e52f8f01e12fa27f7d37f13d509f802" />
   <project path="external/tesla-android-configuration-manager" remote="tesla-android" name="android-external-tesla-android-configuration-manager.git" revision="874b353c4aa135f14fd79cf85c074c9817e6d6e0" />
