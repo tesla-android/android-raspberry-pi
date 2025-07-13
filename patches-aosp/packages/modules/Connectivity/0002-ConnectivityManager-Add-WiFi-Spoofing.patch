@@ -1,0 +1,92 @@
+From 2c60a2c06d663b903651b2268d40b34fe7540568 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Sun, 13 Jul 2025 23:37:51 +0000
+Subject: [PATCH 2/2] ConnectivityManager: Add WiFi Spoofing
+
+Change-Id: I546631678126ebc2a5332bd5b78f29621bc2aaa3
+---
+ .../src/android/net/ConnectivityManager.java  | 41 +++++++++++++++++--
+ 1 file changed, 38 insertions(+), 3 deletions(-)
+
+diff --git a/framework/src/android/net/ConnectivityManager.java b/framework/src/android/net/ConnectivityManager.java
+index 2315521..3d20c3d 100644
+--- a/framework/src/android/net/ConnectivityManager.java
++++ b/framework/src/android/net/ConnectivityManager.java
+@@ -47,6 +47,7 @@ import android.net.SocketKeepalive.Callback;
+ import android.net.TetheringManager.StartTetheringCallback;
+ import android.net.TetheringManager.TetheringEventCallback;
+ import android.net.TetheringManager.TetheringRequest;
++import android.net.wifi.FakeWifi;
+ import android.os.Binder;
+ import android.os.Build;
+ import android.os.Build.VERSION_CODES;
+@@ -1349,7 +1350,10 @@ public class ConnectivityManager {
+     @Nullable
+     public NetworkInfo getActiveNetworkInfo() {
+         try {
+-            return mService.getActiveNetworkInfo();
++            NetworkInfo network = mService.getActiveNetworkInfo();
++            if (FakeWifi.isHackEnabled(mContext))
++                return FakeWifi.maybeOverwrite(network);
++            return network;
+         } catch (RemoteException e) {
+             throw e.rethrowFromSystemServer();
+         }
+@@ -1603,7 +1607,10 @@ public class ConnectivityManager {
+     @Nullable
+     public NetworkInfo getNetworkInfo(int networkType) {
+         try {
+-            return mService.getNetworkInfo(networkType);
++            NetworkInfo network = mService.getNetworkInfo(networkType);
++            if (networkType == ConnectivityManager.TYPE_WIFI && FakeWifi.isHackEnabled(mContext))
++               return FakeWifi.maybeOverwrite(network);
++            return network;
+         } catch (RemoteException e) {
+             throw e.rethrowFromSystemServer();
+         }
+@@ -1650,7 +1657,32 @@ public class ConnectivityManager {
+     @NonNull
+     public NetworkInfo[] getAllNetworkInfo() {
+         try {
+-            return mService.getAllNetworkInfo();
++            NetworkInfo[] networks = mService.getAllNetworkInfo();
++            if (!FakeWifi.isHackEnabled(mContext))
++                return networks;
++
++            int i;
++            boolean wifi_found = false;
++            for (i = 0; i < networks.length; i++) {
++                if (networks[i].getType() == ConnectivityManager.TYPE_WIFI) {
++                    wifi_found = true;
++                    break;
++                }
++            }
++
++            if (wifi_found && networks[i].isConnected())
++                return networks;
++
++            if (wifi_found) {
++                networks[i] = FakeWifi.getFakeNetworkInfo();
++            } else {
++                NetworkInfo[] extended = new NetworkInfo[networks.length + 1];
++                for (i = 0; i < networks.length; i++)
++                    extended[i] = networks[i];
++                extended[networks.length] = FakeWifi.getFakeNetworkInfo();
++                networks = extended;
++            }
++            return networks;
+         } catch (RemoteException e) {
+             throw e.rethrowFromSystemServer();
+         }
+@@ -3644,6 +3676,9 @@ public class ConnectivityManager {
+      */
+     @RequiresPermission(android.Manifest.permission.ACCESS_NETWORK_STATE)
+     public boolean isActiveNetworkMetered() {
++        if (FakeWifi.isHackEnabled(mContext))
++            return false;
++
+         try {
+             return mService.isActiveNetworkMetered();
+         } catch (RemoteException e) {
+-- 
+2.34.1
