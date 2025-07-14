@@ -49,7 +49,7 @@ pipeline {
         stage('Setup OverlayFS') {
             steps {
                 script {
-                    if (getCurrentBranch() == 'main') {
+                    if (getCurrentBranch() == 'develop') {
                         sh "mkdir -p ${SHARED_WORKSPACE_PATH} ${BASE_PATH}/merged"
                         sh """
                             if ! mountpoint -q ${BASE_PATH}/merged; then
@@ -188,7 +188,7 @@ pipeline {
 	    failure {
 	        script {
 	            setBuildStatus("Build failed", "FAILURE");
-	            if (getCurrentBranch() == 'main') {
+	            if (getCurrentBranch() == 'develop') {
 	                sh "sudo umount -l ${BASE_PATH}/merged"
 	                sh "sudo rm -rf ${SHARED_WORKSPACE_PATH}"
 	            } else {
