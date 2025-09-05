@@ -1,0 +1,132 @@
+From 56f1d61d5d756ea09d7ad7f6c9fae8b51e4080c1 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Fri, 5 Sep 2025 20:24:53 +0000
+Subject: [PATCH] Audioflinger: add audio capture via tesla-android-audio-relay
+
+Change-Id: I58955528b2b4b5210a7f190bf79f5201276e227a
+---
+ services/audioflinger/Threads.cpp | 75 ++++++++++++++++++++++++++++++-
+ services/audioflinger/Threads.h   |  4 ++
+ 2 files changed, 78 insertions(+), 1 deletion(-)
+
+diff --git a/services/audioflinger/Threads.cpp b/services/audioflinger/Threads.cpp
+index 700bdd2..781c9cf 100644
+--- a/services/audioflinger/Threads.cpp
++++ b/services/audioflinger/Threads.cpp
+@@ -96,6 +96,13 @@
+ #include <pthread.h>
+ #include "TypedLogger.h"
+ 
++#include <sys/socket.h>
++#include <sys/un.h>
++#include <unistd.h>
++#include <arpa/inet.h>
++#include <stdint.h>
++#include <string.h> 
++
+ // ----------------------------------------------------------------------------
+ 
+ // Note: the following macro is used for extremely verbose logging message.  In
+@@ -3421,6 +3428,72 @@ void AudioFlinger::PlaybackThread::checkSilentMode_l()
+     }
+ }
+ 
++void AudioFlinger::PlaybackThread::openWsSocket() {
++    if (mWsFd >= 0) return;
++
++    mWsFd = socket(AF_UNIX, SOCK_STREAM, 0);
++    if (mWsFd < 0) {
++        ALOGE("openWsSocket: socket() failed: %s", strerror(errno));
++        return;
++    }
++
++    struct sockaddr_un addr;
++    memset(&addr, 0, sizeof(addr));
++    addr.sun_family = AF_UNIX;
++    strncpy(addr.sun_path, "/dev/socket/ws_audio", sizeof(addr.sun_path) - 1);
++
++    if (connect(mWsFd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
++        ALOGW("openWsSocket: connect() failed: %s", strerror(errno));
++        close(mWsFd);
++        mWsFd = -1;
++        return;
++    }
++
++    ALOGI("openWsSocket: connected to /dev/socket/ws_audio (fd=%d)", mWsFd);
++}
++
++static bool write_all(int fd, const void* buf, size_t count) {
++    const uint8_t* p = (const uint8_t*)buf;
++    size_t left = count;
++    while (left > 0) {
++        ssize_t w = TEMP_FAILURE_RETRY(write(fd, p, left));
++        if (w < 0) {
++            return false;
++        }
++        p += w;
++        left -= (size_t)w;
++    }
++    return true;
++}
++
++void AudioFlinger::PlaybackThread::sendToWsServer(const void* data, size_t bytes) {
++    if (bytes == 0) return;
++    if (mWsFd < 0) openWsSocket();
++    if (mWsFd < 0) return;
++
++    uint32_t len = htonl((uint32_t)bytes);
++
++    if (!write_all(mWsFd, &len, sizeof(len))) {
++        ALOGW("sendToWsServer: failed to write length: %s", strerror(errno));
++        close(mWsFd);
++        mWsFd = -1;
++        return;
++    }
++
++    if (!write_all(mWsFd, data, bytes)) {
++        ALOGW("sendToWsServer: failed to write payload: %s", strerror(errno));
++        close(mWsFd);
++        mWsFd = -1;
++        return;
++    }
++
++    // Optional: throttle debug logs to avoid spam
++    static int counter = 0;
++    if ((counter++ & 127) == 0) {
++        ALOGV("sendToWsServer: sent %zu bytes", bytes);
++    }
++}
++
+ // shared by MIXER and DIRECT, overridden by DUPLICATING
+ ssize_t AudioFlinger::PlaybackThread::threadLoop_write()
+ {
+@@ -3450,10 +3523,10 @@ ssize_t AudioFlinger::PlaybackThread::threadLoop_write()
+ 
+         if (framesWritten > 0) {
+             bytesWritten = framesWritten * mFrameSize;
+-
+ #ifdef TEE_SINK
+             mTee.write((char *)mSinkBuffer + offset, framesWritten);
+ #endif
++            sendToWsServer((char *)mSinkBuffer + offset, bytesWritten);
+         } else {
+             bytesWritten = framesWritten;
+         }
+diff --git a/services/audioflinger/Threads.h b/services/audioflinger/Threads.h
+index e88134b..21c41d3 100644
+--- a/services/audioflinger/Threads.h
++++ b/services/audioflinger/Threads.h
+@@ -1257,6 +1257,10 @@ private:
+                             : mTimestampVerifier.DISCONTINUITY_MODE_CONTINUOUS;
+                 }
+ 
++    int mWsFd = -1;
++    void openWsSocket();
++    void sendToWsServer(const void* data, size_t bytes);
++
+ protected:
+     ActiveTracks<Track>     mActiveTracks;
+ 
+-- 
+2.34.1
+
