@@ -157,13 +157,13 @@ pipeline {
 	    failure {
 	        script {
 	            setBuildStatus("Build failed", "FAILURE");
-	            //if (getCurrentBranch() == 'develop') {
-	            //    sh "sudo umount -l ${BASE_PATH}/merged"
-	            //    sh "sudo rm -rf ${SHARED_WORKSPACE_PATH}"
-	            //} else {
-	            //    sh "sudo umount -l ${BASE_PATH}/merged"
-	            //    sh "sudo rm -rf ${BASE_PATH}/upper ${BASE_PATH}/work"
-	            //}
+	            if (getCurrentBranch() == 'develop') {
+	                sh "sudo umount -l ${BASE_PATH}/merged"
+	                sh "sudo rm -rf ${SHARED_WORKSPACE_PATH}"
+	            } else {
+	                sh "sudo umount -l ${BASE_PATH}/merged"
+	                sh "sudo rm -rf ${BASE_PATH}/upper ${BASE_PATH}/work"
+	            }
 	        }
 	    }
       }
