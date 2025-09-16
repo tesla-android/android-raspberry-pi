@@ -126,8 +126,10 @@ pipeline {
                     sh """
                         mv tesla_android_rpi4-ota-${env.BUILD_NUMBER}.zip ${ARTIFACT_NAME}-OTA.zip
                         mv sdcard.img ${ARTIFACT_NAME}-single-image-installer.img
+                        mv images.tar.gz ${ARTIFACT_NAME}-images.tar.gz
                         zip ${ARTIFACT_NAME}-single-image-installer.img.zip ${ARTIFACT_NAME}-single-image-installer.img
                     """
+                    archiveArtifacts artifacts: "${ARTIFACT_NAME}-images.tar.gz", fingerprint: true
                     archiveArtifacts artifacts: "${ARTIFACT_NAME}-single-image-installer.img.zip", fingerprint: true
                     archiveArtifacts artifacts: "${ARTIFACT_NAME}-OTA.zip", fingerprint: true
                 }
