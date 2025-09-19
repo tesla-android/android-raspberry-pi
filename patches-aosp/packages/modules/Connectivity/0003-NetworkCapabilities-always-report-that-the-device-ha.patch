@@ -1,0 +1,28 @@
+From 0892d60a56e27ec7a141cb09917f4434ddbc9a0a Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Fri, 19 Sep 2025 08:35:26 +0000
+Subject: [PATCH 3/3] NetworkCapabilities: always report that the device has
+ TRANSPORT_WIFI
+
+Change-Id: Ie741e0645e901667ebb68d69c18b35c51d73aab3
+---
+ framework/src/android/net/NetworkCapabilities.java | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/framework/src/android/net/NetworkCapabilities.java b/framework/src/android/net/NetworkCapabilities.java
+index 92e9599..b2e6696 100644
+--- a/framework/src/android/net/NetworkCapabilities.java
++++ b/framework/src/android/net/NetworkCapabilities.java
+@@ -1376,6 +1376,9 @@ public final class NetworkCapabilities implements Parcelable {
+      * @return {@code true} if set on this instance.
+      */
+     public boolean hasTransport(@Transport int transportType) {
++        if (transportType == TRANSPORT_WIFI) {
++            return true;
++        }
+         return isValidTransport(transportType) && ((mTransportTypes & (1 << transportType)) != 0);
+     }
+ 
+-- 
+2.34.1
+
