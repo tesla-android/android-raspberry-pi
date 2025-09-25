@@ -1,0 +1,80 @@
+From 60cd219e2b8c6182bebb4d64bc96ff5fbc85207c Mon Sep 17 00:00:00 2001
+From: Konsta <konsta09@gmail.com>
+Date: Sun, 6 Apr 2025 13:27:23 +0300
+Subject: [PATCH 36/40] android: modify gitignore to add generated files
+
+---
+ .gitignore             | 2 --
+ ffbuild/.gitignore     | 1 -
+ libavcodec/.gitignore  | 3 ---
+ libavdevice/.gitignore | 2 --
+ libavfilter/.gitignore | 1 -
+ libavformat/.gitignore | 3 ---
+ libavutil/.gitignore   | 2 --
+ 7 files changed, 14 deletions(-)
+
+diff --git a/.gitignore b/.gitignore
+index 4aa49c52c7..ace070a7a3 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -35,8 +35,6 @@
+ /ffplay
+ /ffprobe
+ /config.asm
+-/config.h
+-/config_components.h
+ /coverage.info
+ /lcov/
+ /src
+diff --git a/ffbuild/.gitignore b/ffbuild/.gitignore
+index adaf399e9f..ae8a98b419 100644
+--- a/ffbuild/.gitignore
++++ b/ffbuild/.gitignore
+@@ -3,5 +3,4 @@
+ /bin2c.exe
+ /config.fate
+ /config.log
+-/config.mak
+ /config.sh
+diff --git a/libavcodec/.gitignore b/libavcodec/.gitignore
+index 28814f7233..e8328c23ec 100644
+--- a/libavcodec/.gitignore
++++ b/libavcodec/.gitignore
+@@ -1,6 +1,3 @@
+ /*_tablegen
+ /*_tables.c
+ /*_tables.h
+-/bsf_list.c
+-/codec_list.c
+-/parser_list.c
+diff --git a/libavdevice/.gitignore b/libavdevice/.gitignore
+index 08ac3eb86a..e69de29bb2 100644
+--- a/libavdevice/.gitignore
++++ b/libavdevice/.gitignore
+@@ -1,2 +0,0 @@
+-/indev_list.c
+-/outdev_list.c
+diff --git a/libavfilter/.gitignore b/libavfilter/.gitignore
+index 26bddebc93..e69de29bb2 100644
+--- a/libavfilter/.gitignore
++++ b/libavfilter/.gitignore
+@@ -1 +0,0 @@
+-/filter_list.c
+diff --git a/libavformat/.gitignore b/libavformat/.gitignore
+index fb70c122c4..e69de29bb2 100644
+--- a/libavformat/.gitignore
++++ b/libavformat/.gitignore
+@@ -1,3 +0,0 @@
+-/protocol_list.c
+-/muxer_list.c
+-/demuxer_list.c
+diff --git a/libavutil/.gitignore b/libavutil/.gitignore
+index 4dc7466772..e69de29bb2 100644
+--- a/libavutil/.gitignore
++++ b/libavutil/.gitignore
+@@ -1,2 +0,0 @@
+-/avconfig.h
+-/ffversion.h
+-- 
+2.34.1
+

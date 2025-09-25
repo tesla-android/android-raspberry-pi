@@ -1,0 +1,50 @@
+From 18c29258ee95fa06e6aaf61155c4ee574bc15a8b Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 21 May 2024 17:02:22 +0100
+Subject: [PATCH 22/40] rtpenc: Allow H264 SPS/PPS headers in packet sidedata
+
+---
+ libavformat/rtpenc.c | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/libavformat/rtpenc.c b/libavformat/rtpenc.c
+index 795229aca3..bcebe9f76d 100644
+--- a/libavformat/rtpenc.c
++++ b/libavformat/rtpenc.c
+@@ -19,6 +19,7 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+  */
+ 
++#include "avc.h"
+ #include "avformat.h"
+ #include "mpegts.h"
+ #include "internal.h"
+@@ -609,8 +610,25 @@ static int rtp_write_packet(AVFormatContext *s1, AVPacket *pkt)
+         ff_rtp_send_vc2hq(s1, pkt->data, size, st->codecpar->field_order != AV_FIELD_PROGRESSIVE ? 1 : 0);
+         break;
+     case AV_CODEC_ID_H264:
++    {
++        uint8_t *side_data;
++        size_t side_data_size = 0;
++
++        side_data = av_packet_get_side_data(pkt, AV_PKT_DATA_NEW_EXTRADATA,
++                                            &side_data_size);
++
++        if (side_data_size != 0) {
++            int ps_size = side_data_size;
++            uint8_t * ps_buf = NULL;
++
++            ff_avc_write_annexb_extradata(side_data, &ps_buf, &ps_size);
++            av_log(s1, AV_LOG_TRACE, "H264: write side data=%d\n", ps_size);
++            ff_rtp_send_h264_hevc(s1, ps_buf ? ps_buf : side_data, ps_size);
++            av_free(ps_buf);
++        }
+         ff_rtp_send_h264_hevc(s1, pkt->data, size);
+         break;
++    }
+     case AV_CODEC_ID_H261:
+         ff_rtp_send_h261(s1, pkt->data, size);
+         break;
+-- 
+2.34.1
+

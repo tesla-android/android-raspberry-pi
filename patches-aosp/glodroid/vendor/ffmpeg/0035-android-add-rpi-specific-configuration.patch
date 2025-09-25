@@ -1,0 +1,35 @@
+From 4e59288fd558a48b9d29419968efc9af87f29512 Mon Sep 17 00:00:00 2001
+From: Konsta <konsta09@gmail.com>
+Date: Sun, 6 Apr 2025 14:31:17 +0300
+Subject: [PATCH 35/40] android: add rpi specific configuration
+
+---
+ configure | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/configure b/configure
+index 1a149564b6..8816102062 100755
+--- a/configure
++++ b/configure
+@@ -7569,6 +7569,18 @@ else
+         check_cpp_condition vulkan_1_4 "vulkan/vulkan.h" "defined(VK_VERSION_1_5) || (defined(VK_VERSION_1_4) && VK_HEADER_VERSION >= 317)"
+ fi
+ 
++# Raspberry Pi - Android
++case $target_os in
++    android)
++        enable libdav1d
++        enable libdrm libdrm_getfb2 linux_dma_buf_h
++        enable libudev
++        enable sand
++        enable v4l2_request linux_videodev2_h linux_media_h v4l2_timeval_to_ns
++        enable vout_drm vout_drm_outdev
++        ;;
++esac
++
+ if enabled x86; then
+     case $target_os in
+         freebsd|mingw32*|mingw64*|win32|win64|linux|cygwin*)
+-- 
+2.34.1
+

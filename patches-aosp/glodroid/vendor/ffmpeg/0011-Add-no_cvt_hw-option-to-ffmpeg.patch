@@ -1,0 +1,99 @@
+From f02fe924a0dd4ce73582fac1824d3ae94387e705 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 27 Apr 2021 19:30:36 +0100
+Subject: [PATCH 11/40] Add no_cvt_hw option to ffmpeg
+
+---
+ fftools/ffmpeg.h        | 2 ++
+ fftools/ffmpeg_dec.c    | 9 ++++++---
+ fftools/ffmpeg_filter.c | 3 +++
+ fftools/ffmpeg_opt.c    | 8 ++++++--
+ 4 files changed, 17 insertions(+), 5 deletions(-)
+
+diff --git a/fftools/ffmpeg.h b/fftools/ffmpeg.h
+index 53f71bc080..07fd36bc93 100644
+--- a/fftools/ffmpeg.h
++++ b/fftools/ffmpeg.h
+@@ -721,6 +721,8 @@ extern enum VideoSyncMethod video_sync_method;
+ extern float frame_drop_threshold;
+ extern int do_benchmark;
+ extern int do_benchmark_all;
++extern int no_cvt_hw;
++extern int do_deinterlace;
+ extern int do_hex_dump;
+ extern int do_pkt_dump;
+ extern int copy_ts;
+diff --git a/fftools/ffmpeg_dec.c b/fftools/ffmpeg_dec.c
+index 1d7158f995..d7a3b337a1 100644
+--- a/fftools/ffmpeg_dec.c
++++ b/fftools/ffmpeg_dec.c
+@@ -392,7 +392,7 @@ static int video_frame_process(DecoderPriv *dp, AVFrame *frame,
+     }
+ #endif
+ 
+-    if (frame->format == dp->hwaccel_pix_fmt) {
++    if (!no_cvt_hw && frame->format == dp->hwaccel_pix_fmt) {
+         int err = hwaccel_retrieve_data(dp->dec_ctx, frame);
+         if (err < 0)
+             return err;
+@@ -1332,12 +1332,15 @@ static enum AVPixelFormat get_format(AVCodecContext *s, const enum AVPixelFormat
+             break;
+ 
+         if (dp->hwaccel_id == HWACCEL_GENERIC ||
+-            dp->hwaccel_id == HWACCEL_AUTO) {
++            dp->hwaccel_id == HWACCEL_AUTO ||
++			no_cvt_hw) {
+             for (int i = 0;; i++) {
+                 config = avcodec_get_hw_config(s->codec, i);
+                 if (!config)
+                     break;
+-                if (!(config->methods &
++                if (no_cvt_hw && (config->methods & AV_CODEC_HW_CONFIG_METHOD_INTERNAL))
++                    av_log(s, AV_LOG_DEBUG, "no_cvt_hw so trying pix_fmt %d with codec internal hwaccel\n", *p);
++                else if (!(config->methods &
+                       AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX))
+                     continue;
+                 if (config->pix_fmt == *p)
+diff --git a/fftools/ffmpeg_filter.c b/fftools/ffmpeg_filter.c
+index 7b501715a6..4d11add6ff 100644
+--- a/fftools/ffmpeg_filter.c
++++ b/fftools/ffmpeg_filter.c
+@@ -2910,6 +2910,9 @@ static int send_frame(FilterGraph *fg, FilterGraphThread *fgt,
+         (ifp->hw_frames_ctx && ifp->hw_frames_ctx->data != frame->hw_frames_ctx->data))
+         need_reinit |= HWACCEL_CHANGED;
+ 
++    if (no_cvt_hw && fgt->graph)
++        need_reinit = 0;
++
+     if (need_reinit) {
+         ret = ifilter_parameters_from_frame(ifilter, frame);
+         if (ret < 0)
+diff --git a/fftools/ffmpeg_opt.c b/fftools/ffmpeg_opt.c
+index d714a1523a..13b8aa5576 100644
+--- a/fftools/ffmpeg_opt.c
++++ b/fftools/ffmpeg_opt.c
+@@ -62,6 +62,7 @@ enum VideoSyncMethod video_sync_method = VSYNC_AUTO;
+ float frame_drop_threshold = 0;
+ int do_benchmark      = 0;
+ int do_benchmark_all  = 0;
++int no_cvt_hw         = 0;
+ int do_hex_dump       = 0;
+ int do_pkt_dump       = 0;
+ int copy_ts           = 0;
+@@ -1619,8 +1620,11 @@ const OptionDef options[] = {
+     { "benchmark_all",          OPT_TYPE_BOOL, OPT_EXPERT,
+         { &do_benchmark_all },
+       "add timings for each task" },
+-    { "progress",               OPT_TYPE_FUNC, OPT_FUNC_ARG | OPT_EXPERT,
+-        { .func_arg = opt_progress },
++    { "no_cvt_hw",      		OPT_TYPE_BOOL, OPT_EXPERT,
++		{ &no_cvt_hw },
++      "do not auto-convert hw frames to sw" },
++	{ "progress",               OPT_TYPE_FUNC, OPT_FUNC_ARG | OPT_EXPERT,
++		{ .func_arg = opt_progress },
+       "write program-readable progress information", "url" },
+     { "stdin",                  OPT_TYPE_BOOL, OPT_EXPERT,
+         { &stdin_interaction },
+-- 
+2.34.1
+

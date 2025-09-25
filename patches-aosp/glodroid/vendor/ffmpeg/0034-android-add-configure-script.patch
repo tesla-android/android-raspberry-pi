@@ -1,0 +1,68 @@
+From 8907721271a2612dd8d5d272208f958ce6fe1efd Mon Sep 17 00:00:00 2001
+From: Konsta <konsta09@gmail.com>
+Date: Sun, 6 Apr 2025 13:16:21 +0300
+Subject: [PATCH 34/40] android: add configure script
+
+---
+ configure-android | 49 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 49 insertions(+)
+ create mode 100755 configure-android
+
+diff --git a/configure-android b/configure-android
+new file mode 100755
+index 0000000000..1292ba428b
+--- /dev/null
++++ b/configure-android
+@@ -0,0 +1,49 @@
++#!/bin/bash
++
++#
++# Copyright (C) 2025 KonstaKANG
++#
++# SPDX-License-Identifier: LGPL-2.1-or-later
++#
++
++if [ ! -d "$ANDROID_NDK_HOME" ]; then
++  echo "ANDROID_NDK_HOME environment variable is not properly set!"
++  exit 1
++fi
++
++TOOLS_BASE="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
++
++ARCH_CONFIG=" \
++--arch=aarch64 \
++--enable-cross-compile \
++--target-os=android \
++--cross-prefix=${TOOLS_BASE}/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-android- \
++--cc=${TOOLS_BASE}/aarch64-linux-android35-clang \
++--cxx=${TOOLS_BASE}/aarch64-linux-android35-clang++ \
++--ar=${TOOLS_BASE}/llvm-ar \
++--nm=${TOOLS_BASE}/llvm-nm \
++--ranlib=${TOOLS_BASE}/llvm-ranlib \
++--strip=${TOOLS_BASE}/llvm-strip \
++--x86asmexe=${TOOLS_BASE}/yasm"
++
++FFMPEG_CONFIG=" \
++--disable-avdevice \
++--disable-debug \
++--disable-doc \
++--disable-filters \
++--disable-programs \
++--disable-static \
++--enable-shared"
++
++echo "Generating configuration..."
++echo "./configure $ARCH_CONFIG $FFMPEG_CONFIG"
++./configure $ARCH_CONFIG $FFMPEG_CONFIG
++
++cat > libavutil/ffversion.h <<EOF
++#ifndef AVUTIL_FFVERSION_H
++#define AVUTIL_FFVERSION_H
++#define FFMPEG_VERSION "$(cat RELEASE) (KonstaKANG)"
++#endif /* AVUTIL_FFVERSION_H */
++EOF
++
++exit 0
+-- 
+2.34.1
+

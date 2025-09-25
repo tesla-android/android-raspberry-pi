@@ -1,0 +1,130 @@
+From 988ccfddff772e385226006da4cdfdb98a815795 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 28 Nov 2024 16:01:54 +0000
+Subject: [PATCH 20/40] hevcdec: Avoid allocating or using s/w only arrays if
+ h/w
+
+A number of arrays are created and initialised that are not needed
+by h/w decoders. Avoid the overheads of doing so if h/w.
+---
+ libavcodec/hevc/hevcdec.c | 33 ++++++++++++++++++++-------------
+ libavcodec/hevc/refs.c    | 32 +++++++++++++++++++-------------
+ 2 files changed, 39 insertions(+), 26 deletions(-)
+
+diff --git a/libavcodec/hevc/hevcdec.c b/libavcodec/hevc/hevcdec.c
+index 8b1f0e5416..dc75f88b51 100644
+--- a/libavcodec/hevc/hevcdec.c
++++ b/libavcodec/hevc/hevcdec.c
+@@ -766,13 +766,16 @@ static int set_sps(HEVCContext *s, HEVCLayerContext *l, const HEVCSPS *sps)
+     if (!sps)
+         return 0;
+ 
+-    ret = pic_arrays_init(l, sps);
+-    if (ret < 0)
+-        goto fail;
++    // If hwaccel then we don't need all the s/w decode helper arrays
++    if (!s->avctx->hwaccel) {
++        ret = pic_arrays_init(l, sps);
++        if (ret < 0)
++            goto fail;
+ 
+-    ff_hevc_pred_init(&s->hpc,     sps->bit_depth);
+-    ff_hevc_dsp_init (&s->hevcdsp, sps->bit_depth);
+-    ff_videodsp_init (&s->vdsp,    sps->bit_depth);
++        ff_hevc_pred_init(&s->hpc,     sps->bit_depth);
++        ff_hevc_dsp_init (&s->hevcdsp, sps->bit_depth);
++        ff_videodsp_init (&s->vdsp,    sps->bit_depth);
++    }
+ 
+     l->sps    = av_refstruct_ref_c(sps);
+     s->vps    = av_refstruct_ref_c(sps->vps);
+@@ -3297,11 +3300,13 @@ static int hevc_frame_start(HEVCContext *s, HEVCLayerContext *l,
+         }
+     }
+ 
+-    memset(l->horizontal_bs, 0, l->bs_width * l->bs_height);
+-    memset(l->vertical_bs,   0, l->bs_width * l->bs_height);
+-    memset(l->cbf_luma,      0, sps->min_tb_width * sps->min_tb_height);
+-    memset(l->is_pcm,        0, (sps->min_pu_width + 1) * (sps->min_pu_height + 1));
+-    memset(l->tab_slice_address, -1, pic_size_in_ctb * sizeof(*l->tab_slice_address));
++    if (l->horizontal_bs) {
++        memset(l->horizontal_bs, 0, l->bs_width * l->bs_height);
++        memset(l->vertical_bs,   0, l->bs_width * l->bs_height);
++        memset(l->cbf_luma,      0, sps->min_tb_width * sps->min_tb_height);
++        memset(l->is_pcm,        0, (sps->min_pu_width + 1) * (sps->min_pu_height + 1));
++        memset(l->tab_slice_address, -1, pic_size_in_ctb * sizeof(*l->tab_slice_address));
++    }
+ 
+     if (IS_IDR(s))
+         ff_hevc_clear_refs(l);
+@@ -3928,8 +3933,10 @@ static int hevc_ref_frame(HEVCFrame *dst, const HEVCFrame *src)
+     }
+ 
+     dst->pps     = av_refstruct_ref_c(src->pps);
+-    dst->tab_mvf = av_refstruct_ref(src->tab_mvf);
+-    dst->rpl_tab = av_refstruct_ref(src->rpl_tab);
++    if (src->tab_mvf)
++        dst->tab_mvf = av_refstruct_ref(src->tab_mvf);
++    if (src->rpl_tab)
++        dst->rpl_tab = av_refstruct_ref(src->rpl_tab);
+     dst->rpl = av_refstruct_ref(src->rpl);
+     dst->nb_rpl_elems = src->nb_rpl_elems;
+ 
+diff --git a/libavcodec/hevc/refs.c b/libavcodec/hevc/refs.c
+index ab2e075af0..342e7a6de9 100644
+--- a/libavcodec/hevc/refs.c
++++ b/libavcodec/hevc/refs.c
+@@ -167,16 +167,19 @@ static HEVCFrame *alloc_frame(HEVCContext *s, HEVCLayerContext *l)
+             goto fail;
+         frame->nb_rpl_elems = s->pkt.nb_nals;
+ 
+-        frame->tab_mvf = av_refstruct_pool_get(l->tab_mvf_pool);
+-        if (!frame->tab_mvf)
+-            goto fail;
+-
+-        frame->rpl_tab = av_refstruct_pool_get(l->rpl_tab_pool);
+-        if (!frame->rpl_tab)
+-            goto fail;
+-        frame->ctb_count = l->sps->ctb_width * l->sps->ctb_height;
+-        for (j = 0; j < frame->ctb_count; j++)
+-            frame->rpl_tab[j] = frame->rpl;
++        if (l->tab_mvf_pool) {
++            frame->tab_mvf = av_refstruct_pool_get(l->tab_mvf_pool);
++            if (!frame->tab_mvf)
++                goto fail;
++        }
++        if (l->rpl_tab_pool) {
++            frame->rpl_tab = av_refstruct_pool_get(l->rpl_tab_pool);
++            if (!frame->rpl_tab)
++                goto fail;
++            frame->ctb_count = l->sps->ctb_width * l->sps->ctb_height;
++            for (j = 0; j < frame->ctb_count; j++)
++                frame->rpl_tab[j] = frame->rpl;
++        }
+ 
+         if (s->sei.picture_timing.picture_struct == AV_PICTURE_STRUCTURE_TOP_FIELD)
+             frame->f->flags |= AV_FRAME_FLAG_TOP_FIELD_FIRST;
+@@ -327,14 +330,17 @@ static int init_slice_rpl(HEVCContext *s)
+     int ctb_count    = frame->ctb_count;
+     int ctb_addr_ts  = s->pps->ctb_addr_rs_to_ts[s->sh.slice_segment_addr];
+     int i;
++    RefPicListTab * const rpl = frame->rpl + s->slice_idx;
+ 
+     if (s->slice_idx >= frame->nb_rpl_elems)
+         return AVERROR_INVALIDDATA;
+ 
+-    for (i = ctb_addr_ts; i < ctb_count; i++)
+-        frame->rpl_tab[i] = frame->rpl + s->slice_idx;
++    if (frame->rpl_tab) {
++        for (i = ctb_addr_ts; i < ctb_count; i++)
++            frame->rpl_tab[i] = rpl;
++    }
+ 
+-    frame->refPicList = (RefPicList *)frame->rpl_tab[ctb_addr_ts];
++    frame->refPicList = (RefPicList *)rpl;
+ 
+     return 0;
+ }
+-- 
+2.34.1
+

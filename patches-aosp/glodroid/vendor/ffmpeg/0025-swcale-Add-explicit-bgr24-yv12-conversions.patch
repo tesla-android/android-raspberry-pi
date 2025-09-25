@@ -1,0 +1,906 @@
+From 9c3d9026d277958d31fee362044c271e41ab34bb Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Wed, 19 Apr 2023 10:47:58 +0000
+Subject: [PATCH 25/40] swcale: Add explicit bgr24->yv12 conversions
+
+Fast chroma rather than accurate chroma
+
+(cherry picked from commit 9a22d429f46a038321c66a0cd54737177641b434)
+---
+ libswscale/aarch64/rgb2rgb.c      |   8 +
+ libswscale/aarch64/rgb2rgb_neon.S | 356 ++++++++++++++++++++++++++++++
+ libswscale/rgb2rgb.c              |  25 +++
+ libswscale/rgb2rgb.h              |  23 ++
+ libswscale/rgb2rgb_template.c     | 245 +++++++++++++++++++-
+ libswscale/swscale_unscaled.c     | 116 +++++++++-
+ 6 files changed, 769 insertions(+), 4 deletions(-)
+
+diff --git a/libswscale/aarch64/rgb2rgb.c b/libswscale/aarch64/rgb2rgb.c
+index f474228298..420a96a800 100644
+--- a/libswscale/aarch64/rgb2rgb.c
++++ b/libswscale/aarch64/rgb2rgb.c
+@@ -66,6 +66,12 @@ void ff_shuffle_bytes_3102_neon(const uint8_t *src, uint8_t *dst, int src_size);
+ void ff_shuffle_bytes_2013_neon(const uint8_t *src, uint8_t *dst, int src_size);
+ void ff_shuffle_bytes_2130_neon(const uint8_t *src, uint8_t *dst, int src_size);
+ void ff_shuffle_bytes_1203_neon(const uint8_t *src, uint8_t *dst, int src_size);
++void ff_bgr24toyv12_aarch64(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                   uint8_t *vdst, int width, int height, int lumStride,
++                   int chromStride, int srcStride, const int32_t *rgb2yuv);
++void ff_rgb24toyv12_aarch64(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                   uint8_t *vdst, int width, int height, int lumStride,
++                   int chromStride, int srcStride, const int32_t *rgb2yuv);
+ 
+ void ff_uyvytoyuv422_neon(uint8_t *ydst, uint8_t *udst, uint8_t *vdst,
+                           const uint8_t *src, int width, int height,
+@@ -100,5 +106,7 @@ av_cold void rgb2rgb_init_aarch64(void)
+         uyvytoyuv420       = ff_uyvytoyuv420_neon;
+         yuyvtoyuv422       = ff_yuyvtoyuv422_neon;
+         yuyvtoyuv420       = ff_yuyvtoyuv420_neon;
++        ff_rgb24toyv12 = ff_rgb24toyv12_aarch64;
++        ff_bgr24toyv12 = ff_bgr24toyv12_aarch64;
+     }
+ }
+diff --git a/libswscale/aarch64/rgb2rgb_neon.S b/libswscale/aarch64/rgb2rgb_neon.S
+index f6d625f11f..acafc8f2d9 100644
+--- a/libswscale/aarch64/rgb2rgb_neon.S
++++ b/libswscale/aarch64/rgb2rgb_neon.S
+@@ -687,3 +687,359 @@ interleaved_yuv_to_planar uyvy, yuv422
+ interleaved_yuv_to_planar uyvy, yuv420
+ interleaved_yuv_to_planar yuyv, yuv422
+ interleaved_yuv_to_planar yuyv, yuv420
++
++// Expand rgb2 into r0+r1/g0+g1/b0+b1
++.macro XRGB3Y r0, g0, b0, r1, g1, b1, r2, g2, b2
++        uxtl            \r0\().8h, \r2\().8b
++        uxtl            \g0\().8h, \g2\().8b
++        uxtl            \b0\().8h, \b2\().8b
++
++        uxtl2           \r1\().8h, \r2\().16b
++        uxtl2           \g1\().8h, \g2\().16b
++        uxtl2           \b1\().8h, \b2\().16b
++.endm
++
++// Expand rgb2 into r0+r1/g0+g1/b0+b1
++// and pick every other el to put back into rgb2 for chroma
++.macro XRGB3YC r0, g0, b0, r1, g1, b1, r2, g2, b2
++        XRGB3Y          \r0, \g0, \b0, \r1, \g1, \b1, \r2, \g2, \b2
++
++        bic             \r2\().8h, #0xff, LSL #8
++        bic             \g2\().8h, #0xff, LSL #8
++        bic             \b2\().8h, #0xff, LSL #8
++.endm
++
++.macro SMLAL3 d0, d1, s0, s1, s2, c0, c1, c2
++        smull           \d0\().4s, \s0\().4h, \c0
++        smlal           \d0\().4s, \s1\().4h, \c1
++        smlal           \d0\().4s, \s2\().4h, \c2
++        smull2          \d1\().4s, \s0\().8h, \c0
++        smlal2          \d1\().4s, \s1\().8h, \c1
++        smlal2          \d1\().4s, \s2\().8h, \c2
++.endm
++
++// d0 may be s0
++// s0, s2 corrupted
++.macro SHRN_Y d0, s0, s1, s2, s3, k128h
++        shrn            \s0\().4h, \s0\().4s, #12
++        shrn2           \s0\().8h, \s1\().4s, #12
++        add             \s0\().8h, \s0\().8h, \k128h\().8h     // +128 (>> 3 = 16)
++        sqrshrun        \d0\().8b, \s0\().8h, #3
++        shrn            \s2\().4h, \s2\().4s, #12
++        shrn2           \s2\().8h, \s3\().4s, #12
++        add             \s2\().8h, \s2\().8h, \k128h\().8h
++        sqrshrun2       \d0\().16b, v28.8h, #3
++.endm
++
++.macro SHRN_C d0, s0, s1, k128b
++        shrn            \s0\().4h, \s0\().4s, #14
++        shrn2           \s0\().8h, \s1\().4s, #14
++        sqrshrn         \s0\().8b, \s0\().8h, #1
++        add             \d0\().8b, \s0\().8b, \k128b\().8b     // +128
++.endm
++
++.macro STB2V s0, n, a
++        st1             {\s0\().b}[(\n+0)], [\a], #1
++        st1             {\s0\().b}[(\n+1)], [\a], #1
++.endm
++
++.macro STB4V s0, n, a
++        STB2V           \s0, (\n+0), \a
++        STB2V           \s0, (\n+2), \a
++.endm
++
++
++// void ff_rgb24toyv12_aarch64(
++//              const uint8_t *src,             // x0
++//              uint8_t *ydst,                  // x1
++//              uint8_t *udst,                  // x2
++//              uint8_t *vdst,                  // x3
++//              int width,                      // w4
++//              int height,                     // w5
++//              int lumStride,                  // w6
++//              int chromStride,                // w7
++//              int srcStr,                     // [sp, #0]
++//              int32_t *rgb2yuv);              // [sp, #8]
++
++function ff_rgb24toyv12_aarch64, export=1
++        ldr             x15, [sp, #8]
++        ld3             {v3.s, v4.s, v5.s}[0], [x15], #12
++        ld3             {v3.s, v4.s, v5.s}[1], [x15], #12
++        ld3             {v3.s, v4.s, v5.s}[2], [x15]
++        mov             v6.16b, v3.16b
++        mov             v3.16b, v5.16b
++        mov             v5.16b, v6.16b
++        b               99f
++endfunc
++
++// void ff_bgr24toyv12_aarch64(
++//              const uint8_t *src,             // x0
++//              uint8_t *ydst,                  // x1
++//              uint8_t *udst,                  // x2
++//              uint8_t *vdst,                  // x3
++//              int width,                      // w4
++//              int height,                     // w5
++//              int lumStride,                  // w6
++//              int chromStride,                // w7
++//              int srcStr,                     // [sp, #0]
++//              int32_t *rgb2yuv);              // [sp, #8] (including Mac)
++
++// regs
++// v0-2         Src bytes - reused as chroma src
++// v3-5         Coeffs (packed very inefficiently - could be squashed)
++// v6           128b
++// v7           128h
++// v8-15        Reserved
++// v16-18       Lo Src expanded as H
++// v19          -
++// v20-22       Hi Src expanded as H
++// v23          -
++// v24          U out
++// v25          U tmp
++// v26          Y out
++// v27-29       Y tmp
++// v30          V out
++// v31          V tmp
++
++function ff_bgr24toyv12_aarch64, export=1
++        ldr             x15, [sp, #8]
++        ld3             {v3.s, v4.s, v5.s}[0], [x15], #12
++        ld3             {v3.s, v4.s, v5.s}[1], [x15], #12
++        ld3             {v3.s, v4.s, v5.s}[2], [x15]
++
++99:
++        ldr             w14, [sp, #0]
++        movi            v7.8b, #128
++        uxtl            v6.8h, v7.8b
++        // Ensure if nothing to do then we do nothing
++        cmp             w4, #0
++        b.le            90f
++        cmp             w5, #0
++        b.le            90f
++        // If w % 16 != 0 then -16 so we do main loop 1 fewer times with
++        // the remainder done in the tail
++        tst             w4, #15
++        b.eq            1f
++        sub             w4, w4, #16
++1:
++
++// -------------------- Even line body - YUV
++11:
++        subs            w9,  w4, #0
++        mov             x10, x0
++        mov             x11, x1
++        mov             x12, x2
++        mov             x13, x3
++        b.lt            12f
++
++        ld3             {v0.16b, v1.16b, v2.16b}, [x10], #48
++        subs            w9, w9, #16
++        b.le            13f
++
++10:
++        XRGB3YC         v16, v17, v18,  v20, v21, v22,  v0, v1, v2
++
++        // Testing shows it is faster to stack the smull/smlal ops together
++        // rather than interleave them between channels and indeed even the
++        // shift/add sections seem happier not interleaved
++
++        // Y0
++        SMLAL3          v26, v27, v16, v17, v18, v3.h[0], v4.h[0], v5.h[0]
++        // Y1
++        SMLAL3          v28, v29, v20, v21, v22, v3.h[0], v4.h[0], v5.h[0]
++        SHRN_Y          v26, v26, v27, v28, v29, v6
++
++        // U
++        // Vector subscript *2 as we loaded into S but are only using H
++        SMLAL3          v24, v25, v0, v1, v2, v3.h[2], v4.h[2], v5.h[2]
++
++        // V
++        SMLAL3          v30, v31, v0, v1, v2, v3.h[4], v4.h[4], v5.h[4]
++
++        ld3             {v0.16b, v1.16b, v2.16b}, [x10], #48
++
++        SHRN_C          v24, v24, v25, v7
++        SHRN_C          v30, v30, v31, v7
++
++        subs            w9, w9, #16
++
++        st1             {v26.16b}, [x11], #16
++        st1             {v24.8b}, [x12], #8
++        st1             {v30.8b}, [x13], #8
++
++        b.gt            10b
++
++// -------------------- Even line tail - YUV
++// If width % 16 == 0 then simply runs once with preloaded RGB
++// If other then deals with preload & then does remaining tail
++
++13:
++        // Body is simple copy of main loop body minus preload
++
++        XRGB3YC         v16, v17, v18,  v20, v21, v22,  v0, v1, v2
++        // Y0
++        SMLAL3          v26, v27, v16, v17, v18, v3.h[0], v4.h[0], v5.h[0]
++        // Y1
++        SMLAL3          v28, v29, v20, v21, v22, v3.h[0], v4.h[0], v5.h[0]
++        SHRN_Y          v26, v26, v27, v28, v29, v6
++        // U
++        SMLAL3          v24, v25, v0, v1, v2, v3.h[2], v4.h[2], v5.h[2]
++        // V
++        SMLAL3          v30, v31, v0, v1, v2, v3.h[4], v4.h[4], v5.h[4]
++
++        cmp             w9, #-16
++
++        SHRN_C          v24, v24, v25, v7
++        SHRN_C          v30, v30, v31, v7
++
++        // Here:
++        // w9 == 0      width % 16 == 0, tail done
++        // w9 > -16     1st tail done (16 pels), remainder still to go
++        // w9 == -16    shouldn't happen
++        // w9 > -32     2nd tail done
++        // w9 <= -32    shouldn't happen
++
++        b.lt            2f
++        st1             {v26.16b}, [x11], #16
++        st1             {v24.8b}, [x12], #8
++        st1             {v30.8b}, [x13], #8
++        cbz             w9, 3f
++
++12:
++        sub             w9, w9, #16
++
++        tbz             w9, #3, 1f
++        ld3             {v0.8b, v1.8b, v2.8b},  [x10], #24
++1:      tbz             w9, #2, 1f
++        ld3             {v0.b, v1.b, v2.b}[8],  [x10], #3
++        ld3             {v0.b, v1.b, v2.b}[9],  [x10], #3
++        ld3             {v0.b, v1.b, v2.b}[10], [x10], #3
++        ld3             {v0.b, v1.b, v2.b}[11], [x10], #3
++1:      tbz             w9, #1, 1f
++        ld3             {v0.b, v1.b, v2.b}[12], [x10], #3
++        ld3             {v0.b, v1.b, v2.b}[13], [x10], #3
++1:      tbz             w9, #0, 13b
++        ld3             {v0.b, v1.b, v2.b}[14], [x10], #3
++        b               13b
++
++2:
++        tbz             w9, #3, 1f
++        st1             {v26.8b},    [x11], #8
++        STB4V           v24, 0, x12
++        STB4V           v30, 0, x13
++1:      tbz             w9, #2, 1f
++        STB4V           v26  8, x11
++        STB2V           v24, 4, x12
++        STB2V           v30, 4, x13
++1:      tbz             w9, #1, 1f
++        STB2V           v26, 12, x11
++        st1             {v24.b}[6],  [x12], #1
++        st1             {v30.b}[6],  [x13], #1
++1:      tbz             w9, #0, 1f
++        st1             {v26.b}[14], [x11]
++        st1             {v24.b}[7],  [x12]
++        st1             {v30.b}[7],  [x13]
++1:
++3:
++
++// -------------------- Odd line body - Y only
++
++        subs            w5, w5, #1
++        b.eq            90f
++
++        subs            w9,  w4, #0
++        add             x0, x0, w14, sxtw
++        add             x1, x1, w6, sxtw
++        mov             x10, x0
++        mov             x11, x1
++        b.lt            12f
++
++        ld3             {v0.16b, v1.16b, v2.16b}, [x10], #48
++        subs            w9, w9, #16
++        b.le            13f
++
++10:
++        XRGB3Y          v16, v17, v18,  v20, v21, v22,  v0, v1, v2
++        // Y0
++        SMLAL3          v26, v27, v16, v17, v18, v3.h[0], v4.h[0], v5.h[0]
++        // Y1
++        SMLAL3          v28, v29, v20, v21, v22, v3.h[0], v4.h[0], v5.h[0]
++
++        ld3             {v0.16b, v1.16b, v2.16b}, [x10], #48
++
++        SHRN_Y          v26, v26, v27, v28, v29, v6
++
++        subs            w9, w9, #16
++
++        st1             {v26.16b}, [x11], #16
++
++        b.gt            10b
++
++// -------------------- Odd line tail - Y
++// If width % 16 == 0 then simply runs once with preloaded RGB
++// If other then deals with preload & then does remaining tail
++
++13:
++        // Body is simple copy of main loop body minus preload
++
++        XRGB3Y          v16, v17, v18,  v20, v21, v22,  v0, v1, v2
++        // Y0
++        SMLAL3          v26, v27, v16, v17, v18, v3.h[0], v4.h[0], v5.h[0]
++        // Y1
++        SMLAL3          v28, v29, v20, v21, v22, v3.h[0], v4.h[0], v5.h[0]
++
++        cmp             w9, #-16
++
++        SHRN_Y          v26, v26, v27, v28, v29, v6
++
++        // Here:
++        // w9 == 0      width % 16 == 0, tail done
++        // w9 > -16     1st tail done (16 pels), remainder still to go
++        // w9 == -16    shouldn't happen
++        // w9 > -32     2nd tail done
++        // w9 <= -32    shouldn't happen
++
++        b.lt            2f
++        st1             {v26.16b}, [x11], #16
++        cbz             w9, 3f
++
++12:
++        sub             w9, w9, #16
++
++        tbz             w9, #3, 1f
++        ld3             {v0.8b, v1.8b, v2.8b},  [x10], #24
++1:      tbz             w9, #2, 1f
++        ld3             {v0.b, v1.b, v2.b}[8],  [x10], #3
++        ld3             {v0.b, v1.b, v2.b}[9],  [x10], #3
++        ld3             {v0.b, v1.b, v2.b}[10], [x10], #3
++        ld3             {v0.b, v1.b, v2.b}[11], [x10], #3
++1:      tbz             w9, #1, 1f
++        ld3             {v0.b, v1.b, v2.b}[12], [x10], #3
++        ld3             {v0.b, v1.b, v2.b}[13], [x10], #3
++1:      tbz             w9, #0, 13b
++        ld3             {v0.b, v1.b, v2.b}[14], [x10], #3
++        b               13b
++
++2:
++        tbz             w9, #3, 1f
++        st1             {v26.8b},    [x11], #8
++1:      tbz             w9, #2, 1f
++        STB4V           v26, 8,  x11
++1:      tbz             w9, #1, 1f
++        STB2V           v26, 12, x11
++1:      tbz             w9, #0, 1f
++        st1             {v26.b}[14], [x11]
++1:
++3:
++
++// ------------------- Loop to start
++
++        add             x0, x0, w14, sxtw
++        add             x1, x1, w6, sxtw
++        add             x2, x2, w7, sxtw
++        add             x3, x3, w7, sxtw
++        subs            w5, w5, #1
++        b.gt            11b
++90:
++        ret
++endfunc
+diff --git a/libswscale/rgb2rgb.c b/libswscale/rgb2rgb.c
+index 00e785f0c8..a73fd08e3e 100644
+--- a/libswscale/rgb2rgb.c
++++ b/libswscale/rgb2rgb.c
+@@ -87,6 +87,31 @@ void (*ff_rgb24toyv12)(const uint8_t *src, uint8_t *ydst,
+                        int width, int height,
+                        int lumStride, int chromStride, int srcStride,
+                        const int32_t *rgb2yuv);
++void (*ff_bgr24toyv12)(const uint8_t *src, uint8_t *ydst,
++                       uint8_t *udst, uint8_t *vdst,
++                       int width, int height,
++                       int lumStride, int chromStride, int srcStride,
++                       const int32_t *rgb2yuv);
++void (*ff_rgbxtoyv12)(const uint8_t *src, uint8_t *ydst,
++                      uint8_t *udst, uint8_t *vdst,
++                      int width, int height,
++                      int lumStride, int chromStride, int srcStride,
++                      const int32_t *rgb2yuv);
++void (*ff_bgrxtoyv12)(const uint8_t *src, uint8_t *ydst,
++                      uint8_t *udst, uint8_t *vdst,
++                      int width, int height,
++                      int lumStride, int chromStride, int srcStride,
++                      const int32_t *rgb2yuv);
++void (*ff_xrgbtoyv12)(const uint8_t *src, uint8_t *ydst,
++                      uint8_t *udst, uint8_t *vdst,
++                      int width, int height,
++                      int lumStride, int chromStride, int srcStride,
++                      const int32_t *rgb2yuv);
++void (*ff_xbgrtoyv12)(const uint8_t *src, uint8_t *ydst,
++                      uint8_t *udst, uint8_t *vdst,
++                      int width, int height,
++                      int lumStride, int chromStride, int srcStride,
++                      const int32_t *rgb2yuv);
+ void (*planar2x)(const uint8_t *src, uint8_t *dst, int width, int height,
+                  int srcStride, int dstStride);
+ void (*interleaveBytes)(const uint8_t *src1, const uint8_t *src2, uint8_t *dst,
+diff --git a/libswscale/rgb2rgb.h b/libswscale/rgb2rgb.h
+index 0d0f7c3a28..dc4d2b763c 100644
+--- a/libswscale/rgb2rgb.h
++++ b/libswscale/rgb2rgb.h
+@@ -92,6 +92,9 @@ void   x2rgb10tobgr64_bswap(const uint8_t *src, uint8_t *dst, int src_size);
+ void ff_rgb24toyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
+                       uint8_t *vdst, int width, int height, int lumStride,
+                       int chromStride, int srcStride, const int32_t *rgb2yuv);
++void ff_bgr24toyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                      uint8_t *vdst, int width, int height, int lumStride,
++                      int chromStride, int srcStride, const int32_t *rgb2yuv);
+ 
+ /**
+  * Height should be a multiple of 2 and width should be a multiple of 16.
+@@ -139,6 +142,26 @@ extern void (*ff_rgb24toyv12)(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
+                               int width, int height,
+                               int lumStride, int chromStride, int srcStride,
+                               const int32_t *rgb2yuv);
++extern void (*ff_bgr24toyv12)(const uint8_t *src, uint8_t *ydst, uint8_t *udst, uint8_t *vdst,
++                              int width, int height,
++                              int lumStride, int chromStride, int srcStride,
++                              const int32_t *rgb2yuv);
++extern void (*ff_rgbxtoyv12)(const uint8_t *src, uint8_t *ydst, uint8_t *udst, uint8_t *vdst,
++                             int width, int height,
++                             int lumStride, int chromStride, int srcStride,
++                             const int32_t *rgb2yuv);
++extern void (*ff_bgrxtoyv12)(const uint8_t *src, uint8_t *ydst, uint8_t *udst, uint8_t *vdst,
++                             int width, int height,
++                             int lumStride, int chromStride, int srcStride,
++                             const int32_t *rgb2yuv);
++extern void (*ff_xrgbtoyv12)(const uint8_t *src, uint8_t *ydst, uint8_t *udst, uint8_t *vdst,
++                             int width, int height,
++                             int lumStride, int chromStride, int srcStride,
++                             const int32_t *rgb2yuv);
++extern void (*ff_xbgrtoyv12)(const uint8_t *src, uint8_t *ydst, uint8_t *udst, uint8_t *vdst,
++                             int width, int height,
++                             int lumStride, int chromStride, int srcStride,
++                             const int32_t *rgb2yuv);
+ extern void (*planar2x)(const uint8_t *src, uint8_t *dst, int width, int height,
+                         int srcStride, int dstStride);
+ 
+diff --git a/libswscale/rgb2rgb_template.c b/libswscale/rgb2rgb_template.c
+index 47a1bb8368..64aefc2b40 100644
+--- a/libswscale/rgb2rgb_template.c
++++ b/libswscale/rgb2rgb_template.c
+@@ -643,13 +643,20 @@ static inline void uyvytoyv12_c(const uint8_t *src, uint8_t *ydst,
+     }
+ }
+ 
++#if 0
++// This is the upstream version of this function. It has centre positioned
++// chroma rather than our simpler top-left and only covers one arrangement
++// of RGB. Left here for reference and to fix some ugly diffing by git.
++// If this version is wanted - lose the entire patchset
++
+ /**
+  * width should be a multiple of 2.
+  * (If this is a problem for anyone then tell me, and I will fix it.)
+  */
+ void ff_rgb24toyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
+                    uint8_t *vdst, int width, int height, int lumStride,
+-                   int chromStride, int srcStride, const int32_t *rgb2yuv)
++                   int chromStride, int srcStride, const int32_t *rgb2yuv,
++                   const uint8_t x[9])
+ {
+     int32_t ry = rgb2yuv[RY_IDX], gy = rgb2yuv[GY_IDX], by = rgb2yuv[BY_IDX];
+     int32_t ru = rgb2yuv[RU_IDX], gu = rgb2yuv[GU_IDX], bu = rgb2yuv[BU_IDX];
+@@ -709,6 +716,237 @@ void ff_rgb24toyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
+         vdst  += chromStride;
+     }
+ }
++#endif
++
++/**
++ * Chrominance data is only taken from every second line,
++ * others are ignored. This matches the ARM64 asm.
++ */
++static void rgb24toyv12_x(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                   uint8_t *vdst, int width, int height, int lumStride,
++                   int chromStride, int srcStride, const int32_t *rgb2yuv,
++                   const uint8_t x[9])
++{
++    int32_t ry = rgb2yuv[x[0]], gy = rgb2yuv[x[1]], by = rgb2yuv[x[2]];
++    int32_t ru = rgb2yuv[x[3]], gu = rgb2yuv[x[4]], bu = rgb2yuv[x[5]];
++    int32_t rv = rgb2yuv[x[6]], gv = rgb2yuv[x[7]], bv = rgb2yuv[x[8]];
++    int y;
++    const int chromWidth = width >> 1;
++
++    for (y = 0; y < height; y += 2) {
++        int i;
++
++        for (i = 0; i < chromWidth; i++) {
++            unsigned int b = src[6 * i + 0];
++            unsigned int g = src[6 * i + 1];
++            unsigned int r = src[6 * i + 2];
++
++            unsigned int Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) +  16;
++            unsigned int V = ((rv * r + gv * g + bv * b) >> RGB2YUV_SHIFT) + 128;
++            unsigned int U = ((ru * r + gu * g + bu * b) >> RGB2YUV_SHIFT) + 128;
++
++            udst[i]     = U;
++            vdst[i]     = V;
++            ydst[2 * i] = Y;
++
++            b = src[6 * i + 3];
++            g = src[6 * i + 4];
++            r = src[6 * i + 5];
++
++            Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
++            ydst[2 * i + 1] = Y;
++        }
++        if ((width & 1) != 0) {
++            unsigned int b = src[6 * i + 0];
++            unsigned int g = src[6 * i + 1];
++            unsigned int r = src[6 * i + 2];
++
++            unsigned int Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) +  16;
++            unsigned int V = ((rv * r + gv * g + bv * b) >> RGB2YUV_SHIFT) + 128;
++            unsigned int U = ((ru * r + gu * g + bu * b) >> RGB2YUV_SHIFT) + 128;
++
++            udst[i]     = U;
++            vdst[i]     = V;
++            ydst[2 * i] = Y;
++        }
++        ydst += lumStride;
++        src  += srcStride;
++
++        if (y+1 == height)
++            break;
++
++        for (i = 0; i < chromWidth; i++) {
++            unsigned int b = src[6 * i + 0];
++            unsigned int g = src[6 * i + 1];
++            unsigned int r = src[6 * i + 2];
++
++            unsigned int Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
++
++            ydst[2 * i] = Y;
++
++            b = src[6 * i + 3];
++            g = src[6 * i + 4];
++            r = src[6 * i + 5];
++
++            Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
++            ydst[2 * i + 1] = Y;
++        }
++        if ((width & 1) != 0) {
++            unsigned int b = src[6 * i + 0];
++            unsigned int g = src[6 * i + 1];
++            unsigned int r = src[6 * i + 2];
++
++            unsigned int Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
++
++            ydst[2 * i] = Y;
++        }
++        udst += chromStride;
++        vdst += chromStride;
++        ydst += lumStride;
++        src  += srcStride;
++    }
++}
++
++static const uint8_t x_rgb[9] = {
++    RY_IDX, GY_IDX, BY_IDX,
++    RU_IDX, GU_IDX, BU_IDX,
++    RV_IDX, GV_IDX, BV_IDX,
++};
++
++static const uint8_t x_bgr[9] = {
++     BY_IDX, GY_IDX, RY_IDX,
++     BU_IDX, GU_IDX, RU_IDX,
++     BV_IDX, GV_IDX, RV_IDX,
++};
++
++void ff_rgb24toyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                   uint8_t *vdst, int width, int height, int lumStride,
++                   int chromStride, int srcStride, const int32_t *rgb2yuv)
++{
++    rgb24toyv12_x(src, ydst, udst, vdst, width, height, lumStride, chromStride, srcStride, rgb2yuv, x_rgb);
++}
++
++void ff_bgr24toyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                   uint8_t *vdst, int width, int height, int lumStride,
++                   int chromStride, int srcStride, const int32_t *rgb2yuv)
++{
++    rgb24toyv12_x(src, ydst, udst, vdst, width, height, lumStride, chromStride, srcStride, rgb2yuv, x_bgr);
++}
++
++static void rgbxtoyv12_x(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                   uint8_t *vdst, int width, int height, int lumStride,
++                   int chromStride, int srcStride, const int32_t *rgb2yuv,
++                   const uint8_t x[9])
++{
++    int32_t ry = rgb2yuv[x[0]], gy = rgb2yuv[x[1]], by = rgb2yuv[x[2]];
++    int32_t ru = rgb2yuv[x[3]], gu = rgb2yuv[x[4]], bu = rgb2yuv[x[5]];
++    int32_t rv = rgb2yuv[x[6]], gv = rgb2yuv[x[7]], bv = rgb2yuv[x[8]];
++    int y;
++    const int chromWidth = width >> 1;
++
++    for (y = 0; y < height; y += 2) {
++        int i;
++        for (i = 0; i < chromWidth; i++) {
++            unsigned int b = src[8 * i + 2];
++            unsigned int g = src[8 * i + 1];
++            unsigned int r = src[8 * i + 0];
++
++            unsigned int Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) +  16;
++            unsigned int V = ((rv * r + gv * g + bv * b) >> RGB2YUV_SHIFT) + 128;
++            unsigned int U = ((ru * r + gu * g + bu * b) >> RGB2YUV_SHIFT) + 128;
++
++            udst[i]     = U;
++            vdst[i]     = V;
++            ydst[2 * i] = Y;
++
++            b = src[8 * i + 6];
++            g = src[8 * i + 5];
++            r = src[8 * i + 4];
++
++            Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
++            ydst[2 * i + 1] = Y;
++        }
++        if ((width & 1) != 0) {
++            unsigned int b = src[8 * i + 2];
++            unsigned int g = src[8 * i + 1];
++            unsigned int r = src[8 * i + 0];
++
++            unsigned int Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) +  16;
++            unsigned int V = ((rv * r + gv * g + bv * b) >> RGB2YUV_SHIFT) + 128;
++            unsigned int U = ((ru * r + gu * g + bu * b) >> RGB2YUV_SHIFT) + 128;
++
++            udst[i]     = U;
++            vdst[i]     = V;
++            ydst[2 * i] = Y;
++        }
++        ydst += lumStride;
++        src  += srcStride;
++
++        if (y+1 == height)
++            break;
++
++        for (i = 0; i < chromWidth; i++) {
++            unsigned int b = src[8 * i + 2];
++            unsigned int g = src[8 * i + 1];
++            unsigned int r = src[8 * i + 0];
++
++            unsigned int Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
++
++            ydst[2 * i] = Y;
++
++            b = src[8 * i + 6];
++            g = src[8 * i + 5];
++            r = src[8 * i + 4];
++
++            Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
++            ydst[2 * i + 1] = Y;
++        }
++        if ((width & 1) != 0) {
++            unsigned int b = src[8 * i + 2];
++            unsigned int g = src[8 * i + 1];
++            unsigned int r = src[8 * i + 0];
++
++            unsigned int Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
++
++            ydst[2 * i] = Y;
++        }
++        udst += chromStride;
++        vdst += chromStride;
++        ydst += lumStride;
++        src  += srcStride;
++    }
++}
++
++static void ff_rgbxtoyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                   uint8_t *vdst, int width, int height, int lumStride,
++                   int chromStride, int srcStride, const int32_t *rgb2yuv)
++{
++    rgbxtoyv12_x(src, ydst, udst, vdst, width, height, lumStride, chromStride, srcStride, rgb2yuv, x_rgb);
++}
++
++static void ff_bgrxtoyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                   uint8_t *vdst, int width, int height, int lumStride,
++                   int chromStride, int srcStride, const int32_t *rgb2yuv)
++{
++    rgbxtoyv12_x(src, ydst, udst, vdst, width, height, lumStride, chromStride, srcStride, rgb2yuv, x_bgr);
++}
++
++// As the general code does no SIMD-like ops simply adding 1 to the src address
++// will fix the ignored alpha position
++static void ff_xrgbtoyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                   uint8_t *vdst, int width, int height, int lumStride,
++                   int chromStride, int srcStride, const int32_t *rgb2yuv)
++{
++    rgbxtoyv12_x(src + 1, ydst, udst, vdst, width, height, lumStride, chromStride, srcStride, rgb2yuv, x_rgb);
++}
++
++static void ff_xbgrtoyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                   uint8_t *vdst, int width, int height, int lumStride,
++                   int chromStride, int srcStride, const int32_t *rgb2yuv)
++{
++    rgbxtoyv12_x(src + 1, ydst, udst, vdst, width, height, lumStride, chromStride, srcStride, rgb2yuv, x_bgr);
++}
++
+ 
+ static void interleaveBytes_c(const uint8_t *src1, const uint8_t *src2,
+                               uint8_t *dest, int width, int height,
+@@ -987,6 +1225,11 @@ static av_cold void rgb2rgb_init_c(void)
+     yuy2toyv12         = yuy2toyv12_c;
+     planar2x           = planar2x_c;
+     ff_rgb24toyv12     = ff_rgb24toyv12_c;
++    ff_bgr24toyv12     = ff_bgr24toyv12_c;
++    ff_rgbxtoyv12      = ff_rgbxtoyv12_c;
++    ff_bgrxtoyv12      = ff_bgrxtoyv12_c;
++    ff_xrgbtoyv12      = ff_xrgbtoyv12_c;
++    ff_xbgrtoyv12      = ff_xbgrtoyv12_c;
+     interleaveBytes    = interleaveBytes_c;
+     deinterleaveBytes  = deinterleaveBytes_c;
+     vu9_to_vu12        = vu9_to_vu12_c;
+diff --git a/libswscale/swscale_unscaled.c b/libswscale/swscale_unscaled.c
+index 2c791e89fe..00e6dbec92 100644
+--- a/libswscale/swscale_unscaled.c
++++ b/libswscale/swscale_unscaled.c
+@@ -2063,9 +2063,94 @@ static int bgr24ToYv12Wrapper(SwsInternal *c, const uint8_t *const src[],
+     return srcSliceH;
+ }
+ 
+-static int yvu9ToYv12Wrapper(SwsInternal *c, const uint8_t *const src[],
++static int rgb24ToYv12Wrapper(SwsInternal *c, const uint8_t *const src[],
++                             const int srcStride[], int srcSliceY, int srcSliceH,
++                             uint8_t *const dst[], const int dstStride[])
++{
++    ff_bgr24toyv12(
++        src[0],
++        dst[0] +  srcSliceY       * dstStride[0],
++        dst[1] + (srcSliceY >> 1) * dstStride[1],
++        dst[2] + (srcSliceY >> 1) * dstStride[2],
++        c->opts.src_w, srcSliceH,
++        dstStride[0], dstStride[1], srcStride[0],
++        c->input_rgb2yuv_table);
++    if (dst[3])
++        fillPlane(dst[3], dstStride[3], c->opts.src_w, srcSliceH, srcSliceY, 255);
++    return srcSliceH;
++}
++
++static int bgrxToYv12Wrapper(SwsInternal *c, const uint8_t *const src[],
+                              const int srcStride[], int srcSliceY, int srcSliceH,
+                              uint8_t *const dst[], const int dstStride[])
++{
++    ff_bgrxtoyv12(
++        src[0],
++        dst[0] +  srcSliceY       * dstStride[0],
++        dst[1] + (srcSliceY >> 1) * dstStride[1],
++        dst[2] + (srcSliceY >> 1) * dstStride[2],
++        c->opts.src_w, srcSliceH,
++        dstStride[0], dstStride[1], srcStride[0],
++        c->input_rgb2yuv_table);
++    if (dst[3])
++        fillPlane(dst[3], dstStride[3], c->opts.src_w, srcSliceH, srcSliceY, 255);
++    return srcSliceH;
++}
++
++static int rgbxToYv12Wrapper(SwsInternal *c, const uint8_t *const src[],
++                             const int srcStride[], int srcSliceY, int srcSliceH,
++                             uint8_t *const dst[], const int dstStride[])
++{
++    ff_rgbxtoyv12(
++        src[0],
++        dst[0] +  srcSliceY       * dstStride[0],
++        dst[1] + (srcSliceY >> 1) * dstStride[1],
++        dst[2] + (srcSliceY >> 1) * dstStride[2],
++        c->opts.src_w, srcSliceH,
++        dstStride[0], dstStride[1], srcStride[0],
++        c->input_rgb2yuv_table);
++    if (dst[3])
++        fillPlane(dst[3], dstStride[3], c->opts.src_w, srcSliceH, srcSliceY, 255);
++    return srcSliceH;
++}
++
++static int xbgrToYv12Wrapper(SwsInternal *c, const uint8_t *const src[],
++                             const int srcStride[], int srcSliceY, int srcSliceH,
++                             uint8_t *const dst[], const int dstStride[])
++{
++    ff_xbgrtoyv12(
++        src[0],
++        dst[0] +  srcSliceY       * dstStride[0],
++        dst[1] + (srcSliceY >> 1) * dstStride[1],
++        dst[2] + (srcSliceY >> 1) * dstStride[2],
++        c->opts.src_w, srcSliceH,
++        dstStride[0], dstStride[1], srcStride[0],
++        c->input_rgb2yuv_table);
++    if (dst[3])
++        fillPlane(dst[3], dstStride[3], c->opts.src_w, srcSliceH, srcSliceY, 255);
++    return srcSliceH;
++}
++
++static int xrgbToYv12Wrapper(SwsInternal *c, const uint8_t *const src[],
++                             const int srcStride[], int srcSliceY, int srcSliceH,
++                             uint8_t *const dst[], const int dstStride[])
++{
++    ff_xrgbtoyv12(
++        src[0],
++        dst[0] +  srcSliceY       * dstStride[0],
++        dst[1] + (srcSliceY >> 1) * dstStride[1],
++        dst[2] + (srcSliceY >> 1) * dstStride[2],
++        c->opts.src_w, srcSliceH,
++        dstStride[0], dstStride[1], srcStride[0],
++        c->input_rgb2yuv_table);
++    if (dst[3])
++        fillPlane(dst[3], dstStride[3], c->opts.src_w, srcSliceH, srcSliceY, 255);
++    return srcSliceH;
++}
++
++static int yvu9ToYv12Wrapper(SwsInternal *c, const uint8_t *const src[],
++                             const int srcStride[], int srcSliceY, int srcSliceH,
++                             uint8_t * const dst[], const int dstStride[])
+ {
+     ff_copyPlane(src[0], srcStride[0], srcSliceY, srcSliceH, c->opts.src_w,
+                  dst[0], dstStride[0]);
+@@ -2386,7 +2471,6 @@ void ff_get_unscaled_swscale(SwsInternal *c)
+     const enum AVPixelFormat dstFormat = c->opts.dst_format;
+     const int flags = c->opts.flags;
+     const int dstH = c->opts.dst_h;
+-    const int dstW = c->opts.dst_w;
+     int needsDither;
+ 
+     needsDither = isAnyRGB(dstFormat) &&
+@@ -2444,8 +2528,34 @@ void ff_get_unscaled_swscale(SwsInternal *c)
+     /* bgr24toYV12 */
+     if (srcFormat == AV_PIX_FMT_BGR24 &&
+         (dstFormat == AV_PIX_FMT_YUV420P || dstFormat == AV_PIX_FMT_YUVA420P) &&
+-        !(flags & SWS_ACCURATE_RND) && !(dstW&1))
++        !(flags & SWS_ACCURATE_RND))
+         c->convert_unscaled = bgr24ToYv12Wrapper;
++    /* rgb24toYV12 */
++    if (srcFormat == AV_PIX_FMT_RGB24 &&
++        (dstFormat == AV_PIX_FMT_YUV420P || dstFormat == AV_PIX_FMT_YUVA420P) &&
++        !(flags & SWS_ACCURATE_RND))
++        c->convert_unscaled = rgb24ToYv12Wrapper;
++
++    /* bgrxtoYV12 */
++    if (((srcFormat == AV_PIX_FMT_BGRA && dstFormat == AV_PIX_FMT_YUV420P) ||
++         (srcFormat == AV_PIX_FMT_BGR0 && (dstFormat == AV_PIX_FMT_YUV420P || dstFormat == AV_PIX_FMT_YUVA420P))) &&
++        !(flags & SWS_ACCURATE_RND))
++        c->convert_unscaled = bgrxToYv12Wrapper;
++    /* rgbx24toYV12 */
++    if (((srcFormat == AV_PIX_FMT_RGBA && dstFormat == AV_PIX_FMT_YUV420P) ||
++         (srcFormat == AV_PIX_FMT_RGB0 && (dstFormat == AV_PIX_FMT_YUV420P || dstFormat == AV_PIX_FMT_YUVA420P))) &&
++        !(flags & SWS_ACCURATE_RND))
++        c->convert_unscaled = rgbxToYv12Wrapper;
++    /* xbgrtoYV12 */
++    if (((srcFormat == AV_PIX_FMT_ABGR && dstFormat == AV_PIX_FMT_YUV420P) ||
++         (srcFormat == AV_PIX_FMT_0BGR && (dstFormat == AV_PIX_FMT_YUV420P || dstFormat == AV_PIX_FMT_YUVA420P))) &&
++        !(flags & SWS_ACCURATE_RND))
++        c->convert_unscaled = xbgrToYv12Wrapper;
++    /* xrgb24toYV12 */
++    if (((srcFormat == AV_PIX_FMT_ARGB && dstFormat == AV_PIX_FMT_YUV420P) ||
++         (srcFormat == AV_PIX_FMT_0RGB && (dstFormat == AV_PIX_FMT_YUV420P || dstFormat == AV_PIX_FMT_YUVA420P))) &&
++        !(flags & SWS_ACCURATE_RND))
++        c->convert_unscaled = xrgbToYv12Wrapper;
+ 
+     /* AYUV/VUYA/UYVA -> AYUV/VUYA/UYVA */
+     if (isAYUV(srcFormat) && isAYUV(dstFormat) && findRgbConvFn(c))
+-- 
+2.34.1
+

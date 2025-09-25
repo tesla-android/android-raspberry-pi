@@ -1,0 +1,28 @@
+From 7320480555b2a7d6477c24349a655995617d6acb Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 28 Aug 2025 18:23:03 +0100
+Subject: [PATCH 33/40] ffconf: Ensure 'corrupt' frames make it through
+
+---
+ pi-util/ffconf.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/pi-util/ffconf.py b/pi-util/ffconf.py
+index 64d67444e3..f3d220847c 100755
+--- a/pi-util/ffconf.py
++++ b/pi-util/ffconf.py
+@@ -51,9 +51,10 @@ def testone(fileroot, srcname, es_file, md5_file, pix, dectype, vcodec, args):
+     flog = open(os.path.join(tmp_root, name + ".log"), "w+t")
+ 
+     ffargs = [ffmpeg_exec, "-flags", "unaligned"] +\
+-        ["-no_cvt_hw"] +\
++        ["-no_cvt_hw", "-flags", "output_corrupt"] +\
+         (["-hwaccel", dectype.hwaccel] if dectype.hwaccel else []) +\
+         ["-vcodec", "hevc", "-i", os.path.join(fileroot, es_file)] +\
++        ["-conform_corrupt", "1"] +\
+         (["-conform_out", "file", "-f", "conform", yuv_file] if gen_yuv else ["-conform_out", "md5", "-f", "conform", dec_file])
+ 
+     if valgrind:
+-- 
+2.34.1
+
