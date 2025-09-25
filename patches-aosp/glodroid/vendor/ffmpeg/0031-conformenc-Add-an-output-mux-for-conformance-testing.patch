@@ -1,0 +1,537 @@
+From c0fccce7b43bf2b67c5d63c04cebf8fa6121e59a Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Mon, 6 Jan 2025 19:25:15 +0000
+Subject: [PATCH 31/40] conformenc: Add an output mux for conformance testing
+
+Add a mux that automagically selects the correct YUV type for
+conformance testing and creates an MD5 or YUV file from any input. This
+fixes problems where conformance streams change pix fmt midway making
+it impossible to create a command line with the correct conversions.
+---
+ libavformat/Makefile     |   1 +
+ libavformat/allformats.c |   1 +
+ libavformat/conformenc.c | 488 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 490 insertions(+)
+ create mode 100644 libavformat/conformenc.c
+
+diff --git a/libavformat/Makefile b/libavformat/Makefile
+index ab5551a735..bc0aa098a6 100644
+--- a/libavformat/Makefile
++++ b/libavformat/Makefile
+@@ -175,6 +175,7 @@ OBJS-$(CONFIG_CODEC2_MUXER)              += codec2.o rawenc.o
+ OBJS-$(CONFIG_CODEC2RAW_DEMUXER)         += codec2.o pcm.o
+ OBJS-$(CONFIG_CODEC2RAW_MUXER)           += rawenc.o
+ OBJS-$(CONFIG_CONCAT_DEMUXER)            += concatdec.o
++OBJS-$(CONFIG_CONFORM_MUXER)             += conformenc.o
+ OBJS-$(CONFIG_CRC_MUXER)                 += crcenc.o
+ OBJS-$(CONFIG_DATA_DEMUXER)              += rawdec.o
+ OBJS-$(CONFIG_DATA_MUXER)                += rawenc.o
+diff --git a/libavformat/allformats.c b/libavformat/allformats.c
+index e39eab8e85..ffdce29962 100644
+--- a/libavformat/allformats.c
++++ b/libavformat/allformats.c
+@@ -127,6 +127,7 @@ extern const FFOutputFormat ff_codec2_muxer;
+ extern const FFInputFormat  ff_codec2raw_demuxer;
+ extern const FFOutputFormat ff_codec2raw_muxer;
+ extern const FFInputFormat  ff_concat_demuxer;
++extern const FFOutputFormat ff_conform_muxer;
+ extern const FFOutputFormat ff_crc_muxer;
+ extern const FFInputFormat  ff_dash_demuxer;
+ extern const FFOutputFormat ff_dash_muxer;
+diff --git a/libavformat/conformenc.c b/libavformat/conformenc.c
+new file mode 100644
+index 0000000000..1fcc873916
+--- /dev/null
++++ b/libavformat/conformenc.c
+@@ -0,0 +1,488 @@
++/*
++ * Copyright (c) 2020 John Cox for Raspberry Pi Trading
++ *
++ * This file is part of FFmpeg.
++ *
++ * FFmpeg is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with FFmpeg; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++
++// *** This module is a work in progress and its utility is strictly
++//     limited to testing.
++
++#include "config.h"
++#include "libavutil/opt.h"
++#include "libavutil/frame.h"
++#include "libavutil/md5.h"
++#include "libavutil/mem.h"
++#include "libavutil/pixdesc.h"
++#include "libavutil/hwcontext.h"
++#include "libavutil/hwcontext_drm.h"
++#if CONFIG_SAND
++#include "libavutil/rpi_sand_fns.h"
++#endif
++#include "mux.h"
++
++#include "pthread.h"
++#include <semaphore.h>
++#include <unistd.h>
++
++#define TRACE_ALL 0
++
++#define DRM_MODULE "vc4"
++
++enum conform_optype_e {
++    CONFORM_OPTYPE_NONE,
++    CONFORM_OPTYPE_PLANAR,
++    CONFORM_OPTYPE_RAW_CROP,
++    CONFORM_OPTYPE_RAW_FULL,
++};
++
++static const struct {
++    const char * name;
++    enum conform_optype_e op;
++} optable[] = {
++    {"planar", CONFORM_OPTYPE_PLANAR},
++    {"raw_crop", CONFORM_OPTYPE_RAW_CROP},
++    {"raw_full", CONFORM_OPTYPE_RAW_FULL},
++    {NULL, CONFORM_OPTYPE_NONE}
++};
++
++static enum conform_optype_e
++op_str_to_enum(const char * const str)
++{
++    unsigned int i;
++    for (i = 0; optable[i].name != NULL; ++i) {
++        if (strcmp(optable[i].name, str) == 0)
++            break;
++    }
++    return optable[i].op;
++}
++
++enum conform_outtype_e {
++    CONFORM_OUTTYPE_NONE,
++    CONFORM_OUTTYPE_MD5,
++    CONFORM_OUTTYPE_FILE,
++};
++
++static const struct {
++    const char * name;
++    enum conform_optype_e op;
++} outtable[] = {
++    {"md5", CONFORM_OUTTYPE_MD5},
++    {"file", CONFORM_OUTTYPE_FILE},
++    {NULL, CONFORM_OPTYPE_NONE}
++};
++
++static enum conform_outtype_e
++out_str_to_enum(const char * const str)
++{
++    unsigned int i;
++    for (i = 0; outtable[i].name != NULL; ++i) {
++        if (strcmp(outtable[i].name, str) == 0)
++            break;
++    }
++    return outtable[i].op;
++}
++
++
++// Aux size should only need to be 2, but on a few streams (Hobbit) under FKMS
++// we get initial flicker probably due to dodgy drm timing
++#define AUX_SIZE 3
++typedef struct conform_display_env_s
++{
++    AVClass *class;
++
++    void * line_buf;
++    size_t line_size;
++
++    struct AVMD5 * frame_md5;
++    struct AVMD5 * md5;
++
++    int frame_md5_flag;
++    char * optype_str;
++    enum conform_optype_e optype;
++    char * outtype_str;
++    enum conform_outtype_e outtype;
++
++    unsigned long long foffset;
++    unsigned int fno;
++} conform_display_env_t;
++
++
++static int conform_vout_write_trailer(AVFormatContext *s)
++{
++    conform_display_env_t * const de = s->priv_data;
++
++#if TRACE_ALL
++    av_log(s, AV_LOG_DEBUG, "%s\n", __func__);
++#endif
++
++    if (de->md5) {
++        uint8_t m[16];
++        av_md5_final(de->md5, m);
++        avio_printf(s->pb, "MD5=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
++                    m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10], m[11], m[12], m[13], m[14], m[15]);
++    }
++
++    return 0;
++}
++
++static int conform_vout_write_header(AVFormatContext *s)
++{
++    conform_display_env_t * const de = s->priv_data;
++
++#if TRACE_ALL
++    av_log(s, AV_LOG_DEBUG, "%s\n", __func__);
++#endif
++
++    if (de->md5)
++        av_md5_init(de->md5);
++    de->fno = 1;
++    de->foffset = 0;
++
++    return 0;
++}
++
++static int start_frame(AVFormatContext * const s, conform_display_env_t * const de, const AVFrame * const sf)
++{
++    if ((sf->flags & AV_FRAME_FLAG_CORRUPT) != 0) {
++        av_log(s, AV_LOG_WARNING, "Discard corrupt frame: fmt=%d, ts=%" PRId64 "\n", sf->format, sf->pts);
++        if (de->frame_md5)
++            avio_printf(s->pb, "MD5-Frame-%d=*BAD*\n", de->fno);
++        ++de->fno;
++        return -1;
++    }
++
++    if (de->frame_md5)
++        av_md5_init(de->frame_md5);
++    return 0;
++}
++
++static void add_block(AVFormatContext * const s, conform_display_env_t * const de,
++                      const void * const line, const size_t size)
++{
++    if (de->frame_md5)
++        av_md5_update(de->frame_md5, line, size);
++    if (de->md5)
++        av_md5_update(de->md5, line, size);
++    else
++        avio_write(s->pb, line, size);
++    de->foffset += size;
++}
++
++static void end_frame(AVFormatContext * const s, conform_display_env_t * const de)
++{
++    if (de->frame_md5) {
++        uint8_t m[16];
++        av_md5_final(de->frame_md5, m);
++        avio_printf(s->pb, "MD5-Frame-%d=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
++                    de->fno,
++                    m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10], m[11], m[12], m[13], m[14], m[15]);
++    }
++    ++de->fno;
++}
++
++static int conform_planar(AVFormatContext * const s, conform_display_env_t * const de, const AVFrame * const sf)
++{
++    AVFrame * cf = NULL;
++    const AVFrame * f = sf;
++
++    const AVPixFmtDescriptor * pix_desc = av_pix_fmt_desc_get(sf->format);
++    int is_hw = (pix_desc->flags & AV_PIX_FMT_FLAG_HWACCEL) != 0;
++    enum AVPixelFormat fmt = is_hw ? AV_PIX_FMT_NONE : sf->format;
++    unsigned int i;
++    char * meta = NULL;
++
++    if (is_hw) {
++        enum AVPixelFormat *xfmts = NULL;
++        av_hwframe_transfer_get_formats(sf->hw_frames_ctx, AV_HWFRAME_TRANSFER_DIRECTION_FROM, &xfmts, 0);
++        fmt = *xfmts;
++        av_free(xfmts);
++    }
++
++    av_dict_get_string(sf->metadata, &meta, '=', ';');
++    av_log(s, AV_LOG_DEBUG, "%s: Frame %3d: %#08llx %dx%d crop(ltrb) %zd,%zd,%zd,%zd fmt %s -> %s PTS %"PRId64" [%s]\n", __func__,
++           de->fno, de->foffset,
++           sf->width, sf->height, sf->crop_left, sf->crop_top, sf->crop_right, sf->crop_bottom,
++           av_get_pix_fmt_name(sf->format), av_get_pix_fmt_name(fmt), sf->pts, meta);
++    free(meta);
++
++    if (start_frame(s, de, sf))
++        return 0;
++
++    if (is_hw) {
++        cf = av_frame_alloc();
++        cf->format = fmt;
++        av_hwframe_transfer_data(cf, sf, AV_HWFRAME_TRANSFER_DIRECTION_FROM);
++        pix_desc = av_pix_fmt_desc_get(cf->format);
++        f = cf;
++    }
++
++    // This is fully generic - much optimisation possible
++    for (i = 0; i != pix_desc->nb_components; ++i) {
++        const AVComponentDescriptor * const cd = pix_desc->comp + i;
++        const unsigned int srw = ((i == 1 || i == 2) ? pix_desc->log2_chroma_w : 0);
++        const unsigned int rndw = (1 << srw) - 1;
++        const unsigned int srh = ((i == 1 || i == 2) ? pix_desc->log2_chroma_h : 0);
++        const unsigned int rndh = (1 << srh) - 1;
++        const unsigned int srp = cd->shift;
++        const unsigned int bpp = cd->depth > 8 ? 2 : 1;
++        const unsigned int h = (f->height - (f->crop_top + f->crop_bottom) + rndh) >> srh;
++        const unsigned int w = (f->width - (f->crop_left + f->crop_right) + rndw) >> srw;
++        unsigned int y;
++        for (y = 0; y < h; ++y) {
++            const void *const lstart = f->data[cd->plane] + (y + (f->crop_top >> srh)) * f->linesize[cd->plane] + cd->offset + (f->crop_left >> srw) * cd->step;
++            unsigned int x;
++
++            // If line_buf construction would be a simple copy then bypass
++            if (srp == 0 && cd->step == bpp) {
++                add_block(s, de, lstart, w * bpp);
++                continue;
++            }
++
++            if (bpp == 1) {
++                uint8_t *d = de->line_buf;
++                const uint8_t *s = lstart;
++                for (x = 0; x != w; ++x) {
++                    *d++ = *s >> srp;
++                    s += cd->step;
++                }
++            }
++            else {
++                uint16_t *d = de->line_buf;
++                const uint8_t *s = lstart;
++                for (x = 0; x != w; ++x) {
++                    *d++ = *(uint16_t*)s >> srp;
++                    s += cd->step;
++                }
++            }
++
++            // We have one line
++
++            add_block(s, de, de->line_buf, w * bpp);
++        }
++    }
++
++    end_frame(s, de);
++
++    av_frame_free(&cf);
++
++    return 0;
++}
++
++static int conform_raw(AVFormatContext * const s, conform_display_env_t * const de, const AVFrame * const sf, const int full)
++{
++    AVFrame * cf = NULL;
++    const AVFrame * f = sf;
++
++    const AVPixFmtDescriptor * pix_desc = av_pix_fmt_desc_get(sf->format);
++    int is_hw = (pix_desc->flags & AV_PIX_FMT_FLAG_HWACCEL) != 0;
++    unsigned int i;
++    unsigned int planes_done = 0;
++
++    av_log(s, AV_LOG_DEBUG, "%s: Frame %3d: %#08llx %dx%d crop(ltrb) %zd,%zd,%zd,%zd fmt %s\n", __func__,
++           de->fno, de->foffset,
++           sf->width, sf->height, sf->crop_left, sf->crop_top, sf->crop_right, sf->crop_bottom,
++           av_get_pix_fmt_name(sf->format));
++
++    if (start_frame(s, de, sf))
++        return 0;
++
++    if (is_hw) {
++        int rv;
++        cf = av_frame_alloc();
++        if ((rv = av_hwframe_map(cf, sf, AV_HWFRAME_MAP_READ)) != 0) {
++            av_log(s, AV_LOG_ERROR, "Failed to map input frame\n");
++            return rv;
++        }
++        pix_desc = av_pix_fmt_desc_get(cf->format);
++        f = cf;
++    }
++
++#if CONFIG_SAND
++    if (av_rpi_is_sand_frame(f)) {
++        // Raw sand doesn't make sense cropped so treat as full
++        // If Single buffer SAND (i.e. a single stripe has Y & C) then dump as
++        // one buffer - otherwise y then C
++        const unsigned int stride1 = av_rpi_sand_frame_stride1(f);
++        const unsigned int w = ((f->width + stride1 - 1) / stride1) * stride1;
++        const unsigned int stride2_y = av_rpi_sand_frame_stride2_y(f);
++        const unsigned int stride2_c = av_rpi_sand_frame_stride2_c(f);
++        if (stride2_c == stride2_y) {
++            // Single buffer
++            av_log(s, AV_LOG_TRACE, "%s: %s single %d x %d\n", __func__, av_get_pix_fmt_name(f->format), w, stride2_y);
++            add_block(s, de, f->data[0], w * stride2_y);
++        }
++        else {
++            // Two buffers
++            av_log(s, AV_LOG_TRACE, "%s: %s double %d x %d,%d\n", __func__, av_get_pix_fmt_name(f->format), w, stride2_y, stride2_c);
++            add_block(s, de, f->data[0], w * stride2_y);
++            add_block(s, de, f->data[1], w * stride2_c);
++        }
++    }
++    else
++#endif
++    if (!full) {
++        for (i = 0; i != pix_desc->nb_components; ++i) {
++            const AVComponentDescriptor * const cd = pix_desc->comp + i;
++            const unsigned int srw = ((i == 1 || i == 2) ? pix_desc->log2_chroma_w : 0);
++            const unsigned int rndw = (1 << srw) - 1;
++            const unsigned int srh = ((i == 1 || i == 2) ? pix_desc->log2_chroma_h : 0);
++            const unsigned int rndh = (1 << srh) - 1;
++            const unsigned int h = (f->height - (f->crop_top + f->crop_bottom) + rndh) >> srh;
++            const unsigned int w = (f->width - (f->crop_left + f->crop_right) + rndw) >> srw;
++            const unsigned int plane_bit = (1U << cd->plane);
++            unsigned int y;
++
++            if ((planes_done & plane_bit) != 0)
++                continue;
++            planes_done |= plane_bit;
++
++            for (y = 0; y < h; ++y) {
++                const void *const lstart = f->data[cd->plane] + (y + (f->crop_top >> srh)) * f->linesize[cd->plane] + (f->crop_left >> srw) * cd->step;
++
++                // We have one line
++
++                add_block(s, de, lstart, w * cd->step);
++            }
++        }
++    }
++    else {
++        for (i = 0; i != pix_desc->nb_components; ++i) {
++            const AVComponentDescriptor * const cd = pix_desc->comp + i;
++            const unsigned int srh = ((i == 1 || i == 2) ? pix_desc->log2_chroma_h : 0);
++            const unsigned int rndh = (1 << srh) - 1;
++            const unsigned int h = (f->height + rndh) >> srh;
++            const unsigned int plane_bit = (1U << cd->plane);
++
++            if ((planes_done & plane_bit) != 0)
++                continue;
++            planes_done |= plane_bit;
++
++            add_block(s, de, f->data[cd->plane], h * f->linesize[cd->plane]);
++        }
++    }
++
++    end_frame(s, de);
++
++    av_frame_free(&cf);
++    return 0;
++}
++
++static int conform_vout_write_packet(AVFormatContext *s, AVPacket *pkt)
++{
++    conform_display_env_t * const de = s->priv_data;
++    const AVFrame * const sf = (AVFrame *)pkt->data;
++
++    switch (de->optype) {
++    case CONFORM_OPTYPE_PLANAR:
++        return conform_planar(s, de, sf);
++    case CONFORM_OPTYPE_RAW_CROP:
++        return conform_raw(s, de, sf, 0);
++    case CONFORM_OPTYPE_RAW_FULL:
++        return conform_raw(s, de, sf, 1);
++    default:
++        break;
++    }
++    return 0;
++}
++
++static int conform_vout_write_frame(AVFormatContext *s, int stream_index, AVFrame **ppframe,
++                          unsigned flags)
++{
++    av_log(s, AV_LOG_ERROR, "%s: NIF: idx=%d, flags=%#x\n", __func__, stream_index, flags);
++    return AVERROR_PATCHWELCOME;
++}
++
++// deinit is called if init fails so no need to clean up explicity here
++static int conform_vout_init(struct AVFormatContext * s)
++{
++    conform_display_env_t * const de = s->priv_data;
++
++    av_log(s, AV_LOG_DEBUG, "<<< %s (%s -> %s)\n", __func__, de->optype_str, de->outtype_str);
++
++    de->optype = op_str_to_enum(de->optype_str);
++    if (de->optype == CONFORM_OPTYPE_NONE) {
++        av_log(s, AV_LOG_ERROR, "Unknown optype '%s'\n", de->optype_str);
++        return AVERROR_OPTION_NOT_FOUND;
++    }
++    de->outtype = out_str_to_enum(de->outtype_str);
++    if (de->outtype == CONFORM_OUTTYPE_NONE) {
++        av_log(s, AV_LOG_ERROR, "Unknown output '%s'\n", de->optype_str);
++        return AVERROR_OPTION_NOT_FOUND;
++    }
++
++    de->line_size = (8192 * 4); // 4bpp * 8k seems plenty
++    de->line_buf = av_malloc(de->line_size);
++    if (de->outtype == CONFORM_OUTTYPE_MD5) {
++        de->md5 = av_md5_alloc();
++        if (de->frame_md5_flag)
++            de->frame_md5 = av_md5_alloc();
++    }
++
++    av_log(s, AV_LOG_DEBUG, ">>> %s\n", __func__);
++
++    return 0;
++}
++
++static void conform_vout_deinit(struct AVFormatContext * s)
++{
++    conform_display_env_t * const de = s->priv_data;
++
++    av_log(s, AV_LOG_DEBUG, "<<< %s\n", __func__);
++
++    av_freep(&de->line_buf);
++    av_freep(&de->md5);
++    av_freep(&de->frame_md5);
++
++    av_log(s, AV_LOG_DEBUG, ">>> %s\n", __func__);
++}
++
++
++#define OFFSET(x) offsetof(conform_display_env_t, x)
++static const AVOption options[] = {
++    { "conform_frame_md5", "Produce per-frame MD5s as well as final", OFFSET(frame_md5_flag), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, AV_OPT_FLAG_ENCODING_PARAM },
++    { "conform_out", "Output type ('md5', 'file') [default: md5]", OFFSET(outtype_str), AV_OPT_TYPE_STRING, { .str = "md5" }, 0, 0, AV_OPT_FLAG_ENCODING_PARAM },
++    { "conform_type", "Type of buffer to work on ('planar', 'raw_crop', 'raw_full') [default: planar]", OFFSET(optype_str), AV_OPT_TYPE_STRING, {.str = "planar"}, 0, 0, AV_OPT_FLAG_ENCODING_PARAM },
++    { NULL }
++};
++
++static const AVClass conform_vid_class = {
++    .class_name = "conform vid muxer",
++    .item_name  = av_default_item_name,
++    .option     = options,
++    .version    = LIBAVUTIL_VERSION_INT,
++    .category   = AV_CLASS_CATEGORY_DEVICE_VIDEO_OUTPUT,
++};
++
++const FFOutputFormat ff_conform_muxer = {
++    .p = {
++        .name           = "conform",
++        .long_name      = NULL_IF_CONFIG_SMALL("Video out conformance test helper"),
++        .audio_codec    = AV_CODEC_ID_NONE,
++        .video_codec    = AV_CODEC_ID_WRAPPED_AVFRAME,
++        .flags          = AVFMT_VARIABLE_FPS | AVFMT_NOTIMESTAMPS,
++        .priv_class     = &conform_vid_class,
++    },
++    .priv_data_size = sizeof(conform_display_env_t),
++    .write_header   = conform_vout_write_header,
++    .write_packet   = conform_vout_write_packet,
++    .write_uncoded_frame = conform_vout_write_frame,
++    .write_trailer  = conform_vout_write_trailer,
++    .init           = conform_vout_init,
++    .deinit         = conform_vout_deinit,
++};
++
+-- 
+2.34.1
+

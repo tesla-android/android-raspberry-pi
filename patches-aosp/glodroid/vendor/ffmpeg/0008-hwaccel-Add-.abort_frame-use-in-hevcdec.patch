@@ -1,0 +1,54 @@
+From 3231d561d14e29442f80aabf50dc7a89ea6881cb Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Mon, 26 Sep 2022 18:20:50 +0100
+Subject: [PATCH 08/40] hwaccel: Add .abort_frame & use in hevcdec
+
+---
+ libavcodec/hevc/hevcdec.c     |  7 ++++++-
+ libavcodec/hwaccel_internal.h | 11 +++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/libavcodec/hevc/hevcdec.c b/libavcodec/hevc/hevcdec.c
+index b8808c155f..0687ea3bad 100644
+--- a/libavcodec/hevc/hevcdec.c
++++ b/libavcodec/hevc/hevcdec.c
+@@ -3886,8 +3886,13 @@ static int hevc_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+     }
+ 
+     ret    = decode_nal_units(s, avpkt->data, avpkt->size);
+-    if (ret < 0)
++    if (ret < 0) {
++        // Ensure that hwaccel knows this frame is over
++        if (FF_HW_HAS_CB(avctx, abort_frame))
++            FF_HW_SIMPLE_CALL(avctx, abort_frame);
++
+         return ret;
++    }
+ 
+ do_output:
+     if (av_container_fifo_read(s->output_fifo, frame, 0) >= 0) {
+diff --git a/libavcodec/hwaccel_internal.h b/libavcodec/hwaccel_internal.h
+index 7224406815..bc7a81eeb1 100644
+--- a/libavcodec/hwaccel_internal.h
++++ b/libavcodec/hwaccel_internal.h
+@@ -163,6 +163,17 @@ typedef struct FFHWAccel {
+      * Callback to flush the hwaccel state.
+      */
+     void (*flush)(AVCodecContext *avctx);
++
++    /**
++     * Called if parsing fails
++     *
++     * An error has occured, end_frame will not be called
++     * start_frame & decode_slice may or may not have been called
++     * Optional
++     *
++     * @param avctx the codec context
++     */
++    void (*abort_frame)(AVCodecContext *avctx);
+ } FFHWAccel;
+ 
+ static inline const FFHWAccel *ffhwaccel(const AVHWAccel *codec)
+-- 
+2.34.1
+

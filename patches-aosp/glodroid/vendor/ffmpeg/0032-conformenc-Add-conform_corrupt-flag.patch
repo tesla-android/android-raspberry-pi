@@ -1,0 +1,55 @@
+From 19aa9729d1fd2baa42dedaaf6cf802dadfb3176e Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 28 Aug 2025 18:21:54 +0100
+Subject: [PATCH 32/40] conformenc: Add conform_corrupt flag
+
+---
+ libavformat/conformenc.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/libavformat/conformenc.c b/libavformat/conformenc.c
+index 1fcc873916..99243f4622 100644
+--- a/libavformat/conformenc.c
++++ b/libavformat/conformenc.c
+@@ -112,6 +112,7 @@ typedef struct conform_display_env_s
+     struct AVMD5 * md5;
+ 
+     int frame_md5_flag;
++    int use_corrupt;
+     char * optype_str;
+     enum conform_optype_e optype;
+     char * outtype_str;
+@@ -158,7 +159,7 @@ static int conform_vout_write_header(AVFormatContext *s)
+ 
+ static int start_frame(AVFormatContext * const s, conform_display_env_t * const de, const AVFrame * const sf)
+ {
+-    if ((sf->flags & AV_FRAME_FLAG_CORRUPT) != 0) {
++    if (!de->use_corrupt && (sf->flags & AV_FRAME_FLAG_CORRUPT) != 0) {
+         av_log(s, AV_LOG_WARNING, "Discard corrupt frame: fmt=%d, ts=%" PRId64 "\n", sf->format, sf->pts);
+         if (de->frame_md5)
+             avio_printf(s->pb, "MD5-Frame-%d=*BAD*\n", de->fno);
+@@ -214,10 +215,11 @@ static int conform_planar(AVFormatContext * const s, conform_display_env_t * con
+     }
+ 
+     av_dict_get_string(sf->metadata, &meta, '=', ';');
+-    av_log(s, AV_LOG_DEBUG, "%s: Frame %3d: %#08llx %dx%d crop(ltrb) %zd,%zd,%zd,%zd fmt %s -> %s PTS %"PRId64" [%s]\n", __func__,
++    av_log(s, AV_LOG_DEBUG, "%s: Frame %3d: %#08llx %dx%d crop(ltrb) %zd,%zd,%zd,%zd fmt %s -> %s PTS %"PRId64" [%s]%s\n", __func__,
+            de->fno, de->foffset,
+            sf->width, sf->height, sf->crop_left, sf->crop_top, sf->crop_right, sf->crop_bottom,
+-           av_get_pix_fmt_name(sf->format), av_get_pix_fmt_name(fmt), sf->pts, meta);
++           av_get_pix_fmt_name(sf->format), av_get_pix_fmt_name(fmt), sf->pts, meta,
++           (sf->flags & AV_FRAME_FLAG_CORRUPT) != 0 ? "BAD" : "");
+     free(meta);
+ 
+     if (start_frame(s, de, sf))
+@@ -457,6 +459,7 @@ static const AVOption options[] = {
+     { "conform_frame_md5", "Produce per-frame MD5s as well as final", OFFSET(frame_md5_flag), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, AV_OPT_FLAG_ENCODING_PARAM },
+     { "conform_out", "Output type ('md5', 'file') [default: md5]", OFFSET(outtype_str), AV_OPT_TYPE_STRING, { .str = "md5" }, 0, 0, AV_OPT_FLAG_ENCODING_PARAM },
+     { "conform_type", "Type of buffer to work on ('planar', 'raw_crop', 'raw_full') [default: planar]", OFFSET(optype_str), AV_OPT_TYPE_STRING, {.str = "planar"}, 0, 0, AV_OPT_FLAG_ENCODING_PARAM },
++    { "conform_corrupt", "Use frames marked corrupt", OFFSET(use_corrupt), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, AV_OPT_FLAG_ENCODING_PARAM },
+     { NULL }
+ };
+ 
+-- 
+2.34.1
+

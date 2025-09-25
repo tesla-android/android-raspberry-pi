@@ -1,0 +1,1271 @@
+From 60ffea73b858e6f7de693d6730c05472327d9031 Mon Sep 17 00:00:00 2001
+From: Michael Goffioul <michael.goffioul@lincor.com>
+Date: Mon, 26 Apr 2021 09:01:08 -0400
+Subject: [PATCH 38/40] android: Rename libavutil/time.h to libavutil/avtime.h
+
+This avoid conflicts with libc's time.h. Using "-I bionic/libc/include"
+is not working anymore, because bionic now exports the same directory
+with -isystem, which supersedes the -I version (as stated in GCC doc).
+This means the version of time.h in libavutil will now be found first,
+via "-I external/ffmpeg/libavutil" (-I dirs are searched first, before
+the -isystem ones).
+
+Change-Id: I0d1e4276fbd0ea79d448ca96577528b296a4d462
+---
+ compat/os2threads.h                  | 2 +-
+ compat/w32pthreads.h                 | 2 +-
+ fftools/ffmpeg.c                     | 2 +-
+ fftools/ffmpeg_dec.c                 | 2 +-
+ fftools/ffmpeg_demux.c               | 2 +-
+ fftools/ffmpeg_enc.c                 | 2 +-
+ fftools/ffmpeg_filter.c              | 2 +-
+ fftools/ffmpeg_mux.c                 | 2 +-
+ fftools/ffmpeg_sched.c               | 2 +-
+ fftools/ffplay.c                     | 2 +-
+ libavcodec/amfdec.c                  | 2 +-
+ libavcodec/amfenc.c                  | 2 +-
+ libavcodec/d3d12va_decode.c          | 2 +-
+ libavcodec/dxva2.c                   | 2 +-
+ libavcodec/libx264.c                 | 2 +-
+ libavcodec/libxeve.c                 | 2 +-
+ libavcodec/mediacodecdec_common.c    | 2 +-
+ libavcodec/mfenc.c                   | 2 +-
+ libavcodec/qsvdec.c                  | 2 +-
+ libavcodec/qsvenc.c                  | 2 +-
+ libavcodec/tests/dct.c               | 2 +-
+ libavcodec/tests/motion.c            | 2 +-
+ libavdevice/alsa_dec.c               | 2 +-
+ libavdevice/alsa_enc.c               | 2 +-
+ libavdevice/android_camera.c         | 2 +-
+ libavdevice/avfoundation.m           | 2 +-
+ libavdevice/decklink_dec.cpp         | 2 +-
+ libavdevice/fbdev_dec.c              | 2 +-
+ libavdevice/gdigrab.c                | 2 +-
+ libavdevice/jack.c                   | 2 +-
+ libavdevice/kmsgrab.c                | 2 +-
+ libavdevice/openal-dec.c             | 2 +-
+ libavdevice/oss_dec.c                | 2 +-
+ libavdevice/pulse_audio_dec.c        | 2 +-
+ libavdevice/pulse_audio_enc.c        | 2 +-
+ libavdevice/sndio_dec.c              | 2 +-
+ libavdevice/v4l2.c                   | 2 +-
+ libavdevice/xcbgrab.c                | 2 +-
+ libavfilter/avf_showcqt.c            | 2 +-
+ libavfilter/f_bench.c                | 2 +-
+ libavfilter/f_cue.c                  | 2 +-
+ libavfilter/f_realtime.c             | 2 +-
+ libavfilter/qsvvpp.c                 | 2 +-
+ libavfilter/setpts.c                 | 2 +-
+ libavfilter/textutils.c              | 2 +-
+ libavfilter/vf_deinterlace_v4l2m2m.c | 2 +-
+ libavfilter/vf_dnn_classify.c        | 2 +-
+ libavfilter/vf_dnn_detect.c          | 2 +-
+ libavfilter/vf_dnn_processing.c      | 2 +-
+ libavfilter/vf_drawtext.c            | 2 +-
+ libavfilter/vf_sr_amf.c              | 2 +-
+ libavfilter/vf_vpp_amf.c             | 2 +-
+ libavfilter/vsrc_ddagrab.c           | 2 +-
+ libavformat/avio.c                   | 2 +-
+ libavformat/dashdec.c                | 2 +-
+ libavformat/dashenc.c                | 2 +-
+ libavformat/demux.c                  | 2 +-
+ libavformat/fifo.c                   | 2 +-
+ libavformat/hls.c                    | 2 +-
+ libavformat/hlsenc.c                 | 2 +-
+ libavformat/hlsproto.c               | 2 +-
+ libavformat/http.c                   | 2 +-
+ libavformat/librist.c                | 2 +-
+ libavformat/libsrt.c                 | 2 +-
+ libavformat/libzmq.c                 | 2 +-
+ libavformat/network.c                | 2 +-
+ libavformat/nutenc.c                 | 2 +-
+ libavformat/rtmphttp.c               | 2 +-
+ libavformat/rtpdec.c                 | 2 +-
+ libavformat/rtsp.c                   | 2 +-
+ libavformat/rtspdec.c                | 2 +-
+ libavformat/rtspenc.c                | 2 +-
+ libavformat/sapenc.c                 | 2 +-
+ libavformat/segment.c                | 2 +-
+ libavformat/tcp.c                    | 2 +-
+ libavformat/tests/fifo_muxer.c       | 2 +-
+ libavformat/udp.c                    | 2 +-
+ libavformat/utils.c                  | 2 +-
+ libavformat/wavenc.c                 | 2 +-
+ libavformat/whip.c                   | 2 +-
+ libavutil/{time.h => avtime.h}       | 0
+ libavutil/eval.c                     | 2 +-
+ libavutil/hwcontext_qsv.c            | 2 +-
+ libavutil/log.c                      | 2 +-
+ libavutil/parseutils.c               | 2 +-
+ libavutil/tests/des.c                | 2 +-
+ libavutil/time.c                     | 2 +-
+ libswscale/tests/swscale.c           | 2 +-
+ tools/aviocat.c                      | 2 +-
+ tools/pktdumper.c                    | 2 +-
+ 90 files changed, 89 insertions(+), 89 deletions(-)
+ rename libavutil/{time.h => avtime.h} (100%)
+
+diff --git a/compat/os2threads.h b/compat/os2threads.h
+index a061eaa63d..8cbb197e3f 100644
+--- a/compat/os2threads.h
++++ b/compat/os2threads.h
+@@ -39,7 +39,7 @@
+ 
+ #include "libavutil/attributes.h"
+ #include "libavutil/common.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ typedef struct {
+     TID tid;
+diff --git a/compat/w32pthreads.h b/compat/w32pthreads.h
+index fd6428e29f..fcca7bc123 100644
+--- a/compat/w32pthreads.h
++++ b/compat/w32pthreads.h
+@@ -43,7 +43,7 @@
+ #include "libavutil/common.h"
+ #include "libavutil/internal.h"
+ #include "libavutil/mem.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ typedef struct pthread_t {
+     void *handle;
+diff --git a/fftools/ffmpeg.c b/fftools/ffmpeg.c
+index de607cac93..e062287ef4 100644
+--- a/fftools/ffmpeg.c
++++ b/fftools/ffmpeg.c
+@@ -71,7 +71,7 @@
+ #include "libavutil/bprint.h"
+ #include "libavutil/dict.h"
+ #include "libavutil/mem.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #include "libavformat/avformat.h"
+ 
+diff --git a/fftools/ffmpeg_dec.c b/fftools/ffmpeg_dec.c
+index d7a3b337a1..fe76dac3c1 100644
+--- a/fftools/ffmpeg_dec.c
++++ b/fftools/ffmpeg_dec.c
+@@ -28,7 +28,7 @@
+ #include "libavutil/pixdesc.h"
+ #include "libavutil/pixfmt.h"
+ #include "libavutil/stereo3d.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/timestamp.h"
+ 
+ #include "libavcodec/avcodec.h"
+diff --git a/fftools/ffmpeg_demux.c b/fftools/ffmpeg_demux.c
+index 78d8ff6b7d..371f51edc9 100644
+--- a/fftools/ffmpeg_demux.c
++++ b/fftools/ffmpeg_demux.c
+@@ -32,7 +32,7 @@
+ #include "libavutil/opt.h"
+ #include "libavutil/parseutils.h"
+ #include "libavutil/pixdesc.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/timestamp.h"
+ 
+ #include "libavcodec/bsf.h"
+diff --git a/fftools/ffmpeg_enc.c b/fftools/ffmpeg_enc.c
+index a46af4dce1..7b2a7ba4f6 100644
+--- a/fftools/ffmpeg_enc.c
++++ b/fftools/ffmpeg_enc.c
+@@ -33,7 +33,7 @@
+ #include "libavutil/mem.h"
+ #include "libavutil/pixdesc.h"
+ #include "libavutil/rational.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/timestamp.h"
+ 
+ #include "libavcodec/avcodec.h"
+diff --git a/fftools/ffmpeg_filter.c b/fftools/ffmpeg_filter.c
+index 4d11add6ff..2d56805ad8 100644
+--- a/fftools/ffmpeg_filter.c
++++ b/fftools/ffmpeg_filter.c
+@@ -37,7 +37,7 @@
+ #include "libavutil/pixdesc.h"
+ #include "libavutil/pixfmt.h"
+ #include "libavutil/samplefmt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/timestamp.h"
+ 
+ // FIXME private header, used for mid_pred()
+diff --git a/fftools/ffmpeg_mux.c b/fftools/ffmpeg_mux.c
+index 25f66dd185..7fc59d5ff9 100644
+--- a/fftools/ffmpeg_mux.c
++++ b/fftools/ffmpeg_mux.c
+@@ -30,7 +30,7 @@
+ #include "libavutil/intreadwrite.h"
+ #include "libavutil/log.h"
+ #include "libavutil/mem.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/timestamp.h"
+ 
+ #include "libavcodec/packet.h"
+diff --git a/fftools/ffmpeg_sched.c b/fftools/ffmpeg_sched.c
+index 3180367576..c1d5566301 100644
+--- a/fftools/ffmpeg_sched.c
++++ b/fftools/ffmpeg_sched.c
+@@ -38,7 +38,7 @@
+ #include "libavutil/mem.h"
+ #include "libavutil/thread.h"
+ #include "libavutil/threadmessage.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ // 100 ms
+ // FIXME: some other value? make this dynamic?
+diff --git a/fftools/ffplay.c b/fftools/ffplay.c
+index 2a572fc3aa..9cb206275c 100644
+--- a/fftools/ffplay.c
++++ b/fftools/ffplay.c
+@@ -38,7 +38,7 @@
+ #include "libavutil/dict.h"
+ #include "libavutil/fifo.h"
+ #include "libavutil/samplefmt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/bprint.h"
+ #include "libavformat/avformat.h"
+ #include "libavdevice/avdevice.h"
+diff --git a/libavcodec/amfdec.c b/libavcodec/amfdec.c
+index 7b038c6181..483fc88e33 100644
+--- a/libavcodec/amfdec.c
++++ b/libavcodec/amfdec.c
+@@ -23,7 +23,7 @@
+ #include "hwconfig.h"
+ #include "libavutil/imgutils.h"
+ #include "libavutil/mem.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "decode.h"
+ #include "decode_bsf.h"
+ #include "libavutil/mastering_display_metadata.h"
+diff --git a/libavcodec/amfenc.c b/libavcodec/amfenc.c
+index b16b642e4c..eb146b0e71 100644
+--- a/libavcodec/amfenc.c
++++ b/libavcodec/amfenc.c
+@@ -33,7 +33,7 @@
+ #endif
+ #include "libavutil/mem.h"
+ #include "libavutil/pixdesc.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #include "amfenc.h"
+ #include "encode.h"
+diff --git a/libavcodec/d3d12va_decode.c b/libavcodec/d3d12va_decode.c
+index 4e714efb1a..224d752a63 100644
+--- a/libavcodec/d3d12va_decode.c
++++ b/libavcodec/d3d12va_decode.c
+@@ -26,7 +26,7 @@
+ #include "libavutil/common.h"
+ #include "libavutil/log.h"
+ #include "libavutil/mem.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/imgutils.h"
+ #include "libavutil/hwcontext_d3d12va_internal.h"
+ #include "libavutil/hwcontext_d3d12va.h"
+diff --git a/libavcodec/dxva2.c b/libavcodec/dxva2.c
+index 22ecd5acaf..31eb97ddc8 100644
+--- a/libavcodec/dxva2.c
++++ b/libavcodec/dxva2.c
+@@ -27,7 +27,7 @@
+ #include "libavutil/common.h"
+ #include "libavutil/log.h"
+ #include "libavutil/mem.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #include "avcodec.h"
+ #include "decode.h"
+diff --git a/libavcodec/libx264.c b/libavcodec/libx264.c
+index 58c03a77ad..0dc659072d 100644
+--- a/libavcodec/libx264.c
++++ b/libavcodec/libx264.c
+@@ -28,7 +28,7 @@
+ #include "libavutil/mem.h"
+ #include "libavutil/pixdesc.h"
+ #include "libavutil/stereo3d.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/video_hint.h"
+ #include "avcodec.h"
+ #include "codec_internal.h"
+diff --git a/libavcodec/libxeve.c b/libavcodec/libxeve.c
+index 63c2e1981b..03ceee3587 100644
+--- a/libavcodec/libxeve.c
++++ b/libavcodec/libxeve.c
+@@ -32,7 +32,7 @@
+ #include "libavutil/opt.h"
+ #include "libavutil/pixdesc.h"
+ #include "libavutil/pixfmt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/cpu.h"
+ #include "libavutil/avstring.h"
+ 
+diff --git a/libavcodec/mediacodecdec_common.c b/libavcodec/mediacodecdec_common.c
+index ae336ab835..e18c6da0ab 100644
+--- a/libavcodec/mediacodecdec_common.c
++++ b/libavcodec/mediacodecdec_common.c
+@@ -29,7 +29,7 @@
+ #include "libavutil/mem.h"
+ #include "libavutil/log.h"
+ #include "libavutil/pixfmt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/timestamp.h"
+ #include "libavutil/channel_layout.h"
+ 
+diff --git a/libavcodec/mfenc.c b/libavcodec/mfenc.c
+index 30531fe3e8..c90800e65b 100644
+--- a/libavcodec/mfenc.c
++++ b/libavcodec/mfenc.c
+@@ -27,7 +27,7 @@
+ #include "libavutil/imgutils.h"
+ #include "libavutil/mem.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "codec_internal.h"
+ #include "internal.h"
+ #include "compat/w32dlfcn.h"
+diff --git a/libavcodec/qsvdec.c b/libavcodec/qsvdec.c
+index 144cf5b9e9..e411fe896b 100644
+--- a/libavcodec/qsvdec.c
++++ b/libavcodec/qsvdec.c
+@@ -38,7 +38,7 @@
+ #include "libavutil/log.h"
+ #include "libavutil/opt.h"
+ #include "libavutil/pixfmt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/imgutils.h"
+ #include "libavutil/film_grain_params.h"
+ #include "libavutil/mastering_display_metadata.h"
+diff --git a/libavcodec/qsvenc.c b/libavcodec/qsvenc.c
+index 318a99e2a1..0ed16c005d 100644
+--- a/libavcodec/qsvenc.c
++++ b/libavcodec/qsvenc.c
+@@ -32,7 +32,7 @@
+ #include "libavutil/mem.h"
+ #include "libavutil/log.h"
+ #include "libavutil/dict.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/imgutils.h"
+ 
+ #include "avcodec.h"
+diff --git a/libavcodec/tests/dct.c b/libavcodec/tests/dct.c
+index 784b49276c..25d852e746 100644
+--- a/libavcodec/tests/dct.c
++++ b/libavcodec/tests/dct.c
+@@ -41,7 +41,7 @@
+ #include "libavutil/internal.h"
+ #include "libavutil/lfg.h"
+ #include "libavutil/mem_internal.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #include "libavcodec/dct.h"
+ #include "libavcodec/fdctdsp.h"
+diff --git a/libavcodec/tests/motion.c b/libavcodec/tests/motion.c
+index 719fba537d..7224eb4dfc 100644
+--- a/libavcodec/tests/motion.c
++++ b/libavcodec/tests/motion.c
+@@ -34,7 +34,7 @@
+ #include "libavutil/internal.h"
+ #include "libavutil/lfg.h"
+ #include "libavutil/mem.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #undef printf
+ 
+diff --git a/libavdevice/alsa_dec.c b/libavdevice/alsa_dec.c
+index 63409a7785..db96764baa 100644
+--- a/libavdevice/alsa_dec.c
++++ b/libavdevice/alsa_dec.c
+@@ -50,7 +50,7 @@
+ #include "libavutil/internal.h"
+ #include "libavutil/mathematics.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #include "libavformat/demux.h"
+ #include "libavformat/internal.h"
+diff --git a/libavdevice/alsa_enc.c b/libavdevice/alsa_enc.c
+index 971cff688c..120c555926 100644
+--- a/libavdevice/alsa_enc.c
++++ b/libavdevice/alsa_enc.c
+@@ -41,7 +41,7 @@
+ 
+ #include "libavutil/frame.h"
+ #include "libavutil/internal.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ 
+ #include "libavformat/internal.h"
+diff --git a/libavdevice/android_camera.c b/libavdevice/android_camera.c
+index 8433286296..9ae160f31f 100644
+--- a/libavdevice/android_camera.c
++++ b/libavdevice/android_camera.c
+@@ -44,7 +44,7 @@
+ #include "libavutil/parseutils.h"
+ #include "libavutil/pixfmt.h"
+ #include "libavutil/threadmessage.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ /* This image format is available on all Android devices
+  * supporting the Camera2 API */
+diff --git a/libavdevice/avfoundation.m b/libavdevice/avfoundation.m
+index ebec1ac4f2..79b7339407 100644
+--- a/libavdevice/avfoundation.m
++++ b/libavdevice/avfoundation.m
+@@ -37,7 +37,7 @@
+ #include "libavformat/internal.h"
+ #include "libavutil/internal.h"
+ #include "libavutil/parseutils.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/imgutils.h"
+ #include "avdevice.h"
+ 
+diff --git a/libavdevice/decklink_dec.cpp b/libavdevice/decklink_dec.cpp
+index 418701e4e0..ffb9ea677a 100644
+--- a/libavdevice/decklink_dec.cpp
++++ b/libavdevice/decklink_dec.cpp
+@@ -43,7 +43,7 @@ extern "C" {
+ #include "libavutil/internal.h"
+ #include "libavutil/imgutils.h"
+ #include "libavutil/intreadwrite.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/timecode.h"
+ #include "libavutil/mathematics.h"
+ #include "libavutil/reverse.h"
+diff --git a/libavdevice/fbdev_dec.c b/libavdevice/fbdev_dec.c
+index 51e7bd73ab..ae8c8531e0 100644
+--- a/libavdevice/fbdev_dec.c
++++ b/libavdevice/fbdev_dec.c
+@@ -38,7 +38,7 @@
+ #include "libavutil/internal.h"
+ #include "libavutil/log.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/parseutils.h"
+ #include "libavutil/pixdesc.h"
+ #include "libavformat/demux.h"
+diff --git a/libavdevice/gdigrab.c b/libavdevice/gdigrab.c
+index 08a41c304b..0484838839 100644
+--- a/libavdevice/gdigrab.c
++++ b/libavdevice/gdigrab.c
+@@ -33,7 +33,7 @@
+ #include "libavformat/internal.h"
+ #include "libavutil/mem.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/wchar_filename.h"
+ #include <windows.h>
+ 
+diff --git a/libavdevice/jack.c b/libavdevice/jack.c
+index bb06971fe6..4eef6e7abe 100644
+--- a/libavdevice/jack.c
++++ b/libavdevice/jack.c
+@@ -29,7 +29,7 @@
+ #include "libavutil/fifo.h"
+ #include "libavutil/mem.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavformat/avformat.h"
+ #include "libavformat/demux.h"
+ #include "libavformat/internal.h"
+diff --git a/libavdevice/kmsgrab.c b/libavdevice/kmsgrab.c
+index 3d15754f3b..67bbac7875 100644
+--- a/libavdevice/kmsgrab.c
++++ b/libavdevice/kmsgrab.c
+@@ -40,7 +40,7 @@
+ #include "libavutil/opt.h"
+ #include "libavutil/pixfmt.h"
+ #include "libavutil/pixdesc.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #include "libavformat/avformat.h"
+ #include "libavformat/demux.h"
+diff --git a/libavdevice/openal-dec.c b/libavdevice/openal-dec.c
+index 7aa165ee74..b423617403 100644
+--- a/libavdevice/openal-dec.c
++++ b/libavdevice/openal-dec.c
+@@ -25,7 +25,7 @@
+ #include <AL/alc.h>
+ 
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavformat/demux.h"
+ #include "libavformat/internal.h"
+ #include "avdevice.h"
+diff --git a/libavdevice/oss_dec.c b/libavdevice/oss_dec.c
+index f727d6e110..42a730a4d0 100644
+--- a/libavdevice/oss_dec.c
++++ b/libavdevice/oss_dec.c
+@@ -32,7 +32,7 @@
+ 
+ #include "libavutil/internal.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #include "avdevice.h"
+ #include "libavformat/demux.h"
+diff --git a/libavdevice/pulse_audio_dec.c b/libavdevice/pulse_audio_dec.c
+index 32be18e7dd..a36820b654 100644
+--- a/libavdevice/pulse_audio_dec.c
++++ b/libavdevice/pulse_audio_dec.c
+@@ -26,7 +26,7 @@
+ 
+ #include "libavutil/internal.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #include "libavformat/avformat.h"
+ #include "libavformat/demux.h"
+diff --git a/libavdevice/pulse_audio_enc.c b/libavdevice/pulse_audio_enc.c
+index d1652bf8d7..500812c314 100644
+--- a/libavdevice/pulse_audio_enc.c
++++ b/libavdevice/pulse_audio_enc.c
+@@ -29,7 +29,7 @@
+ #include "libavutil/frame.h"
+ #include "libavutil/internal.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/log.h"
+ #include "libavutil/attributes.h"
+ #include "pulse_audio_common.h"
+diff --git a/libavdevice/sndio_dec.c b/libavdevice/sndio_dec.c
+index 309394189b..3d5bb88e6b 100644
+--- a/libavdevice/sndio_dec.c
++++ b/libavdevice/sndio_dec.c
+@@ -24,7 +24,7 @@
+ 
+ #include "libavutil/internal.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #include "libavformat/avformat.h"
+ #include "libavformat/demux.h"
+diff --git a/libavdevice/v4l2.c b/libavdevice/v4l2.c
+index c38ecbb378..cecae90473 100644
+--- a/libavdevice/v4l2.c
++++ b/libavdevice/v4l2.c
+@@ -38,7 +38,7 @@
+ #include "libavutil/mem.h"
+ #include "libavutil/parseutils.h"
+ #include "libavutil/pixdesc.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavcodec/avcodec.h"
+ #include "libavcodec/codec_desc.h"
+ #include "libavformat/demux.h"
+diff --git a/libavdevice/xcbgrab.c b/libavdevice/xcbgrab.c
+index d0b2c6e0b5..67ff978f23 100644
+--- a/libavdevice/xcbgrab.c
++++ b/libavdevice/xcbgrab.c
+@@ -43,7 +43,7 @@
+ #include "libavutil/mem.h"
+ #include "libavutil/opt.h"
+ #include "libavutil/parseutils.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #include "libavformat/avformat.h"
+ #include "libavformat/demux.h"
+diff --git a/libavfilter/avf_showcqt.c b/libavfilter/avf_showcqt.c
+index abfae1f8fb..165a87c340 100644
+--- a/libavfilter/avf_showcqt.c
++++ b/libavfilter/avf_showcqt.c
+@@ -26,7 +26,7 @@
+ #include "libavutil/xga_font_data.h"
+ #include "libavutil/eval.h"
+ #include "libavutil/pixdesc.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "audio.h"
+ #include "avfilter.h"
+ #include "filters.h"
+diff --git a/libavfilter/f_bench.c b/libavfilter/f_bench.c
+index 9898e94c76..0ddae41b3c 100644
+--- a/libavfilter/f_bench.c
++++ b/libavfilter/f_bench.c
+@@ -19,7 +19,7 @@
+ #include "config_components.h"
+ 
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "audio.h"
+ #include "avfilter.h"
+ #include "filters.h"
+diff --git a/libavfilter/f_cue.c b/libavfilter/f_cue.c
+index 63027c7c2e..d27a216cdb 100644
+--- a/libavfilter/f_cue.c
++++ b/libavfilter/f_cue.c
+@@ -21,7 +21,7 @@
+ #include "config_components.h"
+ 
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "audio.h"
+ #include "avfilter.h"
+ #include "filters.h"
+diff --git a/libavfilter/f_realtime.c b/libavfilter/f_realtime.c
+index e142e0ca57..83430b1906 100644
+--- a/libavfilter/f_realtime.c
++++ b/libavfilter/f_realtime.c
+@@ -21,7 +21,7 @@
+ #include "config_components.h"
+ 
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "audio.h"
+ #include "avfilter.h"
+ #include "filters.h"
+diff --git a/libavfilter/qsvvpp.c b/libavfilter/qsvvpp.c
+index c3685f126c..2bee8d484c 100644
+--- a/libavfilter/qsvvpp.c
++++ b/libavfilter/qsvvpp.c
+@@ -24,7 +24,7 @@
+ #include "libavutil/common.h"
+ #include "libavutil/mathematics.h"
+ #include "libavutil/mem.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/pixdesc.h"
+ 
+ #include "filters.h"
+diff --git a/libavfilter/setpts.c b/libavfilter/setpts.c
+index 0565533ed2..ad8b64da50 100644
+--- a/libavfilter/setpts.c
++++ b/libavfilter/setpts.c
+@@ -32,7 +32,7 @@
+ #include "libavutil/internal.h"
+ #include "libavutil/mathematics.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "audio.h"
+ #include "avfilter.h"
+ #include "filters.h"
+diff --git a/libavfilter/textutils.c b/libavfilter/textutils.c
+index 471346cc51..a7f611fedf 100644
+--- a/libavfilter/textutils.c
++++ b/libavfilter/textutils.c
+@@ -30,7 +30,7 @@
+ #include "libavutil/error.h"
+ #include "libavutil/file.h"
+ #include "libavutil/mem.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/time_internal.h"
+ 
+ static int ff_expand_text_function_internal(FFExpandTextContext *expand_text, AVBPrint *bp,
+diff --git a/libavfilter/vf_deinterlace_v4l2m2m.c b/libavfilter/vf_deinterlace_v4l2m2m.c
+index 38ead43f49..8c2d0afd4f 100644
+--- a/libavfilter/vf_deinterlace_v4l2m2m.c
++++ b/libavfilter/vf_deinterlace_v4l2m2m.c
+@@ -47,7 +47,7 @@
+ #include "libavutil/mem.h"
+ #include "libavutil/opt.h"
+ #include "libavutil/pixdesc.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #define FF_INTERNAL_FIELDS 1
+ #include "framequeue.h"
+diff --git a/libavfilter/vf_dnn_classify.c b/libavfilter/vf_dnn_classify.c
+index f92c41ab76..3eaac4c994 100644
+--- a/libavfilter/vf_dnn_classify.c
++++ b/libavfilter/vf_dnn_classify.c
+@@ -27,7 +27,7 @@
+ #include "filters.h"
+ #include "dnn_filter_common.h"
+ #include "video.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/avstring.h"
+ #include "libavutil/detection_bbox.h"
+ 
+diff --git a/libavfilter/vf_dnn_detect.c b/libavfilter/vf_dnn_detect.c
+index 647259a141..74d3056624 100644
+--- a/libavfilter/vf_dnn_detect.c
++++ b/libavfilter/vf_dnn_detect.c
+@@ -27,7 +27,7 @@
+ #include "filters.h"
+ #include "dnn_filter_common.h"
+ #include "video.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/avstring.h"
+ #include "libavutil/detection_bbox.h"
+ #include "libavutil/fifo.h"
+diff --git a/libavfilter/vf_dnn_processing.c b/libavfilter/vf_dnn_processing.c
+index 0771ceb5fc..a409408350 100644
+--- a/libavfilter/vf_dnn_processing.c
++++ b/libavfilter/vf_dnn_processing.c
+@@ -31,7 +31,7 @@
+ #include "dnn_filter_common.h"
+ #include "video.h"
+ #include "libswscale/swscale.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ typedef struct DnnProcessingContext {
+     const AVClass *class;
+diff --git a/libavfilter/vf_drawtext.c b/libavfilter/vf_drawtext.c
+index 674e1e53c1..3894944db8 100644
+--- a/libavfilter/vf_drawtext.c
++++ b/libavfilter/vf_drawtext.c
+@@ -52,7 +52,7 @@
+ #include "libavutil/opt.h"
+ #include "libavutil/random_seed.h"
+ #include "libavutil/parseutils.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/timecode.h"
+ #include "libavutil/time_internal.h"
+ #include "libavutil/tree.h"
+diff --git a/libavfilter/vf_sr_amf.c b/libavfilter/vf_sr_amf.c
+index 543d2cb979..13238c789d 100644
+--- a/libavfilter/vf_sr_amf.c
++++ b/libavfilter/vf_sr_amf.c
+@@ -28,7 +28,7 @@
+ #include "libavutil/imgutils.h"
+ #include "libavutil/opt.h"
+ #include "libavutil/pixdesc.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #include "libavutil/hwcontext.h"
+ #include "libavutil/hwcontext_amf.h"
+diff --git a/libavfilter/vf_vpp_amf.c b/libavfilter/vf_vpp_amf.c
+index 92923a4757..6ccf09c7ab 100644
+--- a/libavfilter/vf_vpp_amf.c
++++ b/libavfilter/vf_vpp_amf.c
+@@ -28,7 +28,7 @@
+ #include "libavutil/imgutils.h"
+ #include "libavutil/opt.h"
+ #include "libavutil/pixdesc.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #include "libavutil/hwcontext.h"
+ #include "libavutil/hwcontext_amf.h"
+diff --git a/libavfilter/vsrc_ddagrab.c b/libavfilter/vsrc_ddagrab.c
+index 6533e2b66e..ecb75cd1f4 100644
+--- a/libavfilter/vsrc_ddagrab.c
++++ b/libavfilter/vsrc_ddagrab.c
+@@ -36,7 +36,7 @@
+ 
+ #include "libavutil/mem.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/avstring.h"
+ #include "libavutil/avassert.h"
+ #include "libavutil/hwcontext.h"
+diff --git a/libavformat/avio.c b/libavformat/avio.c
+index b146ac9f19..66c0d9cff2 100644
+--- a/libavformat/avio.c
++++ b/libavformat/avio.c
+@@ -23,7 +23,7 @@
+ #include "libavutil/dict.h"
+ #include "libavutil/mem.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/avassert.h"
+ #include "avio_internal.h"
+ #include "os_support.h"
+diff --git a/libavformat/dashdec.c b/libavformat/dashdec.c
+index 1f59d3a41c..d7bcff106a 100644
+--- a/libavformat/dashdec.c
++++ b/libavformat/dashdec.c
+@@ -24,7 +24,7 @@
+ #include "libavutil/bprint.h"
+ #include "libavutil/mem.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/parseutils.h"
+ #include "internal.h"
+ #include "avio_internal.h"
+diff --git a/libavformat/dashenc.c b/libavformat/dashenc.c
+index af92e38bbd..aa4007d7bd 100644
+--- a/libavformat/dashenc.c
++++ b/libavformat/dashenc.c
+@@ -37,7 +37,7 @@
+ #include "libavutil/opt.h"
+ #include "libavutil/parseutils.h"
+ #include "libavutil/rational.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/time_internal.h"
+ 
+ #include "libavcodec/avcodec.h"
+diff --git a/libavformat/demux.c b/libavformat/demux.c
+index 3749ab67a3..d47206db71 100644
+--- a/libavformat/demux.c
++++ b/libavformat/demux.c
+@@ -32,7 +32,7 @@
+ #include "libavutil/mem.h"
+ #include "libavutil/opt.h"
+ #include "libavutil/pixfmt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/timestamp.h"
+ 
+ #include "libavcodec/avcodec.h"
+diff --git a/libavformat/fifo.c b/libavformat/fifo.c
+index e66002b902..60d8a08f1d 100644
+--- a/libavformat/fifo.c
++++ b/libavformat/fifo.c
+@@ -23,7 +23,7 @@
+ 
+ #include "libavutil/avassert.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/thread.h"
+ #include "libavutil/threadmessage.h"
+ #include "avformat.h"
+diff --git a/libavformat/hls.c b/libavformat/hls.c
+index 22ee1c6872..15f136987d 100644
+--- a/libavformat/hls.c
++++ b/libavformat/hls.c
+@@ -38,7 +38,7 @@
+ #include "libavutil/mem.h"
+ #include "libavutil/opt.h"
+ #include "libavutil/dict.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "avformat.h"
+ #include "demux.h"
+ #include "internal.h"
+diff --git a/libavformat/hlsenc.c b/libavformat/hlsenc.c
+index d3db83093c..67ec2dbb3c 100644
+--- a/libavformat/hlsenc.c
++++ b/libavformat/hlsenc.c
+@@ -37,7 +37,7 @@
+ #include "libavutil/opt.h"
+ #include "libavutil/log.h"
+ #include "libavutil/random_seed.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/time_internal.h"
+ 
+ #include "libavcodec/defs.h"
+diff --git a/libavformat/hlsproto.c b/libavformat/hlsproto.c
+index 1c63a191cb..32ed2e69f5 100644
+--- a/libavformat/hlsproto.c
++++ b/libavformat/hlsproto.c
+@@ -27,7 +27,7 @@
+ 
+ #include "libavutil/avstring.h"
+ #include "libavutil/mem.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "avio_internal.h"
+ #include "internal.h"
+ #include "url.h"
+diff --git a/libavformat/http.c b/libavformat/http.c
+index 0d4077512b..edf68b776b 100644
+--- a/libavformat/http.c
++++ b/libavformat/http.c
+@@ -36,7 +36,7 @@
+ #include "libavutil/macros.h"
+ #include "libavutil/mem.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/parseutils.h"
+ 
+ #include "avformat.h"
+diff --git a/libavformat/librist.c b/libavformat/librist.c
+index 9669d5b5df..0fb70e7957 100644
+--- a/libavformat/librist.c
++++ b/libavformat/librist.c
+@@ -25,7 +25,7 @@
+ #include "libavutil/avstring.h"
+ #include "libavutil/opt.h"
+ #include "libavutil/parseutils.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #include "avformat.h"
+ #include "internal.h"
+diff --git a/libavformat/libsrt.c b/libavformat/libsrt.c
+index 9e860abccd..54637827bb 100644
+--- a/libavformat/libsrt.c
++++ b/libavformat/libsrt.c
+@@ -26,7 +26,7 @@
+ #include "libavutil/mem.h"
+ #include "libavutil/opt.h"
+ #include "libavutil/parseutils.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #include "avformat.h"
+ #include "internal.h"
+diff --git a/libavformat/libzmq.c b/libavformat/libzmq.c
+index da84efee73..67f59dd292 100644
+--- a/libavformat/libzmq.c
++++ b/libavformat/libzmq.c
+@@ -24,7 +24,7 @@
+ #include "network.h"
+ #include "libavutil/avstring.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #define ZMQ_STRERROR zmq_strerror(zmq_errno())
+ 
+diff --git a/libavformat/network.c b/libavformat/network.c
+index a7026ac09b..b9423ad310 100644
+--- a/libavformat/network.c
++++ b/libavformat/network.c
+@@ -31,7 +31,7 @@
+ #include "url.h"
+ #include "libavutil/avassert.h"
+ #include "libavutil/mem.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ int ff_tls_init(void)
+ {
+diff --git a/libavformat/nutenc.c b/libavformat/nutenc.c
+index 55efb114c3..4ae4158ed2 100644
+--- a/libavformat/nutenc.c
++++ b/libavformat/nutenc.c
+@@ -27,7 +27,7 @@
+ #include "libavutil/tree.h"
+ #include "libavutil/dict.h"
+ #include "libavutil/avassert.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/opt.h"
+ #include "libavcodec/bytestream.h"
+ #include "libavcodec/mpegaudiodata.h"
+diff --git a/libavformat/rtmphttp.c b/libavformat/rtmphttp.c
+index 69dde826ae..ac98cc951f 100644
+--- a/libavformat/rtmphttp.c
++++ b/libavformat/rtmphttp.c
+@@ -27,7 +27,7 @@
+ #include "libavutil/avstring.h"
+ #include "libavutil/mem.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "http.h"
+ #include "rtmp.h"
+ 
+diff --git a/libavformat/rtpdec.c b/libavformat/rtpdec.c
+index 405a900ce0..073375bb5f 100644
+--- a/libavformat/rtpdec.c
++++ b/libavformat/rtpdec.c
+@@ -23,7 +23,7 @@
+ #include "libavutil/avstring.h"
+ #include "libavutil/intreadwrite.h"
+ #include "libavutil/mem.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #include "libavcodec/bytestream.h"
+ 
+diff --git a/libavformat/rtsp.c b/libavformat/rtsp.c
+index 10355b89b8..9e8cb32d53 100644
+--- a/libavformat/rtsp.c
++++ b/libavformat/rtsp.c
+@@ -32,7 +32,7 @@
+ #include "libavutil/random_seed.h"
+ #include "libavutil/dict.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavcodec/codec_desc.h"
+ #include "avformat.h"
+ #include "avio_internal.h"
+diff --git a/libavformat/rtspdec.c b/libavformat/rtspdec.c
+index 88a57b01ef..3c3e632da7 100644
+--- a/libavformat/rtspdec.c
++++ b/libavformat/rtspdec.c
+@@ -26,7 +26,7 @@
+ #include "libavutil/mathematics.h"
+ #include "libavutil/mem.h"
+ #include "libavutil/random_seed.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "avformat.h"
+ #include "demux.h"
+ 
+diff --git a/libavformat/rtspenc.c b/libavformat/rtspenc.c
+index f2f4b6d525..5f0c371b75 100644
+--- a/libavformat/rtspenc.c
++++ b/libavformat/rtspenc.c
+@@ -33,7 +33,7 @@
+ #include "libavutil/intreadwrite.h"
+ #include "libavutil/avstring.h"
+ #include "libavutil/mem.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "url.h"
+ 
+ 
+diff --git a/libavformat/sapenc.c b/libavformat/sapenc.c
+index 87a834a8d8..eba3bff194 100644
+--- a/libavformat/sapenc.c
++++ b/libavformat/sapenc.c
+@@ -26,7 +26,7 @@
+ #include "libavutil/avstring.h"
+ #include "libavutil/dict.h"
+ #include "libavutil/intreadwrite.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "internal.h"
+ #include "mux.h"
+ #include "network.h"
+diff --git a/libavformat/segment.c b/libavformat/segment.c
+index 05383de841..7368e1d8bf 100644
+--- a/libavformat/segment.c
++++ b/libavformat/segment.c
+@@ -40,7 +40,7 @@
+ #include "libavutil/avstring.h"
+ #include "libavutil/parseutils.h"
+ #include "libavutil/mathematics.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/timecode.h"
+ #include "libavutil/time_internal.h"
+ #include "libavutil/timestamp.h"
+diff --git a/libavformat/tcp.c b/libavformat/tcp.c
+index 755e3af242..70cc8aeb92 100644
+--- a/libavformat/tcp.c
++++ b/libavformat/tcp.c
+@@ -23,7 +23,7 @@
+ #include "libavutil/mem.h"
+ #include "libavutil/parseutils.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ #include "network.h"
+ #include "os_support.h"
+diff --git a/libavformat/tests/fifo_muxer.c b/libavformat/tests/fifo_muxer.c
+index 1ba440b301..f1d841571e 100644
+--- a/libavformat/tests/fifo_muxer.c
++++ b/libavformat/tests/fifo_muxer.c
+@@ -21,7 +21,7 @@
+ 
+ #include <stdlib.h>
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavformat/avformat.h"
+ #include "libavformat/mux.h"
+ #include "libavformat/network.h"
+diff --git a/libavformat/udp.c b/libavformat/udp.c
+index 84f9d3e62e..77fa5641c2 100644
+--- a/libavformat/udp.c
++++ b/libavformat/udp.c
+@@ -35,7 +35,7 @@
+ #include "libavutil/intreadwrite.h"
+ #include "libavutil/opt.h"
+ #include "libavutil/log.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "network.h"
+ #include "os_support.h"
+ #include "url.h"
+diff --git a/libavformat/utils.c b/libavformat/utils.c
+index 8a249ad85a..c613f079f3 100644
+--- a/libavformat/utils.c
++++ b/libavformat/utils.c
+@@ -29,7 +29,7 @@
+ #include "libavutil/dict.h"
+ #include "libavutil/internal.h"
+ #include "libavutil/mem.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/time_internal.h"
+ 
+ #include "libavcodec/internal.h"
+diff --git a/libavformat/wavenc.c b/libavformat/wavenc.c
+index a515f4e2a2..920a47def9 100644
+--- a/libavformat/wavenc.c
++++ b/libavformat/wavenc.c
+@@ -41,7 +41,7 @@
+ #include "libavutil/mathematics.h"
+ #include "libavutil/mem.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/time_internal.h"
+ 
+ #include "avformat.h"
+diff --git a/libavformat/whip.c b/libavformat/whip.c
+index 256ea14d2c..fb87e283f7 100644
+--- a/libavformat/whip.c
++++ b/libavformat/whip.c
+@@ -32,7 +32,7 @@
+ #include "libavutil/opt.h"
+ #include "libavutil/mem.h"
+ #include "libavutil/random_seed.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "avc.h"
+ #include "nal.h"
+ #include "avio_internal.h"
+diff --git a/libavutil/time.h b/libavutil/avtime.h
+similarity index 100%
+rename from libavutil/time.h
+rename to libavutil/avtime.h
+diff --git a/libavutil/eval.c b/libavutil/eval.c
+index 7fa5d5d9d5..148a54de41 100644
+--- a/libavutil/eval.c
++++ b/libavutil/eval.c
+@@ -36,7 +36,7 @@
+ #include "mathematics.h"
+ #include "mem.h"
+ #include "sfc64.h"
+-#include "time.h"
++#include "avtime.h"
+ #include "avstring.h"
+ #include "reverse.h"
+ 
+diff --git a/libavutil/hwcontext_qsv.c b/libavutil/hwcontext_qsv.c
+index b92c9cb0ad..9246a14a7b 100644
+--- a/libavutil/hwcontext_qsv.c
++++ b/libavutil/hwcontext_qsv.c
+@@ -48,7 +48,7 @@
+ #include "mem.h"
+ #include "pixfmt.h"
+ #include "pixdesc.h"
+-#include "time.h"
++#include "avtime.h"
+ #include "imgutils.h"
+ #include "avassert.h"
+ 
+diff --git a/libavutil/log.c b/libavutil/log.c
+index 2b721aea5a..9b22bff1aa 100644
+--- a/libavutil/log.c
++++ b/libavutil/log.c
+@@ -42,7 +42,7 @@
+ #include "internal.h"
+ #include "log.h"
+ #include "thread.h"
+-#include "time.h"
++#include "avtime.h"
+ #include "time_internal.h"
+ 
+ static AVMutex mutex = AV_MUTEX_INITIALIZER;
+diff --git a/libavutil/parseutils.c b/libavutil/parseutils.c
+index 9f57b16ec2..e59adbc83c 100644
+--- a/libavutil/parseutils.c
++++ b/libavutil/parseutils.c
+@@ -31,7 +31,7 @@
+ #include "random_seed.h"
+ #include "time_internal.h"
+ #include "parseutils.h"
+-#include "time.h"
++#include "avtime.h"
+ 
+ #ifdef TEST
+ 
+diff --git a/libavutil/tests/des.c b/libavutil/tests/des.c
+index 8fa88df684..b46a6d46c8 100644
+--- a/libavutil/tests/des.c
++++ b/libavutil/tests/des.c
+@@ -26,7 +26,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ 
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ 
+ static uint64_t rand64(void)
+ {
+diff --git a/libavutil/time.c b/libavutil/time.c
+index 740afc4785..c502af6ceb 100644
+--- a/libavutil/time.c
++++ b/libavutil/time.c
+@@ -33,7 +33,7 @@
+ #include <windows.h>
+ #endif
+ 
+-#include "time.h"
++#include "avtime.h"
+ #include "error.h"
+ 
+ int64_t av_gettime(void)
+diff --git a/libswscale/tests/swscale.c b/libswscale/tests/swscale.c
+index 0f1f8311c9..9597dcf655 100644
+--- a/libswscale/tests/swscale.c
++++ b/libswscale/tests/swscale.c
+@@ -33,7 +33,7 @@
+ #include "libavutil/sfc64.h"
+ #include "libavutil/frame.h"
+ #include "libavutil/opt.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavutil/pixfmt.h"
+ #include "libavutil/avassert.h"
+ #include "libavutil/macros.h"
+diff --git a/tools/aviocat.c b/tools/aviocat.c
+index 7f8a247f1c..9ba5054075 100644
+--- a/tools/aviocat.c
++++ b/tools/aviocat.c
+@@ -21,7 +21,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ 
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavformat/avformat.h"
+ 
+ static int usage(const char *argv0, int ret)
+diff --git a/tools/pktdumper.c b/tools/pktdumper.c
+index d7d3147b22..03e31ed8c6 100644
+--- a/tools/pktdumper.c
++++ b/tools/pktdumper.c
+@@ -32,7 +32,7 @@
+ #endif
+ 
+ #include "libavutil/avstring.h"
+-#include "libavutil/time.h"
++#include "libavutil/avtime.h"
+ #include "libavformat/avformat.h"
+ 
+ #define FILENAME_BUF_SIZE 4096
+-- 
+2.34.1
+

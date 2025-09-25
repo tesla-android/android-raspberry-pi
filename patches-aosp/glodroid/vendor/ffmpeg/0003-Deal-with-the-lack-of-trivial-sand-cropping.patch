@@ -1,0 +1,86 @@
+From 2c1671aef1eff4052e5bf63731f72d19342cbc39 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 27 Apr 2021 12:02:09 +0100
+Subject: [PATCH 03/40] Deal with the lack of trivial sand cropping
+
+---
+ fftools/ffmpeg_filter.c |  4 ++--
+ libavutil/frame.c       | 11 +++++++++++
+ libavutil/frame.h       | 10 ++++++++++
+ 3 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/fftools/ffmpeg_filter.c b/fftools/ffmpeg_filter.c
+index bf5e53efa9..7b501715a6 100644
+--- a/fftools/ffmpeg_filter.c
++++ b/fftools/ffmpeg_filter.c
+@@ -2874,8 +2874,8 @@ static int send_frame(FilterGraph *fg, FilterGraphThread *fgt,
+         break;
+     case AVMEDIA_TYPE_VIDEO:
+         if (ifp->format != frame->format ||
+-            ifp->width  != frame->width ||
+-            ifp->height != frame->height ||
++            ifp->width  != av_frame_cropped_width(frame) ||
++            ifp->height != av_frame_cropped_height(frame) ||
+             ifp->color_space != frame->colorspace ||
+             ifp->color_range != frame->color_range)
+             need_reinit |= VIDEO_CHANGED;
+diff --git a/libavutil/frame.c b/libavutil/frame.c
+index 8f3fda2371..e24f78373c 100644
+--- a/libavutil/frame.c
++++ b/libavutil/frame.c
+@@ -16,6 +16,8 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+  */
+ 
++#include "config.h"
++
+ #include "channel_layout.h"
+ #include "avassert.h"
+ #include "buffer.h"
+@@ -27,6 +29,9 @@
+ #include "samplefmt.h"
+ #include "side_data.h"
+ #include "hwcontext.h"
++#if CONFIG_SAND
++#include "rpi_sand_fns.h"
++#endif
+ 
+ static void get_frame_defaults(AVFrame *frame)
+ {
+@@ -770,6 +775,12 @@ int av_frame_apply_cropping(AVFrame *frame, int flags)
+         (frame->crop_top + frame->crop_bottom) >= frame->height)
+         return AVERROR(ERANGE);
+ 
++#if CONFIG_SAND
++    // Sand cannot be cropped - do not try
++    if (av_rpi_is_sand_format(frame->format))
++        return 0;
++#endif
++
+     desc = av_pix_fmt_desc_get(frame->format);
+     if (!desc)
+         return AVERROR_BUG;
+diff --git a/libavutil/frame.h b/libavutil/frame.h
+index d440cfba2e..e1e21acced 100644
+--- a/libavutil/frame.h
++++ b/libavutil/frame.h
+@@ -1012,6 +1012,16 @@ int av_frame_apply_cropping(AVFrame *frame, int flags);
+  */
+ const char *av_frame_side_data_name(enum AVFrameSideDataType type);
+ 
++
++static inline int av_frame_cropped_width(const AVFrame * const frame)
++{
++    return frame->width - (frame->crop_left + frame->crop_right);
++}
++static inline int av_frame_cropped_height(const AVFrame * const frame)
++{
++    return frame->height - (frame->crop_top + frame->crop_bottom);
++}
++
+ /**
+  * @return side data descriptor corresponding to a given side data type, NULL
+  *         when not available.
+-- 
+2.34.1
+

@@ -1,0 +1,34 @@
+From a36212fcc00cf51b5b8fd43ac94eaa97d1dce80e Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Mon, 20 Mar 2023 18:15:08 +0000
+Subject: [PATCH 24/40] vulkan: Add missing decode extension defines
+
+When building on bookworm the video decode extension names
+were missing. This adds them. I expect this patch will be
+obsolete shortly but it solves a current problem.
+---
+ libavutil/hwcontext_vulkan.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/libavutil/hwcontext_vulkan.c b/libavutil/hwcontext_vulkan.c
+index 4e078eb527..0c53494e93 100644
+--- a/libavutil/hwcontext_vulkan.c
++++ b/libavutil/hwcontext_vulkan.c
+@@ -72,6 +72,14 @@
+ #define CHECK_CU(x) FF_CUDA_CHECK_DL(cuda_cu, cu, x)
+ #endif
+ 
++// Sometimes missing definitions
++#ifndef VK_EXT_VIDEO_DECODE_H264_EXTENSION_NAME
++#define VK_EXT_VIDEO_DECODE_H264_EXTENSION_NAME "VK_EXT_video_decode_h264"
++#endif
++#ifndef VK_EXT_VIDEO_DECODE_H265_EXTENSION_NAME
++#define VK_EXT_VIDEO_DECODE_H265_EXTENSION_NAME "VK_EXT_video_decode_h265"
++#endif
++
+ typedef struct VulkanDeviceFeatures {
+     VkPhysicalDeviceFeatures2 device;
+ 
+-- 
+2.34.1
+

@@ -1,0 +1,61 @@
+From 9724bbb40cc6903b5cfe6a2ab0c431b3ae61c519 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 27 Apr 2021 17:56:16 +0100
+Subject: [PATCH 07/40] Add chroma location to hevc parse
+
+---
+ libavcodec/hevc/hevcdec.c | 13 +++++++++++++
+ libavcodec/hevc/parser.c  | 13 +++++++++++++
+ 2 files changed, 26 insertions(+)
+
+diff --git a/libavcodec/hevc/hevcdec.c b/libavcodec/hevc/hevcdec.c
+index f44bda8a92..b8808c155f 100644
+--- a/libavcodec/hevc/hevcdec.c
++++ b/libavcodec/hevc/hevcdec.c
+@@ -351,6 +351,19 @@ static void export_stream_params(HEVCContext *s, const HEVCSPS *sps)
+     else
+         avctx->color_range = AVCOL_RANGE_MPEG;
+ 
++    if (sps->chroma_format_idc == 1) {
++        avctx->chroma_sample_location = sps->vui.common.chroma_loc_info_present_flag ?
++            sps->vui.common.chroma_sample_loc_type_top_field + 1 :
++            AVCHROMA_LOC_LEFT;
++    }
++    else if (sps->chroma_format_idc == 2 ||
++             sps->chroma_format_idc == 3) {
++        avctx->chroma_sample_location = AVCHROMA_LOC_TOPLEFT;;
++    }
++    else {
++        avctx->chroma_sample_location = AVCHROMA_LOC_UNSPECIFIED;
++    }
++
+     if (sps->vui.common.colour_description_present_flag) {
+         avctx->color_primaries = sps->vui.common.colour_primaries;
+         avctx->color_trc       = sps->vui.common.transfer_characteristics;
+diff --git a/libavcodec/hevc/parser.c b/libavcodec/hevc/parser.c
+index 16b40e2b10..cf9830648a 100644
+--- a/libavcodec/hevc/parser.c
++++ b/libavcodec/hevc/parser.c
+@@ -93,6 +93,19 @@ static int hevc_parse_slice_header(AVCodecParserContext *s, H2645NAL *nal,
+     avctx->profile  = sps->ptl.general_ptl.profile_idc;
+     avctx->level    = sps->ptl.general_ptl.level_idc;
+ 
++    if (sps->chroma_format_idc == 1) {
++        avctx->chroma_sample_location = sps->vui.common.chroma_loc_info_present_flag ?
++            sps->vui.common.chroma_sample_loc_type_top_field + 1 :
++            AVCHROMA_LOC_LEFT;
++    }
++    else if (sps->chroma_format_idc == 2 ||
++             sps->chroma_format_idc == 3) {
++        avctx->chroma_sample_location = AVCHROMA_LOC_TOPLEFT;;
++    }
++    else {
++        avctx->chroma_sample_location = AVCHROMA_LOC_UNSPECIFIED;
++    }
++
+     if (sps->vps->vps_timing_info_present_flag) {
+         num = sps->vps->vps_num_units_in_tick;
+         den = sps->vps->vps_time_scale;
+-- 
+2.34.1
+

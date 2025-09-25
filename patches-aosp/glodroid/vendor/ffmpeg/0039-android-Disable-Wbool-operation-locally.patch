@@ -1,0 +1,31 @@
+From 6f29d08a3735388843237d964c1e3492a901f0f1 Mon Sep 17 00:00:00 2001
+From: Michael Goffioul <michael.goffioul@lincor.com>
+Date: Mon, 1 Nov 2021 21:41:12 +0100
+Subject: [PATCH 39/40] android: Disable -Wbool-operation locally
+
+The flag -Wbool-operation only triggers a build error at 1 specific
+place in ffmpeg. As the flag is marked non-overridable in build/soong,
+it's easier to disable the warning locally with pragma than patching the
+soong repo (which would lead to possible forks in android-x86).
+---
+ libavcodec/utvideoenc.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/libavcodec/utvideoenc.c b/libavcodec/utvideoenc.c
+index 7cefca79bc..ba63331a39 100644
+--- a/libavcodec/utvideoenc.c
++++ b/libavcodec/utvideoenc.c
+@@ -402,7 +402,10 @@ static int encode_plane(AVCodecContext *avctx, const uint8_t *src,
+     HuffEntry he[256];
+ 
+     uint32_t offset = 0, slice_len = 0;
++#pragma GCC diagnostic push
++#pragma GCC diagnostic ignored "-Wbool-operation"
+     const int cmask = ~(!plane_no && avctx->pix_fmt == AV_PIX_FMT_YUV420P);
++#pragma GCC diagnostic pop
+     int      i, sstart, send = 0;
+     int      symbol;
+     int      ret;
+-- 
+2.34.1
+

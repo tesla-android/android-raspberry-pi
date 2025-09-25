@@ -1,0 +1,34 @@
+From 77dc82894ce35ba6af86122d8aca83a5577cdfdf Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 27 Apr 2021 12:37:07 +0100
+Subject: [PATCH 06/40] Reduce mmal compile warnings
+
+---
+ libavcodec/mmaldec.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/libavcodec/mmaldec.c b/libavcodec/mmaldec.c
+index e42591110f..70cc0ecabc 100644
+--- a/libavcodec/mmaldec.c
++++ b/libavcodec/mmaldec.c
+@@ -24,6 +24,9 @@
+  * MMAL Video Decoder
+  */
+ 
++#pragma GCC diagnostic push
++// Many many redundant decls in the header files
++#pragma GCC diagnostic ignored "-Wredundant-decls"
+ #include <bcm_host.h>
+ #include <interface/mmal/mmal.h>
+ #include <interface/mmal/mmal_parameters_video.h>
+@@ -31,6 +34,7 @@
+ #include <interface/mmal/util/mmal_util_params.h>
+ #include <interface/mmal/util/mmal_default_components.h>
+ #include <interface/mmal/vc/mmal_vc_api.h>
++#pragma GCC diagnostic pop
+ #include <stdatomic.h>
+ 
+ #include "avcodec.h"
+-- 
+2.34.1
+

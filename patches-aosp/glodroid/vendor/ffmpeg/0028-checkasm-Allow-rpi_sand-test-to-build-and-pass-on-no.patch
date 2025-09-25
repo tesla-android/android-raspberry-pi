@@ -1,0 +1,28 @@
+From 0529efa71380a62438d579e4f0dfab750ef7ad9f Mon Sep 17 00:00:00 2001
+From: James Le Cuirot <chewi@gentoo.org>
+Date: Tue, 20 Feb 2024 22:54:04 +0000
+Subject: [PATCH 28/40] checkasm: Allow rpi_sand test to build and pass on
+ non-ARM architectures
+
+---
+ tests/checkasm/rpi_sand.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/tests/checkasm/rpi_sand.c b/tests/checkasm/rpi_sand.c
+index 0888714c4c..dd9c1350bc 100644
+--- a/tests/checkasm/rpi_sand.c
++++ b/tests/checkasm/rpi_sand.c
+@@ -29,6 +29,10 @@
+ #elif ARCH_AARCH64
+ #include "libavutil/aarch64/cpu.h"
+ #include "libavutil/aarch64/rpi_sand_neon.h"
++#else
++#define have_neon(flags) 0
++#define ff_rpi_sand30_lines_to_planar_y16 NULL
++#define ff_rpi_sand30_lines_to_planar_c16 NULL
+ #endif
+ 
+ static inline uint32_t pack30(unsigned int a, unsigned int b, unsigned int c)
+-- 
+2.34.1
+

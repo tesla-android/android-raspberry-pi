@@ -1,0 +1,26 @@
+From c6027c0c356cd5c4db05a36a9adb3edf0c2dfa66 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 10 Jun 2021 18:46:21 +0100
+Subject: [PATCH 16/40] Fix crash in hw_device_default_name if type not found
+ (NONE)
+
+---
+ fftools/ffmpeg_hw.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/fftools/ffmpeg_hw.c b/fftools/ffmpeg_hw.c
+index 5d4c06c28e..f39bd29b6e 100644
+--- a/fftools/ffmpeg_hw.c
++++ b/fftools/ffmpeg_hw.c
+@@ -73,6 +73,8 @@ static char *hw_device_default_name(enum AVHWDeviceType type)
+     char *name;
+     size_t index_pos;
+     int index, index_limit = 1000;
++    if (!type_name)
++        return NULL;
+     index_pos = strlen(type_name);
+     name = av_malloc(index_pos + 4);
+     if (!name)
+-- 
+2.34.1
+
