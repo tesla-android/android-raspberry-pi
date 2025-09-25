@@ -1,0 +1,63 @@
+From 1528e5b5cfbe68b9a517571d41e267b1ea70d46b Mon Sep 17 00:00:00 2001
+From: Michael Goffioul <michael.goffioul@lincor.com>
+Date: Wed, 24 Apr 2024 11:15:13 -0400
+Subject: [PATCH 2/3] Update to FFMPEG 7.0
+
+Remove use of deprecated/removed API:
+- use avcodec_free_context instead of avcodec_close (the former also
+  takes care of freeing extradata)
+---
+ C2FFMPEGAudioDecodeComponent.cpp | 12 ++----------
+ C2FFMPEGVideoDecodeComponent.cpp | 12 ++----------
+ 2 files changed, 4 insertions(+), 20 deletions(-)
+
+diff --git a/C2FFMPEGAudioDecodeComponent.cpp b/C2FFMPEGAudioDecodeComponent.cpp
+index 0400170de..7394661f3 100644
+--- a/C2FFMPEGAudioDecodeComponent.cpp
++++ b/C2FFMPEGAudioDecodeComponent.cpp
+@@ -319,16 +319,8 @@ void C2FFMPEGAudioDecodeComponent::deInitDecoder() {
+         if (avcodec_is_open(mCtx)) {
+             avcodec_flush_buffers(mCtx);
+         }
+-        if (mCtx->extradata) {
+-            av_free(mCtx->extradata);
+-            mCtx->extradata = NULL;
+-            mCtx->extradata_size = 0;
+-        }
+-        if (mCodecAlreadyOpened) {
+-            avcodec_close(mCtx);
+-            mCodecAlreadyOpened = false;
+-        }
+-        av_freep(&mCtx);
++        avcodec_free_context(&mCtx);
++        mCodecAlreadyOpened = false;
+     }
+     if (mFrame) {
+         av_frame_free(&mFrame);
+diff --git a/C2FFMPEGVideoDecodeComponent.cpp b/C2FFMPEGVideoDecodeComponent.cpp
+index a983b9b05..9861cd68b 100644
+--- a/C2FFMPEGVideoDecodeComponent.cpp
++++ b/C2FFMPEGVideoDecodeComponent.cpp
+@@ -157,17 +157,9 @@ void C2FFMPEGVideoDecodeComponent::deInitDecoder() {
+         if (avcodec_is_open(mCtx)) {
+             avcodec_flush_buffers(mCtx);
+         }
+-        if (mCtx->extradata) {
+-            av_free(mCtx->extradata);
+-            mCtx->extradata = NULL;
+-            mCtx->extradata_size = 0;
+-        }
+-        if (mCodecAlreadyOpened) {
+-            avcodec_close(mCtx);
+-            mCodecAlreadyOpened = false;
+-        }
+         ffmpeg_hwaccel_deinit(mCtx);
+-        av_freep(&mCtx);
++        avcodec_free_context(&mCtx);
++        mCodecAlreadyOpened = false;
+     }
+     if (mFrame) {
+         av_frame_free(&mFrame);
+-- 
+2.34.1
+
