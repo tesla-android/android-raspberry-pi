@@ -1,0 +1,22 @@
+From a3a3a6f49d9a920738b6b229fce5180f782e41b3 Mon Sep 17 00:00:00 2001
+From: Konsta <konsta09@gmail.com>
+Date: Wed, 12 Feb 2025 22:19:01 +0200
+Subject: [PATCH 1/3] seccomp_policy: allow sysinfo
+
+* Needed with Mesa 25.0.
+---
+ seccomp_policy/android.hardware.media.c2@1.2-ffmpeg-arm64.policy | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/seccomp_policy/android.hardware.media.c2@1.2-ffmpeg-arm64.policy b/seccomp_policy/android.hardware.media.c2@1.2-ffmpeg-arm64.policy
+index 468c2fcb2..4c9d18337 100644
+--- a/seccomp_policy/android.hardware.media.c2@1.2-ffmpeg-arm64.policy
++++ b/seccomp_policy/android.hardware.media.c2@1.2-ffmpeg-arm64.policy
+@@ -81,3 +81,4 @@ getgroups: 1
+ 
+ sched_getaffinity: 1
+ eventfd2: 1
++sysinfo: 1
+-- 
+2.34.1
+
