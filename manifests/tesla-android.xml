@@ -16,9 +16,9 @@
   <project path="external/tesla-android-virtual-display" remote="tesla-android" name="android-external-tesla-android-virtual-display.git" revision="6bfadda212f765786d85c85e76f1d4c1813ca5ab" />
   <project path="external/tesla-android-virtual-touchscreen" remote="tesla-android" name="android-external-tesla-android-virtual-touchscreen.git" revision="fb1795a1c86dd13563d2c44757fd3e6d9e838421" />
   <project path="external/tesla-android-usb-networking-initialiser" remote="tesla-android" name="android-external-tesla-android-usb-networking-initialiser.git" revision="2f161ece9e52f8f01e12fa27f7d37f13d509f802" />
-  <project path="external/tesla-android-configuration-manager" remote="tesla-android" name="android-external-tesla-android-configuration-manager.git" revision="874b353c4aa135f14fd79cf85c074c9817e6d6e0" />
+  <project path="external/tesla-android-configuration-manager" remote="tesla-android" name="android-external-tesla-android-configuration-manager.git" revision="6e3707cbeafa4a9a29d1e77ab3ad0e793836ace2" />
   <project path="external/tesla-android-audio-relay" remote="tesla-android" name="android-external-tesla-android-audio-relay.git" revision="717d0a8eec5d7b305f2f98b806b438a4dcebfe6f" />
-  <project path="vendor/tesla-android" remote="tesla-android" name="android-vendor-tesla-android.git" revision="e5f8261b2eed6f6e9987e5b00373859b18fe89c1" />
+  <project path="vendor/tesla-android" remote="tesla-android" name="android-vendor-tesla-android.git" revision="27680593215744c6dfa200f345fb5309c62baccf" />
   <project path="packages/apps/Updater" remote="tesla-android" name="android-packages-apps-updater.git" revision="184eb00ce0add9b5ed0c22e5c8167ff5d0b596c8" />
   <project path="packages/apps/Jelly" remote="github" name="LineageOS/android_packages_apps_Jelly" revision="lineage-20.0"/>
   <project path="vendor/gapps" remote="gapps-gitlab" name="vendor_gapps.git" revision="tau"/>
