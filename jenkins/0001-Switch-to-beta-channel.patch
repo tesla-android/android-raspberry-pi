@@ -19,7 +19,7 @@ index be4f22a..695e977 100755
  PRODUCT_PROPERTY_OVERRIDES += \
      ro.tesla-android.device=cm4 \
 -    persist.tesla-android.updater.uri=https://ota.teslaandroid.com/api/v1/cm4/release \
-+    persist.tesla-android.updater.uri=https://ota.teslaandroid.com/api/v1/cm4/beta \
++    persist.tesla-android.updater.uri=https://ota.beta.teslaandroid.com/api/v1/cm4/beta \
  
  GD_LCD_DENSITY = 200
 diff --git a/products/tesla_android_radxa_zero.mk b/products/tesla_android_radxa_zero.mk
@@ -31,7 +31,7 @@ index 52cf891..b254754 100755
  PRODUCT_PROPERTY_OVERRIDES += \
      ro.tesla-android.device=radxa_zero \
 -    persist.tesla-android.updater.uri=https://ota.teslaandroid.com/api/v1/radxa_zero/release \
-+    persist.tesla-android.updater.uri=https://ota.teslaandroid.com/api/v1/radxa_zero/beta \
++    persist.tesla-android.updater.uri=https://ota.beta.teslaandroid.com/api/v1/radxa_zero/beta \
  
  GD_LCD_DENSITY = 200
 diff --git a/products/tesla_android_rpi4.mk b/products/tesla_android_rpi4.mk
@@ -43,7 +43,7 @@ index ab874b2..a0d01a0 100755
  PRODUCT_PROPERTY_OVERRIDES += \
      ro.tesla-android.device=rpi4 \
 -    persist.tesla-android.updater.uri=https://ota.teslaandroid.com/api/v1/rpi4/release \
-+    persist.tesla-android.updater.uri=https://ota.teslaandroid.com/api/v1/rpi4/beta \
++    persist.tesla-android.updater.uri=https://ota.beta.teslaandroid.com/api/v1/rpi4/beta \
  
  GD_LCD_DENSITY = 200
  
