@@ -1,4 +1,4 @@
-From c1c12a2aeb081cf30ba65c0d3c7388fb8cd3de15 Mon Sep 17 00:00:00 2001
+From 67a5cfe36c6b2585b7967e8b2040a7dcf1a0868c Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Tue, 21 Jun 2022 17:54:50 +0200
 Subject: [PATCH 02/10] cdc_ether: Map USB network cards as ethX interfaces in
@@ -13,7 +13,7 @@ Signed-off-by: Michał Gapiński <mike@gapinski.eu>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/net/usb/cdc_ether.c b/drivers/net/usb/cdc_ether.c
-index f07bfe56e..2606675e1 100644
+index 6d6105235..c16592753 100644
 --- a/drivers/net/usb/cdc_ether.c
 +++ b/drivers/net/usb/cdc_ether.c
 @@ -523,7 +523,7 @@ static void usbnet_cdc_zte_status(struct usbnet *dev, struct urb *urb)

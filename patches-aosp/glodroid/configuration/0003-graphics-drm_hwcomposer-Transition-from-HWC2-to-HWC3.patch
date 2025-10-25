@@ -1,0 +1,113 @@
+From 83953ea798026af0c03dd0a561602ac9de440649 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Sat, 19 Oct 2024 13:26:47 +0300
+Subject: [PATCH 03/16] graphics: drm_hwcomposer: Transition from HWC2 to HWC3
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ .../android.hardware.graphics.composer@2.4.xml        | 11 -----------
+ .../graphics/android.hardware.graphics.composer@3.rc  |  8 ++++++++
+ .../graphics/android.hardware.graphics.composer@3.xml | 10 ++++++++++
+ common/graphics/board.mk                              |  1 -
+ common/graphics/device.mk                             |  8 +++-----
+ common/graphics/sepolicy/vendor/file_contexts         |  1 +
+ 6 files changed, 22 insertions(+), 17 deletions(-)
+ delete mode 100644 common/graphics/android.hardware.graphics.composer@2.4.xml
+ create mode 100644 common/graphics/android.hardware.graphics.composer@3.rc
+ create mode 100644 common/graphics/android.hardware.graphics.composer@3.xml
+
+diff --git a/common/graphics/android.hardware.graphics.composer@2.4.xml b/common/graphics/android.hardware.graphics.composer@2.4.xml
+deleted file mode 100644
+index d6d668f..0000000
+--- a/common/graphics/android.hardware.graphics.composer@2.4.xml
++++ /dev/null
+@@ -1,11 +0,0 @@
+-<manifest version="1.0" type="device" target-level="8">
+-    <hal format="hidl">
+-        <name>android.hardware.graphics.composer</name>
+-        <transport>hwbinder</transport>
+-        <version>2.4</version>
+-        <interface>
+-            <name>IComposer</name>
+-            <instance>default</instance>
+-        </interface>
+-    </hal>
+-</manifest>
+diff --git a/common/graphics/android.hardware.graphics.composer@3.rc b/common/graphics/android.hardware.graphics.composer@3.rc
+new file mode 100644
+index 0000000..4b8fe9a
+--- /dev/null
++++ b/common/graphics/android.hardware.graphics.composer@3.rc
+@@ -0,0 +1,8 @@
++service vendor.hwcomposer-3 /vendor/bin/hw/android.hardware.composer.hwc3-service.drm_aospext
++    class hal animation
++    interface aidl android.hardware.graphics.composer3.IComposer/default
++    user system
++    group graphics drmrpc
++    capabilities SYS_NICE
++    onrestart restart surfaceflinger
++    task_profiles ServiceCapacityLow
+diff --git a/common/graphics/android.hardware.graphics.composer@3.xml b/common/graphics/android.hardware.graphics.composer@3.xml
+new file mode 100644
+index 0000000..fd9e638
+--- /dev/null
++++ b/common/graphics/android.hardware.graphics.composer@3.xml
+@@ -0,0 +1,10 @@
++<manifest version="1.0" type="device">
++    <hal format="aidl">
++        <name>android.hardware.graphics.composer3</name>
++        <version>2</version>
++        <interface>
++            <name>IComposer</name>
++            <instance>default</instance>
++        </interface>
++    </hal>
++</manifest>
+diff --git a/common/graphics/board.mk b/common/graphics/board.mk
+index 170c0b6..d351ef2 100644
+--- a/common/graphics/board.mk
++++ b/common/graphics/board.mk
+@@ -15,7 +15,6 @@ BOARD_MESA3D_BUILD_LIBGBM := true
+ ifeq ($(GD_USE_RS_HWCOMPOSER),)
+ BOARD_BUILD_AOSPEXT_DRMHWCOMPOSER := true
+ BOARD_DRMHWCOMPOSER_SRC_DIR := glodroid/vendor/drm_hwcomposer
+-DEVICE_MANIFEST_FILE += $(BCG_PATH)/android.hardware.graphics.composer@2.4.xml
+ else
+ BOARD_BUILD_AOSPEXT_RSHWCOMPOSER := true
+ BOARD_RSHWCOMPOSER_SRC_DIR := glodroid/vendor/rs-hwcomposer
+diff --git a/common/graphics/device.mk b/common/graphics/device.mk
+index 0851d1e..bb01de3 100644
+--- a/common/graphics/device.mk
++++ b/common/graphics/device.mk
+@@ -18,13 +18,11 @@ PRODUCT_COPY_FILES += \
+     frameworks/native/data/etc/android.software.opengles.deqp.level-2023-03-01.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.software.opengles.deqp.level.xml
+ 
+ ifeq ($(GD_USE_RS_HWCOMPOSER),)
+-# Composer passthrough HAL
+ PRODUCT_PACKAGES += \
+-    android.hardware.graphics.composer@2.4-impl \
+-    android.hardware.graphics.composer@2.4-service \
+-    hwcomposer.drm_gd \
++    android.hardware.composer.hwc3-service.drm_aospext
+ 
+-PRODUCT_VENDOR_PROPERTIES += ro.hardware.hwcomposer=drm_gd
++    DEVICE_MANIFEST_FILE += glodroid/configuration/common/graphics/android.hardware.graphics.composer@3.xml
++    PRODUCT_COPY_FILES += glodroid/configuration/common/graphics/android.hardware.graphics.composer@3.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/android.hardware.graphics.composer@3.rc
+ else
+ PRODUCT_PACKAGES += \
+     android.hardware.composer.hwc3-service.rs \
+diff --git a/common/graphics/sepolicy/vendor/file_contexts b/common/graphics/sepolicy/vendor/file_contexts
+index 30838bc..25088a7 100644
+--- a/common/graphics/sepolicy/vendor/file_contexts
++++ b/common/graphics/sepolicy/vendor/file_contexts
+@@ -12,6 +12,7 @@
+ /vendor/lib(64)?/hw/vulkan\.(/.*)?\.so                                          u:object_r:same_process_hal_file:s0
+ 
+ /vendor/bin/hw/android\.hardware\.composer\.hwc3-service\.rs                    u:object_r:hal_graphics_composer_default_exec:s0
++/vendor/bin/hw/android\.hardware\.composer\.hwc3-service\.drm_aospext           u:object_r:hal_graphics_composer_default_exec:s0
+ 
+ # Minigbm
+ /vendor/bin/hw/android\.hardware\.graphics\.allocator-service\.minigbm_gd       u:object_r:hal_graphics_allocator_default_exec:s0
+-- 
+2.34.1
+

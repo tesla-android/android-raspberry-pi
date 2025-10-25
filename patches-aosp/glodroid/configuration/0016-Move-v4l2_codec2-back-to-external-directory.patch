@@ -1,0 +1,26 @@
+From 83346b75b47165f7fb353306b05893ebf06ae144 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Tue, 10 Dec 2024 15:42:52 +0200
+Subject: [PATCH 16/16] Move v4l2_codec2 back to external/ directory
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ common/codecs/device.mk | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/common/codecs/device.mk b/common/codecs/device.mk
+index 86096f5..99c87da 100644
+--- a/common/codecs/device.mk
++++ b/common/codecs/device.mk
+@@ -4,6 +4,8 @@
+ #
+ # Copyright (C) 2022 Roman Stratiienko (r.stratiienko@gmail.com)
+ 
++PRODUCT_SOONG_NAMESPACES += external/v4l2_codec2
++
+ PRODUCT_PACKAGES += \
+     android.hardware.media.c2@1.0-service \
+ 
+-- 
+2.34.1
+

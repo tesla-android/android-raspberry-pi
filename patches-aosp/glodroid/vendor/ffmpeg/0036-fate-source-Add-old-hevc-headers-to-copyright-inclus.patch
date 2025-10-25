@@ -1,0 +1,39 @@
+From a5c9017c49bacf3edf71818150f1310de529a6da Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 28 Nov 2024 18:59:39 +0000
+Subject: [PATCH 36/41] fate/source: Add old hevc headers to copyright &
+ inclusion lists
+
+Add old hevc header to exclusion lists rather than fixing them as
+they are simple copies of system headers. Remove this patch once
+we remove the old variation from the decoder.
+---
+ tests/ref/fate/source | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/tests/ref/fate/source b/tests/ref/fate/source
+index 78d3a2e0fa..a0ab585585 100644
+--- a/tests/ref/fate/source
++++ b/tests/ref/fate/source
+@@ -1,5 +1,8 @@
+ Files without standard license headers:
+ libavcodec/file_open.c
++libavcodec/hevc-ctrls-v1.h
++libavcodec/hevc-ctrls-v2.h
++libavcodec/hevc-ctrls-v3.h
+ libavcodec/interplayacm.c
+ libavcodec/log2_tab.c
+ libavcodec/reverse.c
+@@ -26,6 +29,9 @@ compat/float/float.h
+ compat/float/limits.h
+ compat/stdbit/stdbit.h
+ libavcodec/bitstream_template.h
++libavcodec/hevc-ctrls-v1.h
++libavcodec/hevc-ctrls-v2.h
++libavcodec/hevc-ctrls-v3.h
+ tools/decode_simple.h
+ Use of av_clip() where av_clip_uintp2() could be used:
+ Use of av_clip() where av_clip_intp2() could be used:
+-- 
+2.43.0
+

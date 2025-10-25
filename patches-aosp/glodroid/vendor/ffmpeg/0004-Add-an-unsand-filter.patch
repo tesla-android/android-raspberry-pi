@@ -1,7 +1,14 @@
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0004-Add-an-unsand-filter.patch
 From d3087b74e308d924c1eb679300b5075809bb1615 Mon Sep 17 00:00:00 2001
 From: John Cox <jc@kynesim.co.uk>
 Date: Tue, 27 Apr 2021 12:31:16 +0100
 Subject: [PATCH 04/40] Add an unsand filter
+========
+From 911c7f55501415af0e7d8b24664fdbf1768a9af1 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 27 Apr 2021 12:31:16 +0100
+Subject: [PATCH 05/41] Add an unsand filter
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0005-Add-an-unsand-filter.patch
 
 ---
  configure                |   1 +
@@ -13,10 +20,17 @@ Subject: [PATCH 04/40] Add an unsand filter
  create mode 100644 libavfilter/vf_unsand.c
 
 diff --git a/configure b/configure
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0004-Add-an-unsand-filter.patch
 index 44efc99c12..636f6c74f1 100755
 --- a/configure
 +++ b/configure
 @@ -4058,6 +4058,7 @@ transpose_opencl_filter_deps="opencl"
+========
+index 9b8161fc52..c4ceec3c87 100755
+--- a/configure
++++ b/configure
+@@ -3965,6 +3965,7 @@ transpose_opencl_filter_deps="opencl"
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0005-Add-an-unsand-filter.patch
  transpose_vaapi_filter_deps="vaapi VAProcPipelineCaps_rotation_flags"
  transpose_vt_filter_deps="videotoolbox VTPixelRotationSessionCreate"
  transpose_vulkan_filter_deps="vulkan spirv_compiler"
@@ -25,10 +39,17 @@ index 44efc99c12..636f6c74f1 100755
  uspp_filter_deps="gpl avcodec"
  vaguedenoiser_filter_deps="gpl"
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0004-Add-an-unsand-filter.patch
 index 07fb4c3d6c..60a3634a2a 100644
 --- a/libavfilter/Makefile
 +++ b/libavfilter/Makefile
 @@ -547,6 +547,7 @@ OBJS-$(CONFIG_TRANSPOSE_VT_FILTER)           += vf_transpose_vt.o
+========
+index 91487afb21..6ff9adf41f 100644
+--- a/libavfilter/Makefile
++++ b/libavfilter/Makefile
+@@ -536,6 +536,7 @@ OBJS-$(CONFIG_TRANSPOSE_VT_FILTER)           += vf_transpose_vt.o
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0005-Add-an-unsand-filter.patch
  OBJS-$(CONFIG_TRANSPOSE_VULKAN_FILTER)       += vf_transpose_vulkan.o vulkan.o vulkan_filter.o
  OBJS-$(CONFIG_TRIM_FILTER)                   += trim.o
  OBJS-$(CONFIG_UNPREMULTIPLY_FILTER)          += vf_premultiply.o framesync.o
@@ -37,6 +58,7 @@ index 07fb4c3d6c..60a3634a2a 100644
  OBJS-$(CONFIG_UNSHARP_OPENCL_FILTER)         += vf_unsharp_opencl.o opencl.o \
                                                  opencl/unsharp.o
 diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0004-Add-an-unsand-filter.patch
 index cca4ce0288..87b38e8471 100644
 --- a/libavfilter/allfilters.c
 +++ b/libavfilter/allfilters.c
@@ -53,6 +75,24 @@ index 7e86d6ffd3..0a4d66499f 100644
 --- a/libavfilter/buffersrc.c
 +++ b/libavfilter/buffersrc.c
 @@ -222,7 +222,7 @@ int attribute_align_arg av_buffersrc_add_frame_flags(AVFilterContext *ctx, AVFra
+========
+index 9819f0f95b..e5cf73f403 100644
+--- a/libavfilter/allfilters.c
++++ b/libavfilter/allfilters.c
+@@ -507,6 +507,7 @@ extern const AVFilter ff_vf_trim;
+ extern const AVFilter ff_vf_unpremultiply;
+ extern const AVFilter ff_vf_unsharp;
+ extern const AVFilter ff_vf_unsharp_opencl;
++extern const AVFilter ff_vf_unsand;
+ extern const AVFilter ff_vf_untile;
+ extern const AVFilter ff_vf_uspp;
+ extern const AVFilter ff_vf_v360;
+diff --git a/libavfilter/buffersrc.c b/libavfilter/buffersrc.c
+index b5682006f0..e42ff26d51 100644
+--- a/libavfilter/buffersrc.c
++++ b/libavfilter/buffersrc.c
+@@ -210,7 +210,7 @@ int attribute_align_arg av_buffersrc_add_frame_flags(AVFilterContext *ctx, AVFra
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0005-Add-an-unsand-filter.patch
  
          switch (ctx->outputs[0]->type) {
          case AVMEDIA_TYPE_VIDEO:
@@ -63,7 +103,11 @@ index 7e86d6ffd3..0a4d66499f 100644
              break;
 diff --git a/libavfilter/vf_unsand.c b/libavfilter/vf_unsand.c
 new file mode 100644
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0004-Add-an-unsand-filter.patch
 index 0000000000..9f0aca5358
+========
+index 0000000000..67750e4f12
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0005-Add-an-unsand-filter.patch
 --- /dev/null
 +++ b/libavfilter/vf_unsand.c
 @@ -0,0 +1,227 @@
@@ -295,5 +339,9 @@ index 0000000000..9f0aca5358
 +};
 +
 -- 
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0004-Add-an-unsand-filter.patch
 2.34.1
+========
+2.43.0
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0005-Add-an-unsand-filter.patch
 

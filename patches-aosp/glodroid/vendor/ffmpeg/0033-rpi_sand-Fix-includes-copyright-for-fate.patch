@@ -1,0 +1,88 @@
+From 89dfeb9c139dab093075f25fe1abf488fa250168 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 28 Nov 2024 18:35:07 +0000
+Subject: [PATCH 33/41] rpi_sand: Fix includes & copyright for fate
+
+---
+ libavutil/aarch64/rpi_sand_neon.h                | 4 +++-
+ libavutil/arm/rpi_sand_neon.h                    | 4 ++--
+ libavutil/{rpi_sand_fn_pw.h => rpi_sand_fn_pw.c} | 0
+ libavutil/rpi_sand_fns.c                         | 4 ++--
+ libavutil/rpi_sand_fns.h                         | 4 ++--
+ 5 files changed, 9 insertions(+), 7 deletions(-)
+ rename libavutil/{rpi_sand_fn_pw.h => rpi_sand_fn_pw.c} (100%)
+
+diff --git a/libavutil/aarch64/rpi_sand_neon.h b/libavutil/aarch64/rpi_sand_neon.h
+index 2a56135bc3..e0e94f6aa1 100644
+--- a/libavutil/aarch64/rpi_sand_neon.h
++++ b/libavutil/aarch64/rpi_sand_neon.h
+@@ -26,7 +26,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ Authors: Michael Eiler <eiler.mike@gmail.com>
+ */
+ 
+-#pragma once
++#ifndef AVUTIL_AARCH64_RPI_SAND_NEON_H
++#define AVUTIL_AARCH64_RPI_SAND_NEON_H
+ 
+ #ifdef __cplusplus
+ extern "C" {
+@@ -57,3 +58,4 @@ void ff_rpi_sand30_lines_to_planar_y8(uint8_t * dest, unsigned int dst_stride,
+ }
+ #endif
+ 
++#endif /* AVCODEC_SAND_NEON_H */
+diff --git a/libavutil/arm/rpi_sand_neon.h b/libavutil/arm/rpi_sand_neon.h
+index d457c10870..d8126676ee 100644
+--- a/libavutil/arm/rpi_sand_neon.h
++++ b/libavutil/arm/rpi_sand_neon.h
+@@ -27,8 +27,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ Authors: John Cox
+ */
+ 
+-#ifndef AVUTIL_ARM_SAND_NEON_H
+-#define AVUTIL_ARM_SAND_NEON_H
++#ifndef AVUTIL_ARM_RPI_SAND_NEON_H
++#define AVUTIL_ARM_RPI_SAND_NEON_H
+ 
+ void ff_rpi_sand128b_stripe_to_8_10(
+   uint8_t * dest,             // [r0]
+diff --git a/libavutil/rpi_sand_fn_pw.h b/libavutil/rpi_sand_fn_pw.c
+similarity index 100%
+rename from libavutil/rpi_sand_fn_pw.h
+rename to libavutil/rpi_sand_fn_pw.c
+diff --git a/libavutil/rpi_sand_fns.c b/libavutil/rpi_sand_fns.c
+index 0626bb06cb..2e19dd3a7b 100644
+--- a/libavutil/rpi_sand_fns.c
++++ b/libavutil/rpi_sand_fns.c
+@@ -47,11 +47,11 @@ Authors: John Cox
+ #endif
+ 
+ #define PW 1
+-#include "rpi_sand_fn_pw.h"
++#include "rpi_sand_fn_pw.c"
+ #undef PW
+ 
+ #define PW 2
+-#include "rpi_sand_fn_pw.h"
++#include "rpi_sand_fn_pw.c"
+ #undef PW
+ 
+ #if 1
+diff --git a/libavutil/rpi_sand_fns.h b/libavutil/rpi_sand_fns.h
+index 462ccb8abd..f7ba62ff73 100644
+--- a/libavutil/rpi_sand_fns.h
++++ b/libavutil/rpi_sand_fns.h
+@@ -27,8 +27,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ Authors: John Cox
+ */
+ 
+-#ifndef AVUTIL_RPI_SAND_FNS
+-#define AVUTIL_RPI_SAND_FNS
++#ifndef AVUTIL_RPI_SAND_FNS_H
++#define AVUTIL_RPI_SAND_FNS_H
+ 
+ #include "libavutil/frame.h"
+ 
+-- 
+2.43.0
+

@@ -1,4 +1,4 @@
-From df9c0ba419c01381cd8210c5d3d5a22ca7334adf Mon Sep 17 00:00:00 2001
+From 553b51a525d73ee5eaddcfd8c976cbd001ce19c0 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Thu, 3 Nov 2022 18:17:03 +0100
 Subject: [PATCH 03/10] cdc_ncm: remove FLAG_POINTTOPOINT, fixes Android to
@@ -13,10 +13,10 @@ Signed-off-by: Michał Gapiński <mike@gapinski.eu>
  1 file changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/drivers/net/usb/cdc_ncm.c b/drivers/net/usb/cdc_ncm.c
-index 789e3647f..53dbd80e5 100644
+index db05622f1..62bbc7c0e 100644
 --- a/drivers/net/usb/cdc_ncm.c
 +++ b/drivers/net/usb/cdc_ncm.c
-@@ -1899,7 +1899,7 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
+@@ -1900,7 +1900,7 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
  
  static const struct driver_info cdc_ncm_info = {
  	.description = "CDC NCM (NO ZLP)",
@@ -25,7 +25,7 @@ index 789e3647f..53dbd80e5 100644
  			| FLAG_LINK_INTR | FLAG_ETHER,
  	.bind = cdc_ncm_bind,
  	.unbind = cdc_ncm_unbind,
-@@ -1913,7 +1913,7 @@ static const struct driver_info cdc_ncm_info = {
+@@ -1914,7 +1914,7 @@ static const struct driver_info cdc_ncm_info = {
  /* Same as cdc_ncm_info, but with FLAG_SEND_ZLP  */
  static const struct driver_info cdc_ncm_zlp_info = {
  	.description = "CDC NCM (SEND ZLP)",
@@ -34,7 +34,7 @@ index 789e3647f..53dbd80e5 100644
  			| FLAG_LINK_INTR | FLAG_ETHER | FLAG_SEND_ZLP,
  	.bind = cdc_ncm_bind,
  	.unbind = cdc_ncm_unbind,
-@@ -1927,7 +1927,7 @@ static const struct driver_info cdc_ncm_zlp_info = {
+@@ -1928,7 +1928,7 @@ static const struct driver_info cdc_ncm_zlp_info = {
  /* Same as cdc_ncm_info, but with FLAG_WWAN */
  static const struct driver_info wwan_info = {
  	.description = "Mobile Broadband Network Device",
@@ -43,7 +43,7 @@ index 789e3647f..53dbd80e5 100644
  			| FLAG_LINK_INTR | FLAG_WWAN,
  	.bind = cdc_ncm_bind,
  	.unbind = cdc_ncm_unbind,
-@@ -1941,7 +1941,7 @@ static const struct driver_info wwan_info = {
+@@ -1942,7 +1942,7 @@ static const struct driver_info wwan_info = {
  /* Same as wwan_info, but with FLAG_NOARP  */
  static const struct driver_info wwan_noarp_info = {
  	.description = "Mobile Broadband Network Device (NO ARP)",

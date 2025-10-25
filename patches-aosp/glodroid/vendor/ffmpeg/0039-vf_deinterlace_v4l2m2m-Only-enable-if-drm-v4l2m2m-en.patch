@@ -1,0 +1,34 @@
+From eb1a070df0e5c287d1db6c8c44cd5bbf7a6e6b24 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Mon, 2 Dec 2024 12:22:07 +0000
+Subject: [PATCH 39/41] vf_deinterlace_v4l2m2m: Only enable if drm & v4l2m2m
+ enabled
+
+Fix compiles where drm is disabled. Applies to v4l2_scale_m2m too.
+---
+ configure | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/configure b/configure
+index 9fd1c02efd..5c0854f627 100755
+--- a/configure
++++ b/configure
+@@ -3875,6 +3875,7 @@ cropdetect_filter_deps="gpl"
+ deinterlace_qsv_filter_deps="libmfx"
+ deinterlace_qsv_filter_select="qsvvpp"
+ deinterlace_vaapi_filter_deps="vaapi"
++deinterlace_v4l2m2m_filter_deps="libdrm v4l2_m2m"
+ delogo_filter_deps="gpl"
+ denoise_vaapi_filter_deps="vaapi"
+ derain_filter_select="dnn"
+@@ -3995,6 +3996,7 @@ libvmaf_cuda_filter_deps="libvmaf libvmaf_cuda ffnvcodec"
+ zmq_filter_deps="libzmq"
+ zoompan_filter_deps="swscale"
+ zscale_filter_deps="libzimg const_nan"
++scale_v4l2m2m_filter_deps="libdrm v4l2_m2m"
+ scale_vaapi_filter_deps="vaapi"
+ scale_vt_filter_deps="videotoolbox VTPixelTransferSessionCreate"
+ scale_vulkan_filter_deps="vulkan spirv_compiler"
+-- 
+2.43.0
+

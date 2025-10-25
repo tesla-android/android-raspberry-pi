@@ -1,7 +1,14 @@
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 From aa4ec4c0097f8406876b85cf451ba3da4e5a1d3b Mon Sep 17 00:00:00 2001
 From: John Cox <jc@kynesim.co.uk>
 Date: Tue, 27 Apr 2021 19:23:26 +0100
 Subject: [PATCH 10/40] Add v4l2_req V4L2 request H265 drm_prime decode
+========
+From d3cfa7a842a22d1c6c45cb200f1ca4db5eb910c9 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 27 Apr 2021 19:23:26 +0100
+Subject: [PATCH 11/41] Add v4l2_req V4L2 request H265 drm_prime decode
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 
 Has the abiliy to switch between kernel API versions at runtime. This
 could be removed later once teher is no chance of usage on an old
@@ -16,6 +23,7 @@ kernel.
  libavcodec/hevc/hevcdec.c       |   10 +
  libavcodec/hwaccels.h           |    1 +
  libavcodec/hwconfig.h           |    2 +
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
  libavcodec/v4l2_req_decode_q.c  |  108 ++
  libavcodec/v4l2_req_decode_q.h  |   51 +
  libavcodec/v4l2_req_devscan.c   |  474 ++++++++
@@ -35,6 +43,27 @@ kernel.
  libavcodec/v4l2_request_hevc.c  |  437 ++++++++
  libavcodec/v4l2_request_hevc.h  |  164 +++
  27 files changed, 7166 insertions(+)
+========
+ libavcodec/v4l2_req_decode_q.c  |   84 ++
+ libavcodec/v4l2_req_decode_q.h  |   27 +
+ libavcodec/v4l2_req_devscan.c   |  451 ++++++++
+ libavcodec/v4l2_req_devscan.h   |   23 +
+ libavcodec/v4l2_req_dmabufs.c   |  409 +++++++
+ libavcodec/v4l2_req_dmabufs.h   |   45 +
+ libavcodec/v4l2_req_hevc_v1.c   |    3 +
+ libavcodec/v4l2_req_hevc_v2.c   |    3 +
+ libavcodec/v4l2_req_hevc_v3.c   |    3 +
+ libavcodec/v4l2_req_hevc_v4.c   |    3 +
+ libavcodec/v4l2_req_hevc_vx.c   | 1430 ++++++++++++++++++++++++
+ libavcodec/v4l2_req_media.c     | 1808 +++++++++++++++++++++++++++++++
+ libavcodec/v4l2_req_media.h     |  171 +++
+ libavcodec/v4l2_req_pollqueue.c |  361 ++++++
+ libavcodec/v4l2_req_pollqueue.h |   18 +
+ libavcodec/v4l2_req_utils.h     |   27 +
+ libavcodec/v4l2_request_hevc.c  |  410 +++++++
+ libavcodec/v4l2_request_hevc.h  |  107 ++
+ 27 files changed, 6687 insertions(+)
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
  create mode 100644 libavcodec/hevc-ctrls-v1.h
  create mode 100644 libavcodec/hevc-ctrls-v2.h
  create mode 100644 libavcodec/hevc-ctrls-v3.h
@@ -59,7 +88,11 @@ kernel.
  create mode 100644 libavcodec/v4l2_request_hevc.h
 
 diff --git a/configure b/configure
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 index 636f6c74f1..77ad581ccd 100755
+========
+index c4ceec3c87..3bbdde74e6 100755
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 --- a/configure
 +++ b/configure
 @@ -287,6 +287,7 @@ External library support:
@@ -70,7 +103,11 @@ index 636f6c74f1..77ad581ccd 100755
    --enable-libv4l2         enable libv4l2/v4l-utils [no]
    --enable-libvidstab      enable video stabilization using vid.stab [no]
    --enable-libvmaf         enable vmaf filter via libvmaf [no]
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 @@ -362,6 +363,7 @@ External library support:
+========
+@@ -360,6 +361,7 @@ External library support:
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
    --enable-omx-rpi         enable OpenMAX IL code for Raspberry Pi [no]
    --enable-rkmpp           enable Rockchip Media Process Platform code [no]
    --disable-v4l2-m2m       disable V4L2 mem2mem code [autodetect]
@@ -78,7 +115,11 @@ index 636f6c74f1..77ad581ccd 100755
    --disable-vaapi          disable Video Acceleration API (mainly Unix/Intel) code [autodetect]
    --disable-vdpau          disable Nvidia Video Decode and Presentation API for Unix code [autodetect]
    --disable-videotoolbox   disable VideoToolbox code [autodetect]
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 @@ -1863,6 +1865,7 @@ EXTERNAL_AUTODETECT_LIBRARY_LIST="
+========
+@@ -1844,6 +1846,7 @@ EXTERNAL_AUTODETECT_LIBRARY_LIST="
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
      bzlib
      coreimage
      iconv
@@ -86,7 +127,11 @@ index 636f6c74f1..77ad581ccd 100755
      libxcb
      libxcb_shm
      libxcb_shape
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 @@ -2049,6 +2052,7 @@ HWACCEL_LIBRARY_LIST="
+========
+@@ -2026,6 +2029,7 @@ HWACCEL_LIBRARY_LIST="
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
      mmal
      omx
      opencl
@@ -94,7 +139,11 @@ index 636f6c74f1..77ad581ccd 100755
  "
  
  DOCUMENT_LIST="
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 @@ -2071,6 +2075,7 @@ FEATURE_LIST="
+========
+@@ -2048,6 +2052,7 @@ FEATURE_LIST="
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
      small
      static
      swscale_alpha
@@ -102,15 +151,25 @@ index 636f6c74f1..77ad581ccd 100755
  "
  
  # this list should be kept in linking order
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 @@ -3198,6 +3203,7 @@ dxva2_deps="dxva2api_h DXVA2_ConfigPictureDecode ole32 user32"
  ffnvcodec_deps_any="libdl LoadLibrary"
  mediacodec_deps="android mediandk pthreads"
+========
+@@ -3149,6 +3154,7 @@ dxva2_deps="dxva2api_h DXVA2_ConfigPictureDecode ole32 user32"
+ ffnvcodec_deps_any="libdl LoadLibrary"
+ mediacodec_deps="android mediandk"
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
  nvdec_deps="ffnvcodec"
 +v4l2_request_deps="linux_videodev2_h linux_media_h v4l2_timeval_to_ns libdrm libudev"
  vaapi_x11_deps="xlib_x11"
  videotoolbox_hwaccel_deps="videotoolbox pthreads"
  videotoolbox_hwaccel_extralibs="-framework QuartzCore"
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 @@ -3256,6 +3262,8 @@ hevc_dxva2_hwaccel_deps="dxva2 DXVA_PicParams_HEVC"
+========
+@@ -3203,6 +3209,8 @@ hevc_dxva2_hwaccel_deps="dxva2 DXVA_PicParams_HEVC"
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
  hevc_dxva2_hwaccel_select="hevc_decoder"
  hevc_nvdec_hwaccel_deps="nvdec"
  hevc_nvdec_hwaccel_select="hevc_decoder"
@@ -119,7 +178,11 @@ index 636f6c74f1..77ad581ccd 100755
  hevc_vaapi_hwaccel_deps="vaapi VAPictureParameterBufferHEVC"
  hevc_vaapi_hwaccel_select="hevc_decoder"
  hevc_vdpau_hwaccel_deps="vdpau VdpPictureInfoHEVC"
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 @@ -6767,6 +6775,9 @@ if enabled xlib; then
+========
+@@ -6627,6 +6635,9 @@ if enabled xlib; then
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
          disable xlib
  fi
  
@@ -129,7 +192,11 @@ index 636f6c74f1..77ad581ccd 100755
  check_headers direct.h
  check_headers dirent.h
  check_headers dxgidebug.h
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 @@ -7275,6 +7286,10 @@ enabled rkmpp             && { require_pkg_config rkmpp rockchip_mpp  rockchip/r
+========
+@@ -7117,6 +7128,10 @@ enabled rkmpp             && { require_pkg_config rkmpp rockchip_mpp  rockchip/r
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
                                 { enabled libdrm ||
                                   die "ERROR: rkmpp requires --enable-libdrm"; }
                               }
@@ -139,8 +206,13 @@ index 636f6c74f1..77ad581ccd 100755
 +                               die "ERROR: v4l2-request requires libudev"; }
  enabled vapoursynth       && require_headers "vapoursynth/VSScript4.h vapoursynth/VapourSynth4.h"
  
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
  enabled openssl            && {
 @@ -7371,6 +7386,10 @@ if enabled v4l2_m2m; then
+========
+ 
+@@ -7201,6 +7216,10 @@ if enabled v4l2_m2m; then
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
      check_cc vp9_v4l2_m2m linux/videodev2.h "int i = V4L2_PIX_FMT_VP9;"
  fi
  
@@ -151,7 +223,11 @@ index 636f6c74f1..77ad581ccd 100755
  check_headers sys/videoio.h
  test_code cc sys/videoio.h "struct v4l2_frmsizeenum vfse; vfse.discrete.width = 0;" && enable_sanitized struct_v4l2_frmivalenum_discrete
  
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 @@ -7916,6 +7935,9 @@ enabled threads || warn \
+========
+@@ -7713,6 +7732,9 @@ enabled threads || warn \
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
      "that the libraries from this build MUST NOT be used in a multi-threaded"\
      "environment."
  
@@ -162,10 +238,17 @@ index 636f6c74f1..77ad581ccd 100755
  haiku)
      disable memalign
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 index fb22541f8d..bc31f1fc07 100644
 --- a/libavcodec/Makefile
 +++ b/libavcodec/Makefile
 @@ -183,6 +183,8 @@ OBJS-$(CONFIG_VP3DSP)                  += vp3dsp.o
+========
+index a4fcce3b42..37436cd9be 100644
+--- a/libavcodec/Makefile
++++ b/libavcodec/Makefile
+@@ -176,6 +176,8 @@ OBJS-$(CONFIG_VP3DSP)                  += vp3dsp.o
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
  OBJS-$(CONFIG_VP56DSP)                 += vp56dsp.o
  OBJS-$(CONFIG_VP8DSP)                  += vp8dsp.o
  OBJS-$(CONFIG_V4L2_M2M)                += v4l2_m2m.o v4l2_context.o v4l2_buffers.o v4l2_fmt.o
@@ -174,7 +257,11 @@ index fb22541f8d..bc31f1fc07 100644
  OBJS-$(CONFIG_WMA_FREQS)               += wma_freqs.o
  OBJS-$(CONFIG_WMV2DSP)                 += wmv2dsp.o
  
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 @@ -1050,6 +1052,8 @@ OBJS-$(CONFIG_HEVC_DXVA2_HWACCEL)         += dxva2_hevc.o
+========
+@@ -1025,6 +1027,8 @@ OBJS-$(CONFIG_HEVC_DXVA2_HWACCEL)         += dxva2_hevc.o
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
  OBJS-$(CONFIG_HEVC_D3D12VA_HWACCEL)       += dxva2_hevc.o d3d12va_hevc.o
  OBJS-$(CONFIG_HEVC_NVDEC_HWACCEL)         += nvdec_hevc.o
  OBJS-$(CONFIG_HEVC_QSV_HWACCEL)           += qsvdec.o
@@ -1473,10 +1560,17 @@ index 0000000000..c02fdbe5a8
 +
 +#endif
 diff --git a/libavcodec/hevc/hevcdec.c b/libavcodec/hevc/hevcdec.c
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 index 0687ea3bad..8b1f0e5416 100644
 --- a/libavcodec/hevc/hevcdec.c
 +++ b/libavcodec/hevc/hevcdec.c
 @@ -592,6 +592,7 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
+========
+index ef43b230d3..83d39bca46 100644
+--- a/libavcodec/hevc/hevcdec.c
++++ b/libavcodec/hevc/hevcdec.c
+@@ -540,6 +540,7 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
                       CONFIG_HEVC_D3D11VA_HWACCEL * 2 + \
                       CONFIG_HEVC_D3D12VA_HWACCEL + \
                       CONFIG_HEVC_NVDEC_HWACCEL + \
@@ -1484,7 +1578,11 @@ index 0687ea3bad..8b1f0e5416 100644
                       CONFIG_HEVC_VAAPI_HWACCEL + \
                       CONFIG_HEVC_VIDEOTOOLBOX_HWACCEL + \
                       CONFIG_HEVC_VDPAU_HWACCEL + \
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 @@ -630,6 +631,9 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
+========
+@@ -574,6 +575,9 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
  #endif
  #if CONFIG_HEVC_VULKAN_HWACCEL
          *fmt++ = AV_PIX_FMT_VULKAN;
@@ -1494,7 +1592,11 @@ index 0687ea3bad..8b1f0e5416 100644
  #endif
          break;
      case AV_PIX_FMT_YUV420P10:
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 @@ -657,6 +661,9 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
+========
+@@ -601,6 +605,9 @@ static enum AVPixelFormat get_format(HEVCContext *s, const HEVCSPS *sps)
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
  #endif
  #if CONFIG_HEVC_NVDEC_HWACCEL
          *fmt++ = AV_PIX_FMT_CUDA;
@@ -1504,7 +1606,11 @@ index 0687ea3bad..8b1f0e5416 100644
  #endif
          break;
      case AV_PIX_FMT_YUV444P:
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 @@ -4283,6 +4290,9 @@ const FFCodec ff_hevc_decoder = {
+========
+@@ -4114,6 +4121,9 @@ const FFCodec ff_hevc_decoder = {
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
  #if CONFIG_HEVC_NVDEC_HWACCEL
                                 HWACCEL_NVDEC(hevc),
  #endif
@@ -1515,10 +1621,17 @@ index 0687ea3bad..8b1f0e5416 100644
                                 HWACCEL_VAAPI(hevc),
  #endif
 diff --git a/libavcodec/hwaccels.h b/libavcodec/hwaccels.h
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 index 4b205d386e..bd69ebe2e2 100644
 --- a/libavcodec/hwaccels.h
 +++ b/libavcodec/hwaccels.h
 @@ -45,6 +45,7 @@ extern const struct FFHWAccel ff_hevc_d3d11va2_hwaccel;
+========
+index 5171e4c7d7..0b586f760d 100644
+--- a/libavcodec/hwaccels.h
++++ b/libavcodec/hwaccels.h
+@@ -43,6 +43,7 @@ extern const struct FFHWAccel ff_hevc_d3d11va2_hwaccel;
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
  extern const struct FFHWAccel ff_hevc_d3d12va_hwaccel;
  extern const struct FFHWAccel ff_hevc_dxva2_hwaccel;
  extern const struct FFHWAccel ff_hevc_nvdec_hwaccel;
@@ -1655,6 +1768,7 @@ index 0000000000..93c56ba13f
 +
 diff --git a/libavcodec/v4l2_req_decode_q.h b/libavcodec/v4l2_req_decode_q.h
 new file mode 100644
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 index 0000000000..0ff8bbe882
 --- /dev/null
 +++ b/libavcodec/v4l2_req_decode_q.h
@@ -1683,6 +1797,12 @@ index 0000000000..0ff8bbe882
 +    DEALINGS IN THE SOFTWARE.
 + */
 +
+========
+index 0000000000..27eafbc42b
+--- /dev/null
++++ b/libavcodec/v4l2_req_decode_q.h
+@@ -0,0 +1,27 @@
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +#ifndef AVCODEC_V4L2_REQ_DECODE_Q_H
 +#define AVCODEC_V4L2_REQ_DECODE_Q_H
 +
@@ -1712,6 +1832,7 @@ index 0000000000..0ff8bbe882
 +
 diff --git a/libavcodec/v4l2_req_devscan.c b/libavcodec/v4l2_req_devscan.c
 new file mode 100644
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 index 0000000000..0416f3d4d1
 --- /dev/null
 +++ b/libavcodec/v4l2_req_devscan.c
@@ -1740,6 +1861,12 @@ index 0000000000..0416f3d4d1
 +    DEALINGS IN THE SOFTWARE.
 + */
 +
+========
+index 0000000000..ee8527ba1f
+--- /dev/null
++++ b/libavcodec/v4l2_req_devscan.c
+@@ -0,0 +1,451 @@
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +#include <errno.h>
 +#include <fcntl.h>
 +#include <libudev.h>
@@ -2245,6 +2372,7 @@ index 0000000000..49b5bb44b2
 +#endif
 diff --git a/libavcodec/v4l2_req_dmabufs.c b/libavcodec/v4l2_req_dmabufs.c
 new file mode 100644
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 index 0000000000..e157d4d557
 --- /dev/null
 +++ b/libavcodec/v4l2_req_dmabufs.c
@@ -2273,6 +2401,12 @@ index 0000000000..e157d4d557
 +    DEALINGS IN THE SOFTWARE.
 + */
 +
+========
+index 0000000000..9a4b69d3fa
+--- /dev/null
++++ b/libavcodec/v4l2_req_dmabufs.c
+@@ -0,0 +1,409 @@
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +#include <stdatomic.h>
 +#include <stdio.h>
 +#include <stdlib.h>
@@ -2684,6 +2818,7 @@ index 0000000000..e157d4d557
 +
 diff --git a/libavcodec/v4l2_req_dmabufs.h b/libavcodec/v4l2_req_dmabufs.h
 new file mode 100644
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 index 0000000000..9226ab2498
 --- /dev/null
 +++ b/libavcodec/v4l2_req_dmabufs.h
@@ -2714,6 +2849,14 @@ index 0000000000..9226ab2498
 +
 +#ifndef AVCODEC_V4L2_REQ_DMABUFS_H
 +#define AVCODEC_V4L2_REQ_DMABUFS_H
+========
+index 0000000000..8c1ab0b5df
+--- /dev/null
++++ b/libavcodec/v4l2_req_dmabufs.h
+@@ -0,0 +1,45 @@
++#ifndef DMABUFS_H
++#define DMABUFS_H
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +
 +#include <stddef.h>
 +
@@ -2825,6 +2968,7 @@ index 0000000000..1874e20a5d
 +
 diff --git a/libavcodec/v4l2_req_hevc_v3.c b/libavcodec/v4l2_req_hevc_v3.c
 new file mode 100644
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 index 0000000000..1c5a84bea8
 --- /dev/null
 +++ b/libavcodec/v4l2_req_hevc_v3.c
@@ -2853,11 +2997,18 @@ index 0000000000..1c5a84bea8
 +    DEALINGS IN THE SOFTWARE.
 + */
 +
+========
+index 0000000000..dcc8d95632
+--- /dev/null
++++ b/libavcodec/v4l2_req_hevc_v3.c
+@@ -0,0 +1,3 @@
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +#define HEVC_CTRLS_VERSION 3
 +#include "v4l2_req_hevc_vx.c"
 +
 diff --git a/libavcodec/v4l2_req_hevc_v4.c b/libavcodec/v4l2_req_hevc_v4.c
 new file mode 100644
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 index 0000000000..472df7cb0e
 --- /dev/null
 +++ b/libavcodec/v4l2_req_hevc_v4.c
@@ -2886,11 +3037,18 @@ index 0000000000..472df7cb0e
 +    DEALINGS IN THE SOFTWARE.
 + */
 +
+========
+index 0000000000..c35579d8e0
+--- /dev/null
++++ b/libavcodec/v4l2_req_hevc_v4.c
+@@ -0,0 +1,3 @@
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +#define HEVC_CTRLS_VERSION 4
 +#include "v4l2_req_hevc_vx.c"
 +
 diff --git a/libavcodec/v4l2_req_hevc_vx.c b/libavcodec/v4l2_req_hevc_vx.c
 new file mode 100644
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 index 0000000000..a32560eb91
 --- /dev/null
 +++ b/libavcodec/v4l2_req_hevc_vx.c
@@ -2919,6 +3077,12 @@ index 0000000000..a32560eb91
 +    DEALINGS IN THE SOFTWARE.
 + */
 +
+========
+index 0000000000..67c46b4418
+--- /dev/null
++++ b/libavcodec/v4l2_req_hevc_vx.c
+@@ -0,0 +1,1430 @@
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +// File included by v4l2_req_hevc_v* - not compiled on its own
 +
 +#include "decode.h"
@@ -3282,9 +3446,15 @@ index 0000000000..a32560eb91
 +    *slice_params = (struct v4l2_ctrl_hevc_slice_params) {
 +        .bit_size = bit_size,
 +#if HEVC_CTRLS_VERSION <= 3
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +        .data_bit_offset = data_offset * 8 - 1,
 +#else
 +        .data_byte_offset = data_offset,
+========
++        .data_bit_offset = bit_offset,
++#else
++        .data_byte_offset = bit_offset / 8 + 1,
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +#endif
 +        /* ISO/IEC 23008-2, ITU-T Rec. H.265: General slice segment header */
 +        .slice_segment_addr = sh->slice_segment_addr,
@@ -3607,13 +3777,18 @@ index 0000000000..a32560eb91
 +{
 +    V4L2MediaReqDescriptor *rd = (V4L2MediaReqDescriptor*)frame->data[0];
 +
++    fprintf(stderr, "<<< %s\n", __func__);
++
 +//    av_log(NULL, AV_LOG_INFO, "%s\n", __func__);
 +    frame->flags &= ~AV_FRAME_FLAG_CORRUPT;
 +    if (frame_finish(rd) != 0) {
 +        av_log(logctx, AV_LOG_ERROR, "%s: Decode fail\n", __func__);
 +        frame->flags |= AV_FRAME_FLAG_CORRUPT;
 +    }
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    av_dict_set_int(&frame->metadata, "v4l2_ts", rd->timestamp, 0);
+========
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    return 0;
 +}
 +
@@ -3638,7 +3813,12 @@ index 0000000000..a32560eb91
 +{
 +    const HEVCContext *h = avctx->priv_data;
 +    V4L2MediaReqDescriptor *const rd = (V4L2MediaReqDescriptor *)h->cur_frame->f->data[0];
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
+========
++    static int z = 0;
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +
++    fprintf(stderr, "<<< %s: %d\n", __func__, ++z);
 +//    av_log(NULL, AV_LOG_INFO, "%s\n", __func__);
 +    decode_q_add(&ctx->decode_q, &rd->decode_ent);
 +
@@ -3647,7 +3827,11 @@ index 0000000000..a32560eb91
 +    rd->timestamp = cvt_timestamp_to_dpb(ctx->timestamp);
 +
 +    {
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +        FrameDecodeData * const fdd = (FrameDecodeData*)h->cur_frame->f->private_ref;
+========
++        FrameDecodeData * const fdd = (FrameDecodeData*)h->cur_frame->f->private_ref->data;
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +        fdd->post_process = frame_post_process;
 +    }
 +
@@ -3848,6 +4032,24 @@ index 0000000000..a32560eb91
 +
 +static void
 +add_ref_once(V4L2MediaReqDescriptor * const rd, struct HEVCFrame * const ref)
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
+========
++{
++    AVBufferRef **p = rd->refs;
++    int i = 0;
++    while (*p != NULL) {
++        if (ref->f->buf[0]->data == (*p)->data)
++            return;
++        ++p;
++        av_assert0(++i < 16);
++    }
++    *p = av_buffer_ref(ref->f->buf[0]);
++}
++
++// This only works because we started out from a single coded frame buffer
++// that will remain intact until after end_frame
++static int v4l2_request_hevc_decode_slice(AVCodecContext *avctx, V4L2RequestContextHEVC *const ctx, const uint8_t *buffer, uint32_t size)
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +{
 +    AVBufferRef **p = rd->refs;
 +    int i = 0;
@@ -3869,27 +4071,54 @@ index 0000000000..a32560eb91
 +    const HEVCContext * const h = avctx->priv_data;
 +    const SliceHeader * const sh = &h->sh;
 +    V4L2MediaReqDescriptor * const rd = (V4L2MediaReqDescriptor*)h->cur_frame->f->data[0];
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    uint32_t data_offset = (ptr_from_index(buffer, sh->data_offset) - buffer);
 +    uint32_t block_offset = 0;
 +    uint32_t bsize;
+========
++    uint32_t boff = (ptr_from_index(buffer, sh->data_offset) - buffer) * 8 - 1;
++
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    const unsigned int n = rd->num_slices;
 +    const unsigned int block_start = (n / ctx->max_slices) * ctx->max_slices;
 +
 +    int rv;
 +    struct slice_info * si;
 +
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
+========
++    fprintf(stderr, "<<< %s: boff=%u\n", __func__, boff);
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    // This looks dodgy but we know that FFmpeg has parsed this from a buffer
 +    // that contains the entire frame including the start code
 +    if (ctx->start_code == V4L2_STATELESS_HEVC_START_CODE_ANNEX_B) {
 +        buffer -= 3;
 +        size += 3;
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +        data_offset += 3;
+========
++        boff += 24;
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +        if (buffer[0] != 0 || buffer[1] != 0 || buffer[2] != 1) {
 +            av_log(avctx, AV_LOG_ERROR, "Start code requested but missing %02x:%02x:%02x\n",
 +                   buffer[0], buffer[1], buffer[2]);
 +        }
 +    }
 +
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
+========
++    if (ctx->decode_mode == V4L2_STATELESS_HEVC_DECODE_MODE_FRAME_BASED) {
++        if (rd->slices == NULL) {
++            if ((rd->slices = av_mallocz(sizeof(*rd->slices))) == NULL)
++                return AVERROR(ENOMEM);
++            rd->slices->ptr = buffer;
++            rd->num_slices = 1;
++        }
++        rd->slices->len = buffer - rd->slices->ptr + size;
++        return 0;
++    }
++
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    if ((rv = slice_add(rd)) != 0)
 +        return rv;
 +
@@ -3900,8 +4129,15 @@ index 0000000000..a32560eb91
 +
 +    if (n != block_start) {
 +        struct slice_info *const si0 = rd->slices + block_start;
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +        block_offset = (buffer - si0->ptr);
 +        si0->len = si->len + block_offset;
+========
++        const size_t offset = (buffer - si0->ptr);
++        boff += offset * 8;
++        size += offset;
++        si0->len = si->len + offset;
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    }
 +
 +    bsize = ctx->bit_size_is_offset ?
@@ -3910,9 +4146,15 @@ index 0000000000..a32560eb91
 +#if HEVC_CTRLS_VERSION >= 2
 +    if (n == 0)
 +        fill_decode_params(h, &rd->dec);
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    fill_slice_params(h, &rd->dec, rd->slice_params + n, data_offset + block_offset, bsize);
 +#else
 +    fill_slice_params(h, rd->slice_params + n, data_offset + block_offset, bsize);
+========
++    fill_slice_params(h, &rd->dec, rd->slice_params + n, size * 8, boff);
++#else
++    fill_slice_params(h, rd->slice_params + n, size * 8, boff);
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +#endif
 +
 +    {
@@ -3942,8 +4184,17 @@ index 0000000000..a32560eb91
 +static void v4l2_request_hevc_abort_frame(AVCodecContext * const avctx, V4L2RequestContextHEVC *const ctx)
 +{
 +    const HEVCContext * const h = avctx->priv_data;
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    if (h->cur_frame != NULL) {
 +        V4L2MediaReqDescriptor *const rd = (V4L2MediaReqDescriptor *)h->cur_frame->f->data[0];
+========
++    fprintf(stderr, "<<< %s\n", __func__);
++    if (h->cur_frame != NULL) {
++        V4L2MediaReqDescriptor *const rd = (V4L2MediaReqDescriptor *)h->cur_frame->f->data[0];
++
++        media_request_abort(&rd->req);
++        mediabufs_src_qent_abort(ctx->mbufs, &rd->qe_src);
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +
 +        decode_q_remove(&ctx->decode_q, &rd->decode_ent);
 +    }
@@ -4018,6 +4269,9 @@ index 0000000000..a32560eb91
 +    struct req_controls rc;
 +    unsigned int i;
 +    int rv;
++    static int z = 0;
++
++    fprintf(stderr, "<<< %s: %d\n", __func__, ++z);
 +
 +    // It is possible, though maybe a bug, to get an end_frame without
 +    // a previous start_frame.  If we do then give up.
@@ -4132,7 +4386,15 @@ index 0000000000..a32560eb91
 +
 +    mediabufs_ctl_query_ext_ctrls(ctx->mbufs, qc, noof_ctrls);
 +    i = 0;
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +#if HEVC_CTRLS_VERSION < 4
+========
++#if HEVC_CTRLS_VERSION >= 4
++    // Skip slice check if no slice mode
++    if (qc[1].type != 0 && !ctrl_valid(qc + 1, V4L2_STATELESS_HEVC_DECODE_MODE_SLICE_BASED))
++        i = 1;
++#else
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    // Fail frame mode silently for anything prior to V4
 +    if (qc[1].type == 0 || !ctrl_valid(qc + 1, V4L2_STATELESS_HEVC_DECODE_MODE_SLICE_BASED))
 +        return AVERROR(EINVAL);
@@ -4250,6 +4512,11 @@ index 0000000000..a32560eb91
 +    av_log(NULL, AV_LOG_DEBUG, "%s: avctx=%p data=%p\n", __func__, avctx, data);
 +
 +    frame_finish(rd);
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
+========
++
++    qent_dst_unref(&rd->qe_dst);
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +
 +    qent_dst_unref(&rd->qe_dst);
 +
@@ -4301,6 +4568,8 @@ index 0000000000..a32560eb91
 +    AVHWFramesContext *hwfc = (AVHWFramesContext*)hw_frames_ctx->data;
 +    const struct v4l2_format *vfmt = mediabufs_dst_fmt(ctx->mbufs);
 +
++    fprintf(stderr, "<<< %s\n", __func__);
++
 +    hwfc->format = AV_PIX_FMT_DRM_PRIME;
 +    hwfc->sw_format = pixel_format_from_format(vfmt);
 +    if (V4L2_TYPE_IS_MULTIPLANAR(vfmt->type)) {
@@ -4339,6 +4608,8 @@ index 0000000000..a32560eb91
 +{
 +    int rv;
 +
++    fprintf(stderr, "<<< %s\n", __func__);
++
 +    frame->buf[0] = v4l2_req_frame_alloc(avctx, sizeof(V4L2MediaReqDescriptor));
 +    if (!frame->buf[0])
 +        return AVERROR(ENOMEM);
@@ -4376,10 +4647,17 @@ index 0000000000..a32560eb91
 +
 diff --git a/libavcodec/v4l2_req_media.c b/libavcodec/v4l2_req_media.c
 new file mode 100644
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 index 0000000000..3feb55ab11
 --- /dev/null
 +++ b/libavcodec/v4l2_req_media.c
 @@ -0,0 +1,1835 @@
+========
+index 0000000000..c94cc5b0f6
+--- /dev/null
++++ b/libavcodec/v4l2_req_media.c
+@@ -0,0 +1,1808 @@
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +/*
 + * Copyright (C) 2018 Paul Kocialkowski <paul.kocialkowski@bootlin.com>
 + *
@@ -4765,7 +5043,11 @@ index 0000000000..3feb55ab11
 +struct buf_pool {
 +    enum mediabufs_memory memtype;
 +    pthread_mutex_t lock;
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    pthread_cond_t cond;
+========
++    sem_t free_sem;
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    struct qe_list_head free;
 +    struct qe_list_head inuse;
 +};
@@ -5552,6 +5834,7 @@ index 0000000000..3feb55ab11
 +    return cbuf.count;
 +}
 +
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +static void queue_dst_wait_no_waiting(struct buf_pool *const bp)
 +{
 +    // This is O(n^2), but n is not very big & shoudl only happen on shutdown
@@ -5578,6 +5861,8 @@ index 0000000000..3feb55ab11
 +    }
 +}
 +
+========
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +static MediaBufsStatus
 +qe_import_from_buf(struct mediabufs_ctl *const mbc, struct qent_base * const be, const struct v4l2_format *const fmt,
 +                   const unsigned int n, const bool x_dmabuf)
@@ -6053,9 +6338,13 @@ index 0000000000..3feb55ab11
 +
 +int mediabufs_src_resizable(const struct mediabufs_ctl *const mbc)
 +{
++#if 1
++    return 0;
++#else
 +    // Single planar OUTPUT can only take exact size buffers
 +    // Multiplanar will take larger than negotiated
 +    return V4L2_TYPE_IS_MULTIPLANAR(mbc->src_fmt.type);
++#endif
 +}
 +
 +static void mediabufs_ctl_delete(struct mediabufs_ctl *const mbc)
@@ -6217,10 +6506,17 @@ index 0000000000..3feb55ab11
 +
 diff --git a/libavcodec/v4l2_req_media.h b/libavcodec/v4l2_req_media.h
 new file mode 100644
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 index 0000000000..4c3a61960e
 --- /dev/null
 +++ b/libavcodec/v4l2_req_media.h
 @@ -0,0 +1,179 @@
+========
+index 0000000000..890947b2e2
+--- /dev/null
++++ b/libavcodec/v4l2_req_media.h
+@@ -0,0 +1,171 @@
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +/*
 +e.h
 +*
@@ -6294,11 +6590,14 @@ index 0000000000..4c3a61960e
 +struct dmabuf_h;
 +struct dmabufs_ctl;
 +
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +struct timeval;
 +enum v4l2_buf_type;
 +struct v4l2_ext_control;
 +struct v4l2_query_ext_ctrl;
 +
+========
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +// 1-1 mammping to V4L2 type - just defined separetely to avoid some include versioning difficulties
 +enum mediabufs_memory {
 +   MEDIABUFS_MEMORY_UNSET            = 0,
@@ -6898,10 +7197,17 @@ index 0000000000..a6160c5e1c
 +#endif
 diff --git a/libavcodec/v4l2_request_hevc.c b/libavcodec/v4l2_request_hevc.c
 new file mode 100644
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 index 0000000000..78c5c166ca
 --- /dev/null
 +++ b/libavcodec/v4l2_request_hevc.c
 @@ -0,0 +1,437 @@
+========
+index 0000000000..94c6473803
+--- /dev/null
++++ b/libavcodec/v4l2_request_hevc.c
+@@ -0,0 +1,410 @@
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +/*
 + * This file is part of FFmpeg.
 + *
@@ -7012,9 +7318,12 @@ index 0000000000..78c5c166ca
 +cctx_free(void * v, uint8_t * data)
 +{
 +    V4L2RequestContextHEVC *const ctx = (V4L2RequestContextHEVC *)data;
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +
 +    if (ctx->fns && ctx->fns->uninit)
 +        ctx->fns->uninit(ctx);
+========
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +
 +    mediabufs_ctl_unref(&ctx->mbufs);
 +    media_pool_delete(&ctx->mpool);
@@ -7027,12 +7336,17 @@ index 0000000000..78c5c166ca
 +    av_free(ctx);
 +}
 +
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +int ff_v4l2_request_uninit(AVCodecContext *avctx)
+========
++static int v4l2_request_hevc_uninit(AVCodecContext *avctx)
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +{
 +    V4L2RequestPrivHEVC * const priv = avctx->internal->hwaccel_priv_data;
 +
 +    av_log(avctx, AV_LOG_DEBUG, "<<< %s\n", __func__);
 +
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    if (priv->cctx != NULL) {
 +        V4L2RequestContextHEVC *const ctx = priv->cctx;
 +
@@ -7042,6 +7356,12 @@ index 0000000000..78c5c166ca
 +        priv->cctx = NULL;
 +        av_buffer_unref(&priv->cctx_buf);
 +    }
+========
++//    decode_q_wait(&ctx->decode_q, NULL);  // Wait for all other threads to be out of decode
++
++    priv->cctx = NULL;
++    av_buffer_unref(&priv->cctx_buf);
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +
 +//    if (avctx->hw_frames_ctx) {
 +//        AVHWFramesContext *hwfc = (AVHWFramesContext*)avctx->hw_frames_ctx->data;
@@ -7052,6 +7372,7 @@ index 0000000000..78c5c166ca
 +
 +static int dst_fmt_accept_cb(void * v, const struct v4l2_fmtdesc *fmtdesc)
 +{
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    const int bit_depth = *(int *)v;
 +
 +    // SAND is currently confised as to whether it is s/w or hardware
@@ -7072,6 +7393,23 @@ index 0000000000..78c5c166ca
 +            return 0;
 +
 +        return bit_depth == desc->comp[0].depth;
+========
++    AVCodecContext *const avctx = v;
++    const HEVCContext *const h = avctx->priv_data;
++    const HEVCPPS * const pps = h->pps;
++    const HEVCSPS * const sps = pps->sps;
++
++    if (sps->bit_depth == 8) {
++        if (fmtdesc->pixelformat == V4L2_PIX_FMT_NV12_COL128 ||
++            fmtdesc->pixelformat == V4L2_PIX_FMT_NV12) {
++            return 1;
++        }
++    }
++    else if (sps->bit_depth == 10) {
++        if (fmtdesc->pixelformat == V4L2_PIX_FMT_NV12_10_COL128) {
++            return 1;
++        }
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    }
 +}
 +
@@ -7081,11 +7419,22 @@ index 0000000000..78c5c166ca
 +                         const size_t src_bufsize,
 +                         const int dst_buffers)
 +{
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    V4L2RequestPrivHEVC * const priv = avctx->internal->hwaccel_priv_data;
 +    V4L2RequestContextHEVC * ctx;
 +    int ret;
 +    const struct decdev * decdev;
 +    const uint32_t src_pix_fmt = try_fns[0]->src_pix_fmt_v4l2;  // Assuming constant for all APIs but avoiding V4L2 includes
+========
++    const HEVCContext *h = avctx->priv_data;
++    V4L2RequestPrivHEVC * const priv = avctx->internal->hwaccel_priv_data;
++    V4L2RequestContextHEVC * ctx;
++    const HEVCPPS * const pps = h->pps;
++    const HEVCSPS * const sps = pps->sps;
++    int ret;
++    const struct decdev * decdev;
++    const uint32_t src_pix_fmt = V2(ff_v4l2_req_hevc, 4).src_pix_fmt_v4l2;  // Assuming constant for all APIs but avoiding V4L2 includes
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    size_t src_size;
 +    enum mediabufs_memory src_memtype;
 +    enum mediabufs_memory dst_memtype;
@@ -7105,6 +7454,28 @@ index 0000000000..78c5c166ca
 +    priv->cctx = ctx;
 +
 +    decode_q_init(&ctx->decode_q);
++
++    // Give up immediately if this is something that we have no code to deal with
++    if (sps->chroma_format_idc != 1) {
++        av_log(avctx, AV_LOG_WARNING, "chroma_format_idc(%d) != 1: Not implemented\n", sps->chroma_format_idc);
++        return AVERROR_PATCHWELCOME;
++    }
++    if (!(sps->bit_depth == 10 || sps->bit_depth == 8) ||
++        sps->bit_depth != sps->bit_depth_chroma) {
++        av_log(avctx, AV_LOG_WARNING, "Bit depth Y:%d C:%d: Not implemented\n", sps->bit_depth, sps->bit_depth_chroma);
++        return AVERROR_PATCHWELCOME;
++    }
++
++    if ((ctx = av_mallocz(sizeof(*ctx))) == NULL) {
++        av_log(avctx, AV_LOG_ERROR, "Unable to allocate context");
++        return AVERROR(ENOMEM);
++    }
++    if ((priv->cctx_buf = av_buffer_create((uint8_t*)ctx, sizeof(*ctx), cctx_free, NULL, 0)) == NULL) {
++        av_log(avctx, AV_LOG_ERROR, "Unable to allocate context buffer");
++        av_free(ctx);
++        return AVERROR(ENOMEM);
++    }
++    priv->cctx = ctx;
 +
 +    if ((ret = devscan_build(avctx, &ctx->devscan)) != 0) {
 +        av_log(avctx, AV_LOG_WARNING, "Failed to find any V4L2 devices\n");
@@ -7160,7 +7531,11 @@ index 0000000000..78c5c166ca
 +    // We will realloc if we need more
 +    // Must use sps->h/w as avctx contains cropped size
 +retry_src_memtype:
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    src_size = src_bufsize;
+========
++    src_size = bit_buf_size(sps->width, sps->height, sps->bit_depth - 8);
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    if (src_memtype == MEDIABUFS_MEMORY_DMABUF && mediabufs_src_resizable(ctx->mbufs))
 +        src_size /= 4;
 +    // Kludge for conformance tests which break Annex A limits
@@ -7183,19 +7558,43 @@ index 0000000000..78c5c166ca
 +        goto fail4;
 +    }
 +
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    for (const struct v4l2_req_decode_fns * const * tf = try_fns; (ctx->fns = *tf) != NULL; ++tf)
 +        if (ctx->fns->probe(avctx, ctx) == 0)
 +            break;
 +    if (ctx->fns == NULL) {
 +        av_log(avctx, AV_LOG_ERROR, "No %s version probed successfully\n", try_fns[0]->name);
+========
++    if (V2(ff_v4l2_req_hevc, 4).probe(avctx, ctx) == 0)
++        ctx->fns = &V2(ff_v4l2_req_hevc, 4);
++#if CONFIG_V4L2_REQ_HEVC_VX
++    else if (V2(ff_v4l2_req_hevc, 3).probe(avctx, ctx) == 0)
++        ctx->fns = &V2(ff_v4l2_req_hevc, 3);
++    else if (V2(ff_v4l2_req_hevc, 2).probe(avctx, ctx) == 0)
++        ctx->fns = &V2(ff_v4l2_req_hevc, 2);
++    else if (V2(ff_v4l2_req_hevc, 1).probe(avctx, ctx) == 0)
++        ctx->fns = &V2(ff_v4l2_req_hevc, 1);
++#endif
++    else {
++        av_log(avctx, AV_LOG_ERROR, "No HEVC version probed successfully\n");
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +        ret = AVERROR(EINVAL);
 +        goto fail4;
 +    }
 +    av_log(avctx, AV_LOG_DEBUG, "%s probed successfully: driver v %#x\n",
 +           ctx->fns->name, mediabufs_ctl_driver_version(ctx->mbufs));
 +
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    if (mediabufs_dst_fmt_set(ctx->mbufs, width, height, dst_fmt_accept_cb, (void*)&bit_depth)) {
 +        av_log(avctx, AV_LOG_ERROR, "Failed to set destination format: %dx%d %dbit\n", width, height, bit_depth);
+========
++    av_log(avctx, AV_LOG_DEBUG, "%s probed successfully: driver v %#x\n",
++           ctx->fns->name, mediabufs_ctl_driver_version(ctx->mbufs));
++
++    if (mediabufs_dst_fmt_set(ctx->mbufs, sps->width, sps->height, dst_fmt_accept_cb, avctx)) {
++        char tbuf1[5];
++        av_log(avctx, AV_LOG_ERROR, "Failed to set destination format: %s %dx%d\n", strfourcc(tbuf1, src_pix_fmt), sps->width, sps->height);
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +        goto fail4;
 +    }
 +
@@ -7265,8 +7664,13 @@ index 0000000000..78c5c166ca
 +    return ret;
 +}
 +
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +int
 +ff_v4l2_request_update_thread_context(AVCodecContext *dst, const AVCodecContext *src)
+========
++static int
++v4l2_request_update_thread_context(AVCodecContext *dst, const AVCodecContext *src)
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +{
 +    V4L2RequestPrivHEVC * const spriv = src->internal->hwaccel_priv_data;
 +    V4L2RequestPrivHEVC * const dpriv = dst->internal->hwaccel_priv_data;
@@ -7281,6 +7685,7 @@ index 0000000000..78c5c166ca
 +    return 0;
 +}
 +
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +void
 +ff_v4l2_request_free_frame_priv(AVRefStructOpaque hwctx, void *data)
 +{
@@ -7316,6 +7721,12 @@ index 0000000000..78c5c166ca
 +    return ff_v4l2_request_init(avctx, try_fns, sps->width, sps->height, sps->bit_depth,
 +                                bit_buf_size(sps->width, sps->height, sps->bit_depth - 8),
 +                                sps->temporal_layer[sps->max_sub_layers - 1].max_dec_pic_buffering);
+========
++static void
++v4l2_request_free_frame_priv(FFRefStructOpaque hwctx, void *data)
++{
++    fprintf(stderr, "%s\n", __func__);
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +}
 +
 +const FFHWAccel ff_hevc_v4l2request_hwaccel = {
@@ -7325,6 +7736,7 @@ index 0000000000..78c5c166ca
 +        .id             = AV_CODEC_ID_HEVC,
 +        .pix_fmt        = AV_PIX_FMT_DRM_PRIME,
 +    },
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    .alloc_frame    = ff_v4l2_request_alloc_frame,
 +    .start_frame    = ff_v4l2_request_start_frame,
 +    .decode_slice   = ff_v4l2_request_decode_slice,
@@ -7337,10 +7749,25 @@ index 0000000000..78c5c166ca
 +    .update_thread_context = ff_v4l2_request_update_thread_context,
 +    .priv_data_size = sizeof(V4L2RequestPrivHEVC),
 +    .frame_params   = ff_v4l2_request_frame_params,
+========
++    .alloc_frame    = v4l2_req_hevc_alloc_frame,
++    .start_frame    = v4l2_req_hevc_start_frame,
++    .decode_slice   = v4l2_req_hevc_decode_slice,
++    .end_frame      = v4l2_req_hevc_end_frame,
++    .abort_frame    = v4l2_req_hevc_abort_frame,
++    .init           = v4l2_request_hevc_init,
++    .uninit         = v4l2_request_hevc_uninit,
++    .free_frame_priv = v4l2_request_free_frame_priv,
++    .frame_priv_data_size  = 128,
++    .update_thread_context = v4l2_request_update_thread_context,
++    .priv_data_size = sizeof(V4L2RequestPrivHEVC),
++    .frame_params   = v4l2_req_hevc_frame_params,
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    .caps_internal  = HWACCEL_CAP_ASYNC_SAFE | HWACCEL_CAP_THREAD_SAFE,
 +};
 diff --git a/libavcodec/v4l2_request_hevc.h b/libavcodec/v4l2_request_hevc.h
 new file mode 100644
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 index 0000000000..0af935266b
 --- /dev/null
 +++ b/libavcodec/v4l2_request_hevc.h
@@ -7369,6 +7796,12 @@ index 0000000000..0af935266b
 +    DEALINGS IN THE SOFTWARE.
 + */
 +
+========
+index 0000000000..d0ce3aaa6e
+--- /dev/null
++++ b/libavcodec/v4l2_request_hevc.h
+@@ -0,0 +1,107 @@
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +#ifndef AVCODEC_V4L2_REQUEST_HEVC_H
 +#define AVCODEC_V4L2_REQUEST_HEVC_H
 +
@@ -7447,8 +7880,11 @@ index 0000000000..0af935266b
 +    int start_code;
 +    unsigned int max_slices;    // 0 => not wanted (frame mode)
 +    unsigned int max_offsets;   // 0 => not wanted
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +
 +    int bit_size_is_offset;  // Quirk for old RPi decodes (not worth an entire VX)
+========
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +
 +    req_decode_q decode_q;
 +
@@ -7464,7 +7900,10 @@ index 0000000000..0af935266b
 +typedef struct V4L2RequestPrivHEVC {
 +    V4L2RequestContextHEVC * cctx;  // Common context
 +    AVBufferRef * cctx_buf;         // Buf for cctx
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +    int bit_depth;
+========
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 +} V4L2RequestPrivHEVC;
 +
 +typedef struct v4l2_req_decode_fns {
@@ -7510,5 +7949,9 @@ index 0000000000..0af935266b
 +
 +#endif
 -- 
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0010-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 2.34.1
+========
+2.43.0
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0011-Add-v4l2_req-V4L2-request-H265-drm_prime-decode.patch
 

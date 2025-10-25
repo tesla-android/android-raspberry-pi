@@ -1,7 +1,7 @@
-From c2762e873261815625707a60298bfb46d6f67aa0 Mon Sep 17 00:00:00 2001
+From 28bf57be3ba57450472fe803e75b7ec690c92479 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
 Date: Mon, 4 Jul 2022 04:58:36 +0200
-Subject: [PATCH 2/4] WifiApConfigStore: Use a static default Wi-Fi password
+Subject: [PATCH 2/5] WifiApConfigStore: Use a static default Wi-Fi password
  instead of a geneerated one
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -14,10 +14,10 @@ Signed-off-by: Michał Gapiński <mike@gapinski.eu>
  1 file changed, 7 insertions(+), 17 deletions(-)
 
 diff --git a/service/java/com/android/server/wifi/WifiApConfigStore.java b/service/java/com/android/server/wifi/WifiApConfigStore.java
-index 108ba38..b9ae8cf 100644
+index f4d0622..ed7d10a 100644
 --- a/service/java/com/android/server/wifi/WifiApConfigStore.java
 +++ b/service/java/com/android/server/wifi/WifiApConfigStore.java
-@@ -253,7 +253,7 @@ public class WifiApConfigStore {
+@@ -296,7 +296,7 @@ public class WifiApConfigStore {
                  || config.getSecurityType()
                  == SECURITY_TYPE_WPA3_SAE_TRANSITION)) {
              try {
@@ -26,7 +26,7 @@ index 108ba38..b9ae8cf 100644
                          SECURITY_TYPE_WPA2_PSK);
              } catch (IllegalArgumentException e) {
                  Log.wtf(TAG, "Generated password was invalid: " + e);
-@@ -387,10 +387,10 @@ public class WifiApConfigStore {
+@@ -430,10 +430,10 @@ public class WifiApConfigStore {
                  R.string.wifi_tether_configure_ssid_default) + "_" + getRandomIntForDefaultSsid());
          try {
              if (ApConfigUtil.isWpa3SaeSupported(mContext)) {
@@ -39,7 +39,7 @@ index 108ba38..b9ae8cf 100644
                          SECURITY_TYPE_WPA2_PSK);
              }
          } catch (IllegalArgumentException e) {
-@@ -456,10 +456,10 @@ public class WifiApConfigStore {
+@@ -502,10 +502,10 @@ public class WifiApConfigStore {
              configBuilder.setAutoShutdownEnabled(false);
              try {
                  if (ApConfigUtil.isWpa3SaeSupported(context)) {
@@ -52,7 +52,7 @@ index 108ba38..b9ae8cf 100644
                              SECURITY_TYPE_WPA2_PSK);
                  }
              } catch (IllegalArgumentException e) {
-@@ -660,18 +660,8 @@ public class WifiApConfigStore {
+@@ -708,18 +708,8 @@ public class WifiApConfigStore {
          return true;
      }
  

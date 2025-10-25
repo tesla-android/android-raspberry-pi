@@ -1,14 +1,14 @@
-From f730d3acebfcd36122a59dc3d6c94378be009008 Mon Sep 17 00:00:00 2001
+From 968cf201800dde620907f7217cb84b2f2cba0711 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Wed, 1 May 2024 17:07:32 +0000
-Subject: [PATCH 1/1] write bootloader-update image to vendor_dlkm
+Subject: [PATCH 01/16] write bootloader-update image to vendor_dlkm
 
 ---
  platform/kernel/kernel.mk | 13 +++++++++++++
  1 file changed, 13 insertions(+)
 
 diff --git a/platform/kernel/kernel.mk b/platform/kernel/kernel.mk
-index d49b729..5cd9811 100644
+index d49b729..7d77a96 100644
 --- a/platform/kernel/kernel.mk
 +++ b/platform/kernel/kernel.mk
 @@ -69,12 +69,25 @@ BOARD_PREBUILT_DTBOIMAGE := $(PRODUCT_OUT)/boot_dtbo.img
@@ -39,3 +39,4 @@ index d49b729..5cd9811 100644
  $(PRODUCT_OUT)/kernel: $(KERNEL_TARGET) $(TARGET_VENDOR_MODULES)/modules.dep
 -- 
 2.34.1
+

@@ -1,0 +1,23 @@
+From a8d5ee53a076987f6f0dfed610b8018f070a666a Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Tue, 22 Oct 2024 22:10:37 +0300
+Subject: [PATCH 09/16] Revert "base: Set TARGET_FLATTEN_APEX to true"
+
+This reverts commit 694b6a06734a22e74cb29f9e69e7dc1832c0dcab.
+---
+ common/base/device.mk | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/common/base/device.mk b/common/base/device.mk
+index 2d1e349..9b244e6 100644
+--- a/common/base/device.mk
++++ b/common/base/device.mk
+@@ -74,5 +74,3 @@ PRODUCT_PACKAGES += \
+     update_engine_client \
+     update_verifier \
+     update_engine_sideload \
+-
+-TARGET_FLATTEN_APEX := true
+-- 
+2.34.1
+

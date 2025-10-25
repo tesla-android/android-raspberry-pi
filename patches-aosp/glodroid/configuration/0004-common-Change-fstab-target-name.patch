@@ -1,0 +1,52 @@
+From b5b313374054c91bb5eddf1d572f5bb2c000452b Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Fri, 25 Oct 2024 12:53:24 +0300
+Subject: [PATCH 04/16] common: Change fstab target name
+
+Otherwise the fstab.<TARGET> won't appear on the partition
+due to Android15 new restrictions.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ common/base/device.mk   | 2 +-
+ platform/fstab/fstab.mk | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/common/base/device.mk b/common/base/device.mk
+index 29113d0..2d1e349 100644
+--- a/common/base/device.mk
++++ b/common/base/device.mk
+@@ -50,7 +50,7 @@ PRODUCT_COPY_FILES += \
+     $(LOCAL_PATH)/ueventd.common.rc:$(TARGET_COPY_OUT_VENDOR)/etc/ueventd.rc \
+     $(LOCAL_PATH)/fstab.zram:$(TARGET_COPY_OUT_VENDOR)/etc/fstab.zram \
+ 
+-PRODUCT_PACKAGES += fstab
++PRODUCT_PACKAGES += fstab.$(TARGET_PRODUCT)
+ 
+ PRODUCT_COPY_FILES += \
+     frameworks/native/data/etc/android.software.opengles.deqp.level-2021-03-01.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.software.opengles.deqp.level.xml
+diff --git a/platform/fstab/fstab.mk b/platform/fstab/fstab.mk
+index 554b121..f26f08a 100644
+--- a/platform/fstab/fstab.mk
++++ b/platform/fstab/fstab.mk
+@@ -6,7 +6,7 @@ LOCAL_PATH := $(call my-dir)
+ 
+ FSTAB_RAW := $(LOCAL_PATH)/fstab.cpp
+ RECOVERY_FSTAB := $(TARGET_VENDOR_RAMDISK_OUT)/first_stage_ramdisk/fstab.$(TARGET_PRODUCT)
+-VENDOR_FSTAB := $(TARGET_OUT_VENDOR)/etc/fstab.$(TARGET_PRODUCT)
++VENDOR_FSTAB := $(TARGET_OUT_VENDOR)/etc/fstab
+ 
+ TARGET_RECOVERY_FSTAB := $(RECOVERY_FSTAB)
+ 
+@@ -21,7 +21,7 @@ include $(CLEAR_VARS)
+ 
+ # ---------------------------------------------------------------------------
+ 
+-LOCAL_MODULE := fstab
++LOCAL_MODULE := fstab.$(TARGET_PRODUCT)
+ 
+ LOCAL_PROPRIETARY_MODULE := true
+ LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR)/etc/
+-- 
+2.34.1
+

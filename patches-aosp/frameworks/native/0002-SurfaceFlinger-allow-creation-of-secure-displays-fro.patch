@@ -1,29 +1,33 @@
-From b3bae58be2bb2072baba543bbd8dd8e2abf3c4af Mon Sep 17 00:00:00 2001
+From 91be294dce147a7c3e24f6cd856a1f659594a4ab Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Sat, 22 Jul 2023 21:13:05 +0200
 Subject: [PATCH 2/2] SurfaceFlinger: allow creation of secure displays from
  outside of AID_SYSTEM
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 
 Change-Id: I7654f105a3c65f4a79c1ef2951e245eb1f0e009c
+Signed-off-by: Michał Gapiński <mike@gapinski.eu>
 ---
  services/surfaceflinger/SurfaceFlinger.cpp | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
-index 51a1717..524cb98 100644
+index 71f9b00..4b4d52f 100644
 --- a/services/surfaceflinger/SurfaceFlinger.cpp
 +++ b/services/surfaceflinger/SurfaceFlinger.cpp
-@@ -524,11 +524,11 @@ sp<IBinder> SurfaceFlinger::createDisplay(const String8& displayName, bool secur
-     // onTransact already checks for some permissions, but adding an additional check here.
-     // This is to ensure that only system and graphics can request to create a secure
+@@ -581,11 +581,11 @@ sp<IBinder> SurfaceFlinger::createVirtualDisplay(const std::string& displayName,
+     // SurfaceComposerAIDL checks for some permissions, but adding an additional check here.
+     // This is to ensure that only root, system, and graphics can request to create a secure
      // display. Secure displays can show secure content so we add an additional restriction on it.
--    const int uid = IPCThreadState::self()->getCallingUid();
--    if (secure && uid != AID_GRAPHICS && uid != AID_SYSTEM) {
+-    const uid_t uid = IPCThreadState::self()->getCallingUid();
+-    if (isSecure && uid != AID_ROOT && uid != AID_GRAPHICS && uid != AID_SYSTEM) {
 -        ALOGE("Only privileged processes can create a secure display");
 -        return nullptr;
 -    }
-+    //const int uid = IPCThreadState::self()->getCallingUid();
-+    //if (secure && uid != AID_GRAPHICS && uid != AID_SYSTEM) {
++    //const uid_t uid = IPCThreadState::self()->getCallingUid();
++    //if (isSecure && uid != AID_ROOT && uid != AID_GRAPHICS && uid != AID_SYSTEM) {
 +    //    ALOGE("Only privileged processes can create a secure display");
 +    //    return nullptr;
 +    //}

@@ -1,0 +1,90 @@
+From c17a897d7bbb47f88ef99e01ea3fada4b65dc212 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 28 Nov 2024 18:36:10 +0000
+Subject: [PATCH 34/41] weak_link: Fix includes & copyright for fate
+
+---
+ libavcodec/weak_link.c | 24 ++++++++++++++++++++++++
+ libavcodec/weak_link.h | 33 ++++++++++++++++++++++++++++-----
+ 2 files changed, 52 insertions(+), 5 deletions(-)
+
+diff --git a/libavcodec/weak_link.c b/libavcodec/weak_link.c
+index 5a79e89ed7..71f6cc3567 100644
+--- a/libavcodec/weak_link.c
++++ b/libavcodec/weak_link.c
+@@ -1,3 +1,27 @@
++/*
++    Copyright (C) 2024  John Cox john.cox@raspberrypi.com
++
++    Permission is hereby granted, free of charge, to any person
++    obtaining a copy of this software and associated documentation
++    files (the "Software"), to deal in the Software without
++    restriction, including without limitation the rights to use, copy,
++    modify, merge, publish, distribute, sublicense, and/or sell copies
++    of the Software, and to permit persons to whom the Software is
++    furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++ */
++
+ #include <stdlib.h>
+ #include <pthread.h>
+ #include <stdatomic.h>
+diff --git a/libavcodec/weak_link.h b/libavcodec/weak_link.h
+index 415b6a27a0..5c66b29f9b 100644
+--- a/libavcodec/weak_link.h
++++ b/libavcodec/weak_link.h
+@@ -1,3 +1,30 @@
++/*
++    Copyright (C) 2024  John Cox john.cox@raspberrypi.com
++
++    Permission is hereby granted, free of charge, to any person
++    obtaining a copy of this software and associated documentation
++    files (the "Software"), to deal in the Software without
++    restriction, including without limitation the rights to use, copy,
++    modify, merge, publish, distribute, sublicense, and/or sell copies
++    of the Software, and to permit persons to whom the Software is
++    furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++ */
++
++#ifndef AVCODEC_WEAK_LINK_H
++#define AVCODEC_WEAK_LINK_H
++
+ struct ff_weak_link_master;
+ struct ff_weak_link_client;
+ 
+@@ -16,8 +43,4 @@ void ff_weak_link_unref(struct ff_weak_link_client ** ppLink);
+ void * ff_weak_link_lock(struct ff_weak_link_client ** ppLink);
+ void ff_weak_link_unlock(struct ff_weak_link_client * c);
+ 
+-
+-
+-
+-
+-
++#endif
+-- 
+2.43.0
+

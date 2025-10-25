@@ -1,3 +1,4 @@
+
 # SPDX-License-Identifier: Apache-2.0
 #
 # Copyright (C) 2019 The Android Open-Source Project
@@ -7,4 +8,4 @@ PRODUCT_MAKEFILES := \
     $(LOCAL_DIR)/gd_rpi4.mk
 
 COMMON_LUNCH_CHOICES := \
-    gd_rpi4-userdebug
+    gd_rpi4-trunk_staging-userdebug

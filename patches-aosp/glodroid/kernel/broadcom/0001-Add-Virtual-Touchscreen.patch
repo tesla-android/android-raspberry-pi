@@ -1,4 +1,4 @@
-From 9509a3d2238ba2c18842f2fec49415acbf9313d1 Mon Sep 17 00:00:00 2001
+From 78d1b9cf0160bacf2c54b8e965ab332296eddc87 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Tue, 6 Feb 2024 20:01:22 +0000
 Subject: [PATCH 01/10] Add Virtual Touchscreen
@@ -11,7 +11,7 @@ Subject: [PATCH 01/10] Add Virtual Touchscreen
  create mode 100644 drivers/input/touchscreen/virtual_touchscreen.c
 
 diff --git a/drivers/input/touchscreen/Kconfig b/drivers/input/touchscreen/Kconfig
-index dc90a3ea5..3a6591aad 100644
+index e3e232454..43bd57ffb 100644
 --- a/drivers/input/touchscreen/Kconfig
 +++ b/drivers/input/touchscreen/Kconfig
 @@ -12,6 +12,12 @@ menuconfig INPUT_TOUCHSCREEN
@@ -28,7 +28,7 @@ index dc90a3ea5..3a6591aad 100644
  	tristate "Marvell 88PM860x touchscreen"
  	depends on MFD_88PM860X
 diff --git a/drivers/input/touchscreen/Makefile b/drivers/input/touchscreen/Makefile
-index 557f84fd2..095dec637 100644
+index 62bd24f3a..6eaefd11a 100644
 --- a/drivers/input/touchscreen/Makefile
 +++ b/drivers/input/touchscreen/Makefile
 @@ -8,6 +8,7 @@

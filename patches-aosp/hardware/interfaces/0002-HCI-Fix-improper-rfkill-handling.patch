@@ -1,0 +1,55 @@
+From 100e07a6bd96c34c87013f1ef7d1e0ed1f094f27 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Thu, 12 Dec 2024 05:19:03 +0200
+Subject: [PATCH 2/2] HCI: Fix improper rfkill handling
+
+Current behavior with kernel rfkill module loaded produces a cascade of
+crash events starting from the following logcat error:
+
+    unable to bind bluetooth user channel: Operation not possible due to RF-kill
+
+However, the same device configuration worked well with btlinux HAL,
+which I assume was used as a base for this HAL.
+
+After some investigation, I found that the rfkill(1) function call in the
+btlinux call changed the state to 1, which is RFKILL_STATE_UNBLOCKED.
+The current rfkill(1) sets the soft block value to 1, which corresponds
+to the state value 0 (RFKILL_STATE_SOFT_BLOCKED).
+
+Fix it by providing the correct values to the rfkill() call.
+
+Change-Id: I7a62744f9c21d80b9f8fa37f6c172afa2a5b6c8a
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ bluetooth/aidl/default/net_bluetooth_mgmt.cpp | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/bluetooth/aidl/default/net_bluetooth_mgmt.cpp b/bluetooth/aidl/default/net_bluetooth_mgmt.cpp
+index 24693effcd..6b0cd63166 100644
+--- a/bluetooth/aidl/default/net_bluetooth_mgmt.cpp
++++ b/bluetooth/aidl/default/net_bluetooth_mgmt.cpp
+@@ -259,8 +259,8 @@ int NetBluetoothMgmt::rfkill(int block) {
+ int NetBluetoothMgmt::openHci(int hci_interface) {
+   ALOGI("opening hci interface %d", hci_interface);
+ 
+-  // Block Bluetooth.
+-  rfkill(1);
++  // Unblock Bluetooth.
++  rfkill(0);
+ 
+   // Wait for the HCI interface to complete initialization or to come online.
+   int hci = waitHciDev(hci_interface);
+@@ -300,8 +300,8 @@ void NetBluetoothMgmt::closeHci() {
+     bt_fd_ = -1;
+   }
+ 
+-  // Unblock Bluetooth.
+-  rfkill(0);
++  // Block Bluetooth.
++  rfkill(1);
+ }
+ 
+ }  // namespace aidl::android::hardware::bluetooth::impl
+-- 
+2.43.0
+

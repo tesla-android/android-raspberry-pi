@@ -1,0 +1,29 @@
+From 6f361fca2596aee0781488d38d16159315811346 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Thu, 12 Dec 2024 03:22:31 +0200
+Subject: [PATCH 21/21] kernel: Avoid cleaning the modules.blocklist file
+
+The modules.blocklist file is provided by the AOSP build system,
+so we don't want it to disappear suddenly.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ platform/kernel/kernel.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/platform/kernel/kernel.mk b/platform/kernel/kernel.mk
+index 72f22f8..3f027ad 100644
+--- a/platform/kernel/kernel.mk
++++ b/platform/kernel/kernel.mk
+@@ -68,7 +68,7 @@ DTB_OUTPUT		:= $(PRODUCT_OUT)/dtb.img
+ 
+ $(TARGET_VENDOR_MODULES)/modules.dep: $(KERNEL_TARGET)
+ 	rm -rf $(TARGET_VENDOR_MODULES)/kernel
+-	rm -f $(TARGET_VENDOR_MODULES)/modules.*
++	ls $(TARGET_VENDOR_MODULES)/modules.* | grep -v modules.blocklist | xargs rm -f
+ 	mkdir -p $(TARGET_VENDOR_MODULES)/kernel
+ 	cp -r $(KERNEL_OUT)/install/modules/lib/modules/GloDroid/kernel/* $(TARGET_VENDOR_MODULES)/kernel/
+ 	cp -r $(KERNEL_OUT)/install/modules/lib/modules/GloDroid/modules.* $(TARGET_VENDOR_MODULES)/
+-- 
+2.43.0
+

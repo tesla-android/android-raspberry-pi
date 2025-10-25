@@ -1,7 +1,14 @@
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0023-Initial-buffersink-alloc-callback-code.patch
 From 7a0b17a3fe0e2df761110d432b3d3a026ac8a81c Mon Sep 17 00:00:00 2001
 From: John Cox <jc@kynesim.co.uk>
 Date: Mon, 6 Feb 2023 19:23:16 +0000
 Subject: [PATCH 23/40] Initial buffersink alloc callback code
+========
+From 34b947cca06e0f9322c529a909d4bfc334d41f52 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Mon, 6 Feb 2023 19:23:16 +0000
+Subject: [PATCH 24/41] Initial buffersink alloc callback code
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0024-Initial-buffersink-alloc-callback-code.patch
 
 (cherry picked from commit dde8d3c8f3cc279b9b92ed4f10a2e3990f4aadeb)
 ---
@@ -10,11 +17,19 @@ Subject: [PATCH 23/40] Initial buffersink alloc callback code
  2 files changed, 33 insertions(+), 1 deletion(-)
 
 diff --git a/libavfilter/buffersink.c b/libavfilter/buffersink.c
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0023-Initial-buffersink-alloc-callback-code.patch
 index 50a7da2756..5fb73cb49d 100644
 --- a/libavfilter/buffersink.c
 +++ b/libavfilter/buffersink.c
 @@ -84,6 +84,11 @@ typedef struct BufferSinkContext {
      unsigned          nb_channel_layouts;
+========
+index 5811720c61..13e1f34465 100644
+--- a/libavfilter/buffersink.c
++++ b/libavfilter/buffersink.c
+@@ -60,6 +60,11 @@ typedef struct BufferSinkContext {
+     int sample_rates_size;
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0024-Initial-buffersink-alloc-callback-code.patch
  
      AVFrame *peeked_frame;
 +
@@ -24,8 +39,13 @@ index 50a7da2756..5fb73cb49d 100644
 +    void * alloc_v;
  } BufferSinkContext;
  
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0023-Initial-buffersink-alloc-callback-code.patch
  int attribute_align_arg av_buffersink_get_frame(AVFilterContext *ctx, AVFrame *frame)
 @@ -159,6 +164,22 @@ int attribute_align_arg av_buffersink_get_samples(AVFilterContext *ctx,
+========
+ #define NB_ITEMS(list) (list ## _size / sizeof(*list))
+@@ -129,6 +134,22 @@ int attribute_align_arg av_buffersink_get_samples(AVFilterContext *ctx,
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0024-Initial-buffersink-alloc-callback-code.patch
      return get_frame_internal(ctx, frame, 0, nb_samples);
  }
  
@@ -48,6 +68,7 @@ index 50a7da2756..5fb73cb49d 100644
  static av_cold int common_init(AVFilterContext *ctx)
  {
      BufferSinkContext *buf = ctx->priv;
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0023-Initial-buffersink-alloc-callback-code.patch
 @@ -544,6 +565,14 @@ static const AVOption abuffersink_options[] = {
  AVFILTER_DEFINE_CLASS(buffersink);
  AVFILTER_DEFINE_CLASS(abuffersink);
@@ -71,9 +92,38 @@ index 50a7da2756..5fb73cb49d 100644
 +    FILTER_INPUTS(avfilter_vsink_buffer_inputs),
      FILTER_QUERY_FUNC2(vsink_query_formats),
  };
+========
+@@ -355,6 +376,14 @@ static const AVOption abuffersink_options[] = {
+ AVFILTER_DEFINE_CLASS(buffersink);
+ AVFILTER_DEFINE_CLASS(abuffersink);
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0024-Initial-buffersink-alloc-callback-code.patch
  
++static const AVFilterPad avfilter_vsink_buffer_inputs[] = {
++    {
++        .name = "default",
++        .type = AVMEDIA_TYPE_VIDEO,
++        .get_buffer = {.video = alloc_video_buffer},
++    },
++};
++
+ const AVFilter ff_vsink_buffer = {
+     .name          = "buffersink",
+     .description   = NULL_IF_CONFIG_SMALL("Buffer video frames, and make them available to the end of the filter graph."),
+@@ -363,7 +392,7 @@ const AVFilter ff_vsink_buffer = {
+     .init          = common_init,
+     .uninit        = uninit,
+     .activate      = activate,
+-    FILTER_INPUTS(ff_video_default_filterpad),
++    FILTER_INPUTS(avfilter_vsink_buffer_inputs),
+     .outputs       = NULL,
+     FILTER_QUERY_FUNC(vsink_query_formats),
+ };
 diff --git a/libavfilter/buffersink.h b/libavfilter/buffersink.h
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0023-Initial-buffersink-alloc-callback-code.patch
 index a8435eea8f..2ec88b9dad 100644
+========
+index 361d603679..47a296cf5e 100644
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0024-Initial-buffersink-alloc-callback-code.patch
 --- a/libavfilter/buffersink.h
 +++ b/libavfilter/buffersink.h
 @@ -163,6 +163,9 @@ int av_buffersink_get_frame(AVFilterContext *ctx, AVFrame *frame);
@@ -87,5 +137,9 @@ index a8435eea8f..2ec88b9dad 100644
   * @}
   */
 -- 
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0023-Initial-buffersink-alloc-callback-code.patch
 2.34.1
+========
+2.43.0
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0024-Initial-buffersink-alloc-callback-code.patch
 
