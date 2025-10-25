@@ -1,4 +1,4 @@
-From 2fc8c39151d3f5aeff223b8498a37fd71b0ea41b Mon Sep 17 00:00:00 2001
+From e91164def34fde3a7a5501455d496e11a5c5212a Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapin=CC=81ski?= <mike@gapinski.eu>
 Date: Mon, 4 Jul 2022 03:06:29 +0200
 Subject: [PATCH 2/5] Wi-Fi Hotspot: Remove auto off settings
@@ -13,10 +13,10 @@ Signed-off-by: Michał Gapiński <mike@gapinski.eu>
  1 file changed, 5 deletions(-)
 
 diff --git a/src/com/android/settings/wifi/tether/WifiTetherSettings.java b/src/com/android/settings/wifi/tether/WifiTetherSettings.java
-index 00df61b..80d765a 100644
+index 5ab89f5..f131830 100644
 --- a/src/com/android/settings/wifi/tether/WifiTetherSettings.java
 +++ b/src/com/android/settings/wifi/tether/WifiTetherSettings.java
-@@ -68,8 +68,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+@@ -67,8 +67,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
      @VisibleForTesting
      static final String KEY_WIFI_TETHER_NETWORK_PASSWORD = "wifi_tether_network_password";
      @VisibleForTesting
@@ -25,7 +25,7 @@ index 00df61b..80d765a 100644
      static final String KEY_WIFI_HOTSPOT_SECURITY = "wifi_hotspot_security";
      @VisibleForTesting
      static final String KEY_WIFI_HOTSPOT_SPEED = "wifi_hotspot_speed";
-@@ -247,8 +245,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+@@ -274,8 +272,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
          controllers.add(new WifiTetherSSIDPreferenceController(context, listener));
          controllers.add(new WifiTetherSecurityPreferenceController(context, listener));
          controllers.add(new WifiTetherPasswordPreferenceController(context, listener));
@@ -34,14 +34,14 @@ index 00df61b..80d765a 100644
          return controllers;
      }
  
-@@ -321,7 +317,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
+@@ -362,7 +358,6 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
                  keys.add(KEY_WIFI_TETHER_NETWORK_NAME);
                  keys.add(KEY_WIFI_TETHER_SECURITY);
                  keys.add(KEY_WIFI_TETHER_NETWORK_PASSWORD);
 -                keys.add(KEY_WIFI_TETHER_AUTO_OFF);
-             }
- 
-             // Remove duplicate
+                 keys.add(KEY_INSTANT_HOTSPOT);
+             } else if (!mIsInstantHotspotEnabled) {
+                 keys.add(KEY_INSTANT_HOTSPOT);
 -- 
 2.34.1
 

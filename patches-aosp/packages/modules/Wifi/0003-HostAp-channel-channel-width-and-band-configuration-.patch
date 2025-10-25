@@ -1,27 +1,31 @@
-From 7cd406189b94e9af927f4bf3d01e6ec42f93c595 Mon Sep 17 00:00:00 2001
+From 6ba5ec1b51e52f18ca933b41bd99c3d9ad72e8ec Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Sun, 14 May 2023 16:03:01 +0000
-Subject: [PATCH 3/4] HostAp channel, channel width and band configuration with
+Subject: [PATCH 3/5] HostAp channel, channel width and band configuration with
  system properties
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 
 Change-Id: I80dd4cf775ef1eff5a6eac18de8c083b69827e14
+Signed-off-by: Michał Gapiński <mike@gapinski.eu>
 ---
  .../android/net/wifi/SoftApConfiguration.java |  9 +--
  .../net/wifi/SoftApConfiguration.java.rej     | 10 ---
  .../wifi/TeslaAndroidSoftApConfiguration.java | 64 +++++++++++++++++++
- .../android/server/wifi/SoftApManager.java    | 40 ++++++------
+ .../android/server/wifi/SoftApManager.java    | 22 -------
  .../server/wifi/WifiApConfigStore.java        | 10 +--
  .../com/android/server/wifi/WifiNative.java   |  6 +-
- .../server/wifi/util/ApConfigUtil.java        | 19 +++---
- 7 files changed, 107 insertions(+), 51 deletions(-)
+ .../server/wifi/util/ApConfigUtil.java        | 21 +++---
+ 7 files changed, 88 insertions(+), 54 deletions(-)
  delete mode 100644 framework/java/android/net/wifi/SoftApConfiguration.java.rej
  create mode 100644 framework/java/android/net/wifi/TeslaAndroidSoftApConfiguration.java
 
 diff --git a/framework/java/android/net/wifi/SoftApConfiguration.java b/framework/java/android/net/wifi/SoftApConfiguration.java
-index 114b8e6..4cd46d4 100644
+index df18dab..42d7989 100644
 --- a/framework/java/android/net/wifi/SoftApConfiguration.java
 +++ b/framework/java/android/net/wifi/SoftApConfiguration.java
-@@ -26,6 +26,7 @@ import android.compat.annotation.ChangeId;
+@@ -27,6 +27,7 @@ import android.compat.annotation.ChangeId;
  import android.compat.annotation.EnabledAfter;
  import android.net.MacAddress;
  import android.net.wifi.util.HexEncoding;
@@ -29,7 +33,7 @@ index 114b8e6..4cd46d4 100644
  import android.os.Build;
  import android.os.Parcel;
  import android.os.Parcelable;
-@@ -471,7 +472,7 @@ public final class SoftApConfiguration implements Parcelable {
+@@ -482,7 +483,7 @@ public final class SoftApConfiguration implements Parcelable {
              mChannels = channels.clone();
          } else {
              mChannels = new SparseIntArray(1);
@@ -38,7 +42,7 @@ index 114b8e6..4cd46d4 100644
          }
          mSecurityType = securityType;
          mMaxNumberOfClients = maxNumberOfClients;
-@@ -1258,10 +1259,10 @@ public final class SoftApConfiguration implements Parcelable {
+@@ -1322,10 +1323,10 @@ public final class SoftApConfiguration implements Parcelable {
              mPassphrase = null;
              mHiddenSsid = false;
              mChannels = new SparseIntArray(1);
@@ -51,15 +55,15 @@ index 114b8e6..4cd46d4 100644
              mShutdownTimeoutMillis = DEFAULT_TIMEOUT;
              mClientControlByUser = false;
              mBlockedClientList = new ArrayList<>();
-@@ -1281,7 +1282,7 @@ public final class SoftApConfiguration implements Parcelable {
+@@ -1345,7 +1346,7 @@ public final class SoftApConfiguration implements Parcelable {
              mAllowedAcsChannels2g = new HashSet<>();
              mAllowedAcsChannels5g = new HashSet<>();
              mAllowedAcsChannels6g = new HashSet<>();
 -            mMaxChannelBandwidth = SoftApInfo.CHANNEL_WIDTH_AUTO;
 +            mMaxChannelBandwidth = TeslaAndroidSoftApConfiguration.getSoftApChannelWidth();
+             mVendorData = new ArrayList<>();
          }
  
-         /**
 diff --git a/framework/java/android/net/wifi/SoftApConfiguration.java.rej b/framework/java/android/net/wifi/SoftApConfiguration.java.rej
 deleted file mode 100644
 index f0a9a32..0000000
@@ -147,63 +151,43 @@ index 0000000..ec7dd94
 +    }
 +}
 diff --git a/service/java/com/android/server/wifi/SoftApManager.java b/service/java/com/android/server/wifi/SoftApManager.java
-index 6d3a1aa..7a946eb 100644
+index a0ceb41..e2b61af 100644
 --- a/service/java/com/android/server/wifi/SoftApManager.java
 +++ b/service/java/com/android/server/wifi/SoftApManager.java
-@@ -694,28 +694,28 @@ public class SoftApManager implements ActiveModeManager {
+@@ -803,28 +803,6 @@ public class SoftApManager implements ActiveModeManager {
      }
  
-     private int setCountryCode() {
+     private boolean setCountryCode() {
 -        int band = mCurrentSoftApConfiguration.getBand();
 -        if (TextUtils.isEmpty(mCountryCode)) {
 -            if (band == SoftApConfiguration.BAND_5GHZ || band == SoftApConfiguration.BAND_6GHZ) {
 -                // Country code is mandatory for 5GHz/6GHz band.
 -                Log.e(getTag(), "Invalid country code, "
 -                        + "required for setting up soft ap in band:" + band);
--                return ERROR_GENERIC;
+-                return false;
 -            }
 -            // Absence of country code is not fatal for 2Ghz & Any band options.
--            return SUCCESS;
+-            return true;
 -        }
 -        if (!mWifiNative.setApCountryCode(
 -                mApInterfaceName, mCountryCode.toUpperCase(Locale.ROOT))) {
 -            if (band == SoftApConfiguration.BAND_5GHZ || band == SoftApConfiguration.BAND_6GHZ) {
-+        //int band = mCurrentSoftApConfiguration.getBand();
-+        //if (TextUtils.isEmpty(mCountryCode)) {
-+        //    if (band == SoftApConfiguration.BAND_5GHZ || band == SoftApConfiguration.BAND_6GHZ) {
-+        //        // Country code is mandatory for 5GHz/6GHz band.
-+        //        Log.e(getTag(), "Invalid country code, "
-+        //                + "required for setting up soft ap in band:" + band);
-+        //        return ERROR_GENERIC;
-+        //    }
-+        //    // Absence of country code is not fatal for 2Ghz & Any band options.
-+        //    return SUCCESS;
-+        //}
-+        //if (!mWifiNative.setApCountryCode(
-+        //        mApInterfaceName, mCountryCode.toUpperCase(Locale.ROOT))) {
-+        //    if (band == SoftApConfiguration.BAND_5GHZ || band == SoftApConfiguration.BAND_6GHZ) {
-                 // Return an error if failed to set country code when AP is configured for
-                 // 5GHz/6GHz band.
+-                // Return an error if failed to set country code when AP is configured for
+-                // 5GHz/6GHz band.
 -                Log.e(getTag(), "Failed to set country code, "
 -                        + "required for setting up soft ap in band: " + band);
--                return ERROR_GENERIC;
+-                return false;
 -            }
 -            // Failure to set country code is not fatal for other band options.
 -        }
-+        //        Log.e(getTag(), "Failed to set country code, "
-+        //                + "required for setting up soft ap in band: " + band);
-+        //        return ERROR_GENERIC;
-+        //    }
-+        //    // Failure to set country code is not fatal for other band options.
-+        //}
-         return SUCCESS;
+         return true;
      }
  
 diff --git a/service/java/com/android/server/wifi/WifiApConfigStore.java b/service/java/com/android/server/wifi/WifiApConfigStore.java
-index b9ae8cf..4265e18 100644
+index ed7d10a..04ec179 100644
 --- a/service/java/com/android/server/wifi/WifiApConfigStore.java
 +++ b/service/java/com/android/server/wifi/WifiApConfigStore.java
-@@ -354,11 +354,11 @@ public class WifiApConfigStore {
+@@ -397,11 +397,11 @@ public class WifiApConfigStore {
              }
              newChannels.put(newBand, channel);
          }
@@ -221,10 +205,10 @@ index b9ae8cf..4265e18 100644
      }
  
 diff --git a/service/java/com/android/server/wifi/WifiNative.java b/service/java/com/android/server/wifi/WifiNative.java
-index 94e19bb..dcff849 100644
+index 9ec97ee..8c67da6 100644
 --- a/service/java/com/android/server/wifi/WifiNative.java
 +++ b/service/java/com/android/server/wifi/WifiNative.java
-@@ -3901,7 +3901,8 @@ public class WifiNative {
+@@ -4263,7 +4263,8 @@ public class WifiNative {
              }
              return true;
          }
@@ -234,7 +218,7 @@ index 94e19bb..dcff849 100644
      }
  
      /**
-@@ -3916,7 +3917,8 @@ public class WifiNative {
+@@ -4278,7 +4279,8 @@ public class WifiNative {
              }
              return true;
          }
@@ -245,18 +229,18 @@ index 94e19bb..dcff849 100644
  
      //---------------------------------------------------------------------------------
 diff --git a/service/java/com/android/server/wifi/util/ApConfigUtil.java b/service/java/com/android/server/wifi/util/ApConfigUtil.java
-index da5ff50..56044a4 100644
+index bbc8d4b..86f5fd9 100644
 --- a/service/java/com/android/server/wifi/util/ApConfigUtil.java
 +++ b/service/java/com/android/server/wifi/util/ApConfigUtil.java
-@@ -44,6 +44,7 @@ import android.net.wifi.WifiClient;
+@@ -47,6 +47,7 @@ import android.net.wifi.WifiClient;
  import android.net.wifi.WifiConfiguration;
  import android.net.wifi.WifiManager;
  import android.net.wifi.WifiScanner;
 +import android.net.wifi.TeslaAndroidSoftApConfiguration;
+ import android.net.wifi.nl80211.DeviceWiphyCapabilities;
  import android.text.TextUtils;
  import android.util.Log;
- import android.util.SparseArray;
-@@ -75,8 +76,6 @@ public class ApConfigUtil {
+@@ -82,8 +83,6 @@ public class ApConfigUtil {
      private static final String TAG = "ApConfigUtil";
  
      public static final int INVALID_VALUE_FOR_BAND_OR_CHANNEL = -1;
@@ -264,8 +248,8 @@ index da5ff50..56044a4 100644
 -    public static final int DEFAULT_AP_CHANNEL = 6;
      public static final int HIGHEST_2G_AP_CHANNEL = 14;
  
-     /* Return code for updateConfiguration. */
-@@ -582,9 +581,9 @@ public class ApConfigUtil {
+     /* Random number generator used for AP channel selection. */
+@@ -585,9 +584,9 @@ public class ApConfigUtil {
          }
  
          // If all available channels are hard unsafe, select the default AP channel.
@@ -278,19 +262,25 @@ index da5ff50..56044a4 100644
              Log.e(TAG, "Allowed channel list not specified, selecting default channel");
              if (isHardUnsafe && unsafeFreqs.contains(defaultChannelFreq)) {
                  Log.e(TAG, "Default channel is hard restricted due to coex");
-@@ -807,11 +806,11 @@ public class ApConfigUtil {
+@@ -883,16 +882,16 @@ public class ApConfigUtil {
+             SoftApCapability capability) {
+         /* Use default band and channel for device without HAL. */
+         if (!wifiNative.isHalStarted()) {
+-            configBuilder.setChannel(DEFAULT_AP_CHANNEL, DEFAULT_AP_BAND);
++            configBuilder.setChannel(TeslaAndroidSoftApConfiguration.getSoftApChannel(), TeslaAndroidSoftApConfiguration.getSoftApBandType());
+             return SoftApManager.START_RESULT_SUCCESS;
          }
  
          /* Country code is mandatory for 5GHz band. */
 -        if (config.getBand() == SoftApConfiguration.BAND_5GHZ
 -                && countryCode == null) {
 -            Log.e(TAG, "5GHz band is not allowed without country code");
--            return ERROR_GENERIC;
+-            return SoftApManager.START_RESULT_FAILURE_GENERAL;
 -        }
 +        //if (config.getBand() == SoftApConfiguration.BAND_5GHZ
 +        //        && countryCode == null) {
 +        //    Log.e(TAG, "5GHz band is not allowed without country code");
-+        //    return ERROR_GENERIC;
++        //    return SoftApManager.START_RESULT_FAILURE_GENERAL;
 +        //}
          if (!capability.areFeaturesSupported(SOFTAP_FEATURE_ACS_OFFLOAD)) {
              /* Select a channel if it is not specified and ACS is not enabled */

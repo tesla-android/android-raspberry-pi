@@ -1,0 +1,196 @@
+From 94d4e3f55861ddd575cd2f1e68bb1df4d23840c4 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Sat, 1 Jul 2023 18:43:57 +0000
+Subject: [PATCH 06/41] checkasm: Add tests for rpi_sand sand30 fns
+
+Something of a kludge for function selection as, at the moment, the
+rpi_sand fns don't have a jump table that we could use for selection.
+---
+ tests/checkasm/Makefile   |   3 +-
+ tests/checkasm/checkasm.c |   3 +
+ tests/checkasm/checkasm.h |   1 +
+ tests/checkasm/rpi_sand.c | 118 ++++++++++++++++++++++++++++++++++++++
+ tests/fate/checkasm.mak   |   1 +
+ 5 files changed, 125 insertions(+), 1 deletion(-)
+ create mode 100644 tests/checkasm/rpi_sand.c
+
+diff --git a/tests/checkasm/Makefile b/tests/checkasm/Makefile
+index ae324ced3f..3d1004f934 100644
+--- a/tests/checkasm/Makefile
++++ b/tests/checkasm/Makefile
+@@ -73,8 +73,9 @@ AVUTILOBJS                              += av_tx.o
+ AVUTILOBJS                              += fixed_dsp.o
+ AVUTILOBJS                              += float_dsp.o
+ AVUTILOBJS                              += lls.o
++AVUTILOBJS-$(CONFIG_SAND)               += rpi_sand.o
+ 
+-CHECKASMOBJS-$(CONFIG_AVUTIL)  += $(AVUTILOBJS)
++CHECKASMOBJS-$(CONFIG_AVUTIL)  += $(AVUTILOBJS) $(AVUTILOBJS-yes)
+ 
+ CHECKASMOBJS-$(ARCH_AARCH64)            += aarch64/checkasm.o
+ CHECKASMOBJS-$(HAVE_ARMV5TE_EXTERNAL)   += arm/checkasm.o
+diff --git a/tests/checkasm/checkasm.c b/tests/checkasm/checkasm.c
+index 73a998ae3a..ed703c1956 100644
+--- a/tests/checkasm/checkasm.c
++++ b/tests/checkasm/checkasm.c
+@@ -290,6 +290,9 @@ static const struct {
+         { "float_dsp", checkasm_check_float_dsp },
+         { "lls",       checkasm_check_lls },
+         { "av_tx",     checkasm_check_av_tx },
++    #if CONFIG_SAND
++        { "rpi_sand",  checkasm_check_rpi_sand },
++    #endif
+ #endif
+     { NULL }
+ };
+diff --git a/tests/checkasm/checkasm.h b/tests/checkasm/checkasm.h
+index 866eef01e9..17584bf9c4 100644
+--- a/tests/checkasm/checkasm.h
++++ b/tests/checkasm/checkasm.h
+@@ -114,6 +114,7 @@ void checkasm_check_mpegvideoencdsp(void);
+ void checkasm_check_nlmeans(void);
+ void checkasm_check_opusdsp(void);
+ void checkasm_check_pixblockdsp(void);
++void checkasm_check_rpi_sand(void);
+ void checkasm_check_sbrdsp(void);
+ void checkasm_check_rv34dsp(void);
+ void checkasm_check_rv40dsp(void);
+diff --git a/tests/checkasm/rpi_sand.c b/tests/checkasm/rpi_sand.c
+new file mode 100644
+index 0000000000..0888714c4c
+--- /dev/null
++++ b/tests/checkasm/rpi_sand.c
+@@ -0,0 +1,118 @@
++/*
++ * Copyright (c) 2023 John Cox
++ *
++ * This file is part of FFmpeg.
++ *
++ * FFmpeg is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with FFmpeg; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++
++#include <string.h>
++#include "checkasm.h"
++#include "libavutil/common.h"
++#include "libavutil/rpi_sand_fns.h"
++
++#if ARCH_ARM
++#include "libavutil/arm/cpu.h"
++#include "libavutil/arm/rpi_sand_neon.h"
++#elif ARCH_AARCH64
++#include "libavutil/aarch64/cpu.h"
++#include "libavutil/aarch64/rpi_sand_neon.h"
++#endif
++
++static inline uint32_t pack30(unsigned int a, unsigned int b, unsigned int c)
++{
++    return (a & 0x3ff) | ((b & 0x3ff) << 10) | ((c & 0x3ff) << 20);
++}
++
++void checkasm_check_rpi_sand(void)
++{
++    const unsigned int w = 1280;
++    const unsigned int h = 66;
++    const unsigned int stride1 = 128;
++    const unsigned int stride2 = h*3/2;
++    const unsigned int ssize = ((w+95)/96)*128*h*3/2;
++    const unsigned int ysize = ((w + 32) * (h + 32) * 2);
++
++    uint8_t * sbuf0 = malloc(ssize);
++    uint8_t * sbuf1 = malloc(ssize);
++    uint8_t * ybuf0 = malloc(ysize);
++    uint8_t * ybuf1 = malloc(ysize);
++    uint8_t * vbuf0 = malloc(ysize);
++    uint8_t * vbuf1 = malloc(ysize);
++    uint8_t * yframe0 = (w + 32) * 16 + ybuf0;
++    uint8_t * yframe1 = (w + 32) * 16 + ybuf1;
++    uint8_t * vframe0 = (w + 32) * 16 + vbuf0;
++    uint8_t * vframe1 = (w + 32) * 16 + vbuf1;
++    unsigned int i;
++
++    for (i = 0; i != ssize; i += 4)
++        *(uint32_t*)(sbuf0 + i) = rnd();
++    memcpy(sbuf1, sbuf0, ssize);
++
++    if (check_func(have_neon(av_get_cpu_flags()) ? ff_rpi_sand30_lines_to_planar_y16 : av_rpi_sand30_to_planar_y16, "rpi_sand30_to_planar_y16")) {
++        declare_func(void, uint8_t * dst, const unsigned int dst_stride,
++                     const uint8_t * src,
++                     unsigned int stride1, unsigned int stride2,
++                     unsigned int _x, unsigned int y,
++                     unsigned int _w, unsigned int h);
++
++        memset(ybuf0, 0xbb, ysize);
++        memset(ybuf1, 0xbb, ysize);
++
++        call_ref(yframe0, (w + 32) * 2, sbuf0, stride1, stride2, 0, 0, w, h);
++        call_new(yframe1, (w + 32) * 2, sbuf1, stride1, stride2, 0, 0, w, h);
++
++        if (memcmp(sbuf0, sbuf1, ssize)
++            || memcmp(ybuf0, ybuf1, ysize))
++            fail();
++
++        bench_new(ybuf1, (w + 32) * 2, sbuf1, stride1, stride2, 0, 0, w, h);
++    }
++
++    if (check_func(have_neon(av_get_cpu_flags()) ? ff_rpi_sand30_lines_to_planar_c16 : av_rpi_sand30_to_planar_c16, "rpi_sand30_to_planar_c16")) {
++        declare_func(void, uint8_t * u_dst, const unsigned int u_stride,
++                     uint8_t * v_dst, const unsigned int v_stride,
++                     const uint8_t * src,
++                     unsigned int stride1, unsigned int stride2,
++                     unsigned int _x, unsigned int y,
++                     unsigned int _w, unsigned int h);
++
++        memset(ybuf0, 0xbb, ysize);
++        memset(ybuf1, 0xbb, ysize);
++        memset(vbuf0, 0xbb, ysize);
++        memset(vbuf1, 0xbb, ysize);
++
++        call_ref(yframe0, (w + 32), vframe0, (w + 32), sbuf0, stride1, stride2, 0, 0, w/2, h/2);
++        call_new(yframe1, (w + 32), vframe1, (w + 32), sbuf1, stride1, stride2, 0, 0, w/2, h/2);
++
++        if (memcmp(sbuf0, sbuf1, ssize)
++            || memcmp(ybuf0, ybuf1, ysize)
++            || memcmp(vbuf0, vbuf1, ysize))
++            fail();
++
++        bench_new(yframe1, (w + 32), vframe1, (w + 32), sbuf1, stride1, stride2, 0, 0, w/2, h/2);
++    }
++
++
++    report("sand30");
++
++    free(sbuf0);
++    free(sbuf1);
++    free(ybuf0);
++    free(ybuf1);
++    free(vbuf0);
++    free(vbuf1);
++}
++
+diff --git a/tests/fate/checkasm.mak b/tests/fate/checkasm.mak
+index d1396cb641..7121d5461e 100644
+--- a/tests/fate/checkasm.mak
++++ b/tests/fate/checkasm.mak
+@@ -36,6 +36,7 @@ FATE_CHECKASM = fate-checkasm-aacencdsp                                 \
+                 fate-checkasm-mpegvideoencdsp                           \
+                 fate-checkasm-opusdsp                                   \
+                 fate-checkasm-pixblockdsp                               \
++                fate-checkasm-rpi_sand                                  \
+                 fate-checkasm-sbrdsp                                    \
+                 fate-checkasm-rv34dsp                                   \
+                 fate-checkasm-rv40dsp                                   \
+-- 
+2.43.0
+

@@ -1,3 +1,4 @@
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0012-Add-vout_drm.patch
 From a79785f792e910059ae10c08775d4a1c652ba927 Mon Sep 17 00:00:00 2001
 From: John Cox <jc@kynesim.co.uk>
 Date: Wed, 28 Apr 2021 10:16:39 +0100
@@ -16,6 +17,26 @@ index 77ad581ccd..06bbbb8d76 100755
 --- a/configure
 +++ b/configure
 @@ -357,6 +357,7 @@ External library support:
+========
+From 09cbd704be08567f580e9ee77139acc18a572cc9 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Wed, 28 Apr 2021 10:16:39 +0100
+Subject: [PATCH 13/41] Add vout_drm
+
+---
+ configure                |   8 +
+ libavdevice/Makefile     |   1 +
+ libavdevice/alldevices.c |   1 +
+ libavdevice/drm_vout.c   | 684 +++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 694 insertions(+)
+ create mode 100644 libavdevice/drm_vout.c
+
+diff --git a/configure b/configure
+index 3bbdde74e6..9fcf3ba2f1 100755
+--- a/configure
++++ b/configure
+@@ -355,6 +355,7 @@ External library support:
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0013-Add-vout_drm.patch
    --enable-libnpp          enable Nvidia Performance Primitives-based code [no]
    --enable-mmal            enable Broadcom Multi-Media Abstraction Layer (Raspberry Pi) via MMAL [no]
    --enable-sand            enable sand video formats [rpi]
@@ -23,7 +44,11 @@ index 77ad581ccd..06bbbb8d76 100755
    --disable-nvdec          disable Nvidia video decoding acceleration (via hwaccel) [autodetect]
    --disable-nvenc          disable Nvidia video encoding code [autodetect]
    --enable-omx             enable OpenMAX IL code [no]
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0012-Add-vout_drm.patch
 @@ -2076,6 +2077,7 @@ FEATURE_LIST="
+========
+@@ -2053,6 +2054,7 @@ FEATURE_LIST="
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0013-Add-vout_drm.patch
      static
      swscale_alpha
      v4l2_req_hevc_vx
@@ -31,7 +56,11 @@ index 77ad581ccd..06bbbb8d76 100755
  "
  
  # this list should be kept in linking order
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0012-Add-vout_drm.patch
 @@ -3842,8 +3844,12 @@ sndio_indev_deps="sndio"
+========
+@@ -3757,8 +3759,12 @@ sndio_indev_deps="sndio"
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0013-Add-vout_drm.patch
  sndio_outdev_deps="sndio"
  v4l2_indev_deps_any="linux_videodev2_h sys_videoio_h"
  v4l2_indev_suggest="libv4l2"
@@ -44,16 +73,29 @@ index 77ad581ccd..06bbbb8d76 100755
  vfwcap_indev_deps="vfw32 vfwcap_defines"
  xcbgrab_indev_deps="libxcb"
  xcbgrab_indev_suggest="libxcb_shm libxcb_shape libxcb_xfixes"
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0012-Add-vout_drm.patch
 @@ -7300,6 +7306,7 @@ enabled openssl            && {
      }
  }
  
 +enabled vout_drm && { enabled libdrm || die "ERROR: vout_drm requires --enable-libdrm"; }
+========
+@@ -7134,6 +7140,8 @@ enabled v4l2_request      && { enabled libdrm ||
+                                die "ERROR: v4l2-request requires libudev"; }
+ enabled vapoursynth       && require_headers "vapoursynth/VSScript4.h vapoursynth/VapourSynth4.h"
+ 
++enabled vout_drm && { enabled libdrm || die "ERROR: vout_drm requires --enable-libdrm"; }
++
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0013-Add-vout_drm.patch
  
  if enabled gcrypt; then
      GCRYPT_CONFIG="${cross_prefix}libgcrypt-config"
 diff --git a/libavdevice/Makefile b/libavdevice/Makefile
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0012-Add-vout_drm.patch
 index a226368d16..b09d469415 100644
+========
+index c30449201d..57b0edb664 100644
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0013-Add-vout_drm.patch
 --- a/libavdevice/Makefile
 +++ b/libavdevice/Makefile
 @@ -45,6 +45,7 @@ OBJS-$(CONFIG_SNDIO_OUTDEV)              += sndio_enc.o sndio.o
@@ -65,10 +107,17 @@ index a226368d16..b09d469415 100644
  OBJS-$(CONFIG_XV_OUTDEV)                 += xv.o
  
 diff --git a/libavdevice/alldevices.c b/libavdevice/alldevices.c
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0012-Add-vout_drm.patch
 index 573595f416..9ed41e31f0 100644
 --- a/libavdevice/alldevices.c
 +++ b/libavdevice/alldevices.c
 @@ -53,6 +53,7 @@ extern const FFOutputFormat ff_sndio_muxer;
+========
+index 9b9a9146c7..d7539b32d8 100644
+--- a/libavdevice/alldevices.c
++++ b/libavdevice/alldevices.c
+@@ -56,6 +56,7 @@ extern const FFOutputFormat ff_sndio_muxer;
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0013-Add-vout_drm.patch
  extern const FFInputFormat  ff_v4l2_demuxer;
  extern const FFOutputFormat ff_v4l2_muxer;
  extern const FFInputFormat  ff_vfwcap_demuxer;
@@ -767,5 +816,9 @@ index 0000000000..6d11e98d75
 +};
 +
 -- 
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0012-Add-vout_drm.patch
 2.34.1
+========
+2.43.0
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0013-Add-vout_drm.patch
 

@@ -1,7 +1,14 @@
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0024-vulkan-Add-missing-decode-extension-defines.patch
 From a36212fcc00cf51b5b8fd43ac94eaa97d1dce80e Mon Sep 17 00:00:00 2001
 From: John Cox <jc@kynesim.co.uk>
 Date: Mon, 20 Mar 2023 18:15:08 +0000
 Subject: [PATCH 24/40] vulkan: Add missing decode extension defines
+========
+From 43215fe4b60390f6d102ce9e8a9b148d78b14aea Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Mon, 20 Mar 2023 18:15:08 +0000
+Subject: [PATCH 25/41] vulkan: Add missing decode extension defines
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0025-vulkan-Add-missing-decode-extension-defines.patch
 
 When building on bookworm the video decode extension names
 were missing. This adds them. I expect this patch will be
@@ -11,7 +18,11 @@ obsolete shortly but it solves a current problem.
  1 file changed, 8 insertions(+)
 
 diff --git a/libavutil/hwcontext_vulkan.c b/libavutil/hwcontext_vulkan.c
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0024-vulkan-Add-missing-decode-extension-defines.patch
 index 4e078eb527..0c53494e93 100644
+========
+index 6317ab7d0e..7632ba7fa2 100644
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0025-vulkan-Add-missing-decode-extension-defines.patch
 --- a/libavutil/hwcontext_vulkan.c
 +++ b/libavutil/hwcontext_vulkan.c
 @@ -72,6 +72,14 @@
@@ -26,9 +37,17 @@ index 4e078eb527..0c53494e93 100644
 +#define VK_EXT_VIDEO_DECODE_H265_EXTENSION_NAME "VK_EXT_video_decode_h265"
 +#endif
 +
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0024-vulkan-Add-missing-decode-extension-defines.patch
  typedef struct VulkanDeviceFeatures {
      VkPhysicalDeviceFeatures2 device;
  
 -- 
 2.34.1
+========
+ typedef struct VulkanDevicePriv {
+     /**
+      * The public AVVulkanDeviceContext. See hwcontext_vulkan.h for it.
+-- 
+2.43.0
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0025-vulkan-Add-missing-decode-extension-defines.patch
 

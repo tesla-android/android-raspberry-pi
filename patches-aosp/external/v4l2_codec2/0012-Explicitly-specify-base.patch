@@ -1,0 +1,289 @@
+From c53fbacdcfcf9f5329d98f1224395cc79c5494ec Mon Sep 17 00:00:00 2001
+From: Daichi Hirono <hirono@google.com>
+Date: Mon, 4 Dec 2023 17:24:16 +0900
+Subject: [PATCH 12/12] Explicitly specify ::base
+
+The upstream includes these headers after declaring android::base
+namespace, which resulted in confusing the compiler libchrome's ::base
+v.s. android::base
+
+Bug: 314693926
+Test: m
+Change-Id: I25a226b8eb962138489f30cd0fa1a42c3e599bdf
+---
+ common/V4L2Device.cpp                         |  4 +-
+ .../include/v4l2_codec2/common/V4L2Device.h   | 45 ++++++++++---------
+ .../v4l2_codec2/common/V4L2DevicePoller.h     | 12 ++---
+ .../v4l2_codec2/components/VideoDecoder.h     |  8 ++--
+ .../v4l2_codec2/components/VideoEncoder.h     | 10 ++---
+ .../plugin_store/C2VdaBqBlockPool.h           |  2 +-
+ 6 files changed, 41 insertions(+), 40 deletions(-)
+
+diff --git a/common/V4L2Device.cpp b/common/V4L2Device.cpp
+index b3d3679..5cc837a 100644
+--- a/common/V4L2Device.cpp
++++ b/common/V4L2Device.cpp
+@@ -696,7 +696,7 @@ public:
+ #define ALOGVQ(fmt, ...) ALOGD("(%s)" fmt, V4L2Device::v4L2BufferTypeToString(mType), ##__VA_ARGS__)
+ 
+ V4L2Queue::V4L2Queue(scoped_refptr<V4L2Device> dev, enum v4l2_buf_type type,
+-                     base::OnceClosure destroyCb)
++                      ::base::OnceClosure destroyCb)
+       : mType(type), mDevice(dev), mDestroyCb(std::move(destroyCb)) {
+     DCHECK_CALLED_ON_VALID_SEQUENCE(mSequenceChecker);
+ }
+@@ -1043,7 +1043,7 @@ class V4L2QueueFactory {
+ public:
+     static scoped_refptr<V4L2Queue> createQueue(scoped_refptr<V4L2Device> dev,
+                                                 enum v4l2_buf_type type,
+-                                                base::OnceClosure destroyCb) {
++                                                 ::base::OnceClosure destroyCb) {
+         return new V4L2Queue(std::move(dev), type, std::move(destroyCb));
+     }
+ };
+diff --git a/common/include/v4l2_codec2/common/V4L2Device.h b/common/include/v4l2_codec2/common/V4L2Device.h
+index 77d7ddb..9824221 100644
+--- a/common/include/v4l2_codec2/common/V4L2Device.h
++++ b/common/include/v4l2_codec2/common/V4L2Device.h
+@@ -105,7 +105,7 @@ private:
+     // Do the actual queue operation once the v4l2_buffer structure is properly filled.
+     bool doQueue() &&;
+ 
+-    V4L2WritableBufferRef(const struct v4l2_buffer& v4l2Buffer, base::WeakPtr<V4L2Queue> queue);
++    V4L2WritableBufferRef(const struct v4l2_buffer& v4l2Buffer, ::base::WeakPtr<V4L2Queue> queue);
+ 
+     V4L2WritableBufferRef(const V4L2WritableBufferRef&) = delete;
+     V4L2WritableBufferRef& operator=(const V4L2WritableBufferRef&) = delete;
+@@ -124,7 +124,7 @@ private:
+ // buffers they originate from. This flexibility is required because V4L2ReadableBufferRefs can be
+ // embedded into VideoFrames, which are then passed to other threads and not necessarily destroyed
+ // before the V4L2Queue buffers are freed.
+-class V4L2ReadableBuffer : public base::RefCountedThreadSafe<V4L2ReadableBuffer> {
++class V4L2ReadableBuffer : public ::base::RefCountedThreadSafe<V4L2ReadableBuffer> {
+ public:
+     // Returns whether the V4L2_BUF_FLAG_LAST flag is set for this buffer.
+     bool isLast() const;
+@@ -148,11 +148,11 @@ public:
+ 
+ private:
+     friend class V4L2BufferRefFactory;
+-    friend class base::RefCountedThreadSafe<V4L2ReadableBuffer>;
++    friend class ::base::RefCountedThreadSafe<V4L2ReadableBuffer>;
+ 
+     ~V4L2ReadableBuffer();
+ 
+-    V4L2ReadableBuffer(const struct v4l2_buffer& v4l2Buffer, base::WeakPtr<V4L2Queue> queue);
++    V4L2ReadableBuffer(const struct v4l2_buffer& v4l2Buffer, ::base::WeakPtr<V4L2Queue> queue);
+ 
+     V4L2ReadableBuffer(const V4L2ReadableBuffer&) = delete;
+     V4L2ReadableBuffer& operator=(const V4L2ReadableBuffer&) = delete;
+@@ -183,7 +183,7 @@ class V4L2Buffer;
+ //    metadata, as well as making other references to it. The buffer will not be reused until all
+ //    the references are dropped. Once this happens, the buffer goes back to the free list described
+ //    in 1).
+-class V4L2Queue : public base::RefCountedThreadSafe<V4L2Queue> {
++class V4L2Queue : public ::base::RefCountedThreadSafe<V4L2Queue> {
+ public:
+     // Set |fourcc| as the current format on this queue. |size| corresponds to the desired buffer's
+     // dimensions (i.e. width and height members of v4l2_pix_format_mplane (if not applicable, pass
+@@ -206,10 +206,10 @@ public:
+                                                 size_t bufferSize) WARN_UNUSED_RESULT;
+ 
+     // Returns the currently set format on the queue. The result is returned as a std::pair where
+-    // the first member is the format, or base::nullopt if the format could not be obtained due to
+-    // an ioctl error. The second member is only used in case of an error and contains the |errno|
+-    // set by the failing ioctl. If the first member is not base::nullopt, the second member will
+-    // always be zero.
++    // the first member is the format, or ::base::nullopt if the format could not be obtained due
++    // to an ioctl error. The second member is only used in case of an error and contains the
++    // |errno| set by the failing ioctl. If the first member is not ::base::nullopt, the second
++    // member will always be zero.
+     //
+     // If the second member is 0, then the first member is guaranteed to have a valid value. So
+     // clients that are not interested in the precise error message can just check that the first
+@@ -304,19 +304,20 @@ private:
+ 
+     scoped_refptr<V4L2Device> mDevice;
+     // Callback to call in this queue's destructor.
+-    base::OnceClosure mDestroyCb;
++    ::base::OnceClosure mDestroyCb;
+ 
+-    V4L2Queue(scoped_refptr<V4L2Device> dev, enum v4l2_buf_type type, base::OnceClosure destroyCb);
++    V4L2Queue(scoped_refptr<V4L2Device> dev, enum v4l2_buf_type type,
++              ::base::OnceClosure destroyCb);
+     friend class V4L2QueueFactory;
+     friend class V4L2BufferRefBase;
+-    friend class base::RefCountedThreadSafe<V4L2Queue>;
++    friend class ::base::RefCountedThreadSafe<V4L2Queue>;
+ 
+     SEQUENCE_CHECKER(mSequenceChecker);
+ 
+-    base::WeakPtrFactory<V4L2Queue> mWeakThisFactory{this};
++    ::base::WeakPtrFactory<V4L2Queue> mWeakThisFactory{this};
+ };
+ 
+-class V4L2Device : public base::RefCountedThreadSafe<V4L2Device> {
++class V4L2Device : public ::base::RefCountedThreadSafe<V4L2Device> {
+ public:
+     // Specification of an encoding profile supported by an encoder.
+     struct SupportedEncodeProfile {
+@@ -364,7 +365,7 @@ public:
+     // Composes human readable string of v4l2_buffer.
+     static std::string v4L2BufferToString(const struct v4l2_buffer& buffer);
+ 
+-    // Composes VideoFrameLayout based on v4l2_format. If error occurs, it returns base::nullopt.
++    // Composes VideoFrameLayout based on v4l2_format. If error occurs, it returns ::base::nullopt.
+     static std::optional<VideoFrameLayout> v4L2FormatToVideoFrameLayout(
+             const struct v4l2_format& format);
+ 
+@@ -411,8 +412,8 @@ public:
+     // Return a vector of dmabuf file descriptors, exported for V4L2 buffer with |index|, assuming
+     // the buffer contains |numPlanes| V4L2 planes and is of |bufType|. Return an empty vector on
+     // failure. The caller is responsible for closing the file descriptors after use.
+-    std::vector<base::ScopedFD> getDmabufsForV4L2Buffer(int index, size_t numPlanes,
+-                                                        enum v4l2_buf_type bufType);
++    std::vector<::base::ScopedFD> getDmabufsForV4L2Buffer(int index, size_t numPlanes,
++                                                          enum v4l2_buf_type bufType);
+ 
+     // Returns the preferred V4L2 input formats for |type| or empty if none.
+     std::vector<uint32_t> preferredInputFormat(Type type);
+@@ -440,7 +441,7 @@ public:
+     // be posted to the client's
+     // sequence if a polling error has occurred.
+     bool startPolling(android::V4L2DevicePoller::EventCallback eventCallback,
+-                      base::RepeatingClosure errorCallback);
++                      ::base::RepeatingClosure errorCallback);
+     // Stop polling this V4L2Device if polling was active. No new events will be posted after this
+     // method has returned.
+     bool stopPolling();
+@@ -463,7 +464,7 @@ private:
+     // Vector of video device node paths and corresponding pixelformats supported by each device node.
+     using Devices = std::vector<std::pair<std::string, std::vector<uint32_t>>>;
+ 
+-    friend class base::RefCountedThreadSafe<V4L2Device>;
++    friend class ::base::RefCountedThreadSafe<V4L2Device>;
+     V4L2Device();
+     ~V4L2Device();
+ 
+@@ -500,13 +501,13 @@ private:
+     std::map<V4L2Device::Type, Devices> mDevicesByType;
+ 
+     // The actual device fd.
+-    base::ScopedFD mDeviceFd;
++    ::base::ScopedFD mDeviceFd;
+ 
+     // eventfd fd to signal device poll thread when its poll() should be interrupted.
+-    base::ScopedFD mDevicePollInterruptFd;
++    ::base::ScopedFD mDevicePollInterruptFd;
+ 
+     // Associates a v4l2_buf_type to its queue.
+-    base::flat_map<enum v4l2_buf_type, V4L2Queue*> mQueues;
++    ::base::flat_map<enum v4l2_buf_type, V4L2Queue*> mQueues;
+ 
+     // Used if EnablePolling() is called to signal the user that an event happened or a buffer is
+     // ready to be dequeued.
+diff --git a/common/include/v4l2_codec2/common/V4L2DevicePoller.h b/common/include/v4l2_codec2/common/V4L2DevicePoller.h
+index ad256be..53b4b3f 100644
+--- a/common/include/v4l2_codec2/common/V4L2DevicePoller.h
++++ b/common/include/v4l2_codec2/common/V4L2DevicePoller.h
+@@ -32,7 +32,7 @@ class V4L2DevicePoller {
+ public:
+     // Callback to be called when buffer ready/V4L2 event has potentially been polled. |event| is
+     // set if a V4L2 event has been detected.
+-    using EventCallback = base::RepeatingCallback<void(bool event)>;
++    using EventCallback = ::base::RepeatingCallback<void(bool event)>;
+ 
+     // Create a poller for |device|, using a thread named |threadName|. Notification won't start
+     // until |startPolling()| is called.
+@@ -45,7 +45,7 @@ public:
+     // again in order to be notified for them.
+     //
+     // If an error occurs during polling, |mErrorCallback| will be posted on the caller's sequence.
+-    bool startPolling(EventCallback eventCallback, base::RepeatingClosure errorCallback);
++    bool startPolling(EventCallback eventCallback, ::base::RepeatingClosure errorCallback);
+     // Stop polling and stop the thread. The poller won't post any new event to the caller's
+     // sequence after this method has returned.
+     bool stopPolling();
+@@ -66,19 +66,19 @@ private:
+     // V4L2 device we are polling.
+     V4L2Device* const mDevice;
+     // Thread on which polling is done.
+-    base::Thread mPollThread;
++    ::base::Thread mPollThread;
+     // Callback to post to the client's sequence when an event occurs.
+     EventCallback mEventCallback;
+     // Closure to post to the client's sequence when an error occurs.
+-    base::RepeatingClosure mErrorCallback;
++    ::base::RepeatingClosure mErrorCallback;
+     // Client sequence's task runner, where closures are posted.
+-    scoped_refptr<base::SequencedTaskRunner> mClientTaskTunner;
++    scoped_refptr<::base::SequencedTaskRunner> mClientTaskTunner;
+ 
+     // Since poll() returns immediately if no buffers have been queued, we cannot rely on it to
+     // pause the polling thread until an event occurs. Instead,
+     // the polling thread will wait on this WaitableEvent (signaled by |schedulePoll| before calling
+     // poll(), so we only call it when we are actually waiting for an event.
+-    base::WaitableEvent mTriggerPoll;
++    ::base::WaitableEvent mTriggerPoll;
+     // Set to true when we wish to stop polling, instructing the poller thread to break its loop.
+     std::atomic_bool mStopPolling;
+ };
+diff --git a/components/include/v4l2_codec2/components/VideoDecoder.h b/components/include/v4l2_codec2/components/VideoDecoder.h
+index 5b2da41..3e3fec4 100644
+--- a/components/include/v4l2_codec2/components/VideoDecoder.h
++++ b/components/include/v4l2_codec2/components/VideoDecoder.h
+@@ -26,11 +26,11 @@ public:
+     };
+     static const char* DecodeStatusToString(DecodeStatus status);
+ 
+-    using GetPoolCB = base::RepeatingCallback<std::unique_ptr<VideoFramePool>(
++    using GetPoolCB = ::base::RepeatingCallback<std::unique_ptr<VideoFramePool>(
+             const ui::Size& size, HalPixelFormat pixelFormat, size_t numOutputBuffers)>;
+-    using DecodeCB = base::OnceCallback<void(DecodeStatus)>;
+-    using OutputCB = base::RepeatingCallback<void(std::unique_ptr<VideoFrame>)>;
+-    using ErrorCB = base::RepeatingCallback<void()>;
++    using DecodeCB = ::base::OnceCallback<void(DecodeStatus)>;
++    using OutputCB = ::base::RepeatingCallback<void(std::unique_ptr<VideoFrame>)>;
++    using ErrorCB = ::base::RepeatingCallback<void()>;
+ 
+     virtual ~VideoDecoder();
+ 
+diff --git a/components/include/v4l2_codec2/components/VideoEncoder.h b/components/include/v4l2_codec2/components/VideoEncoder.h
+index 5f23541..7e5a3c2 100644
+--- a/components/include/v4l2_codec2/components/VideoEncoder.h
++++ b/components/include/v4l2_codec2/components/VideoEncoder.h
+@@ -47,13 +47,13 @@ public:
+     };
+ 
+     using FetchOutputBufferCB =
+-            base::RepeatingCallback<void(uint32_t, std::unique_ptr<BitstreamBuffer>* buffer)>;
++            ::base::RepeatingCallback<void(uint32_t, std::unique_ptr<BitstreamBuffer>* buffer)>;
+     // TODO(dstaessens): Change callbacks to OnceCallback provided when requesting encode/drain.
+-    using InputBufferDoneCB = base::RepeatingCallback<void(uint64_t)>;
+-    using OutputBufferDoneCB = base::RepeatingCallback<void(
++    using InputBufferDoneCB = ::base::RepeatingCallback<void(uint64_t)>;
++    using OutputBufferDoneCB = ::base::RepeatingCallback<void(
+             size_t, int64_t, bool, std::unique_ptr<BitstreamBuffer> buffer)>;
+-    using DrainDoneCB = base::RepeatingCallback<void(bool)>;
+-    using ErrorCB = base::RepeatingCallback<void()>;
++    using DrainDoneCB = ::base::RepeatingCallback<void(bool)>;
++    using ErrorCB = ::base::RepeatingCallback<void()>;
+ 
+     virtual ~VideoEncoder() = default;
+ 
+diff --git a/plugin_store/include/v4l2_codec2/plugin_store/C2VdaBqBlockPool.h b/plugin_store/include/v4l2_codec2/plugin_store/C2VdaBqBlockPool.h
+index fde6299..26655d3 100644
+--- a/plugin_store/include/v4l2_codec2/plugin_store/C2VdaBqBlockPool.h
++++ b/plugin_store/include/v4l2_codec2/plugin_store/C2VdaBqBlockPool.h
+@@ -88,7 +88,7 @@ public:
+      * Return false if we don't support to notify the caller when a buffer is available.
+      *
+      */
+-    bool setNotifyBlockAvailableCb(base::OnceClosure cb);
++    bool setNotifyBlockAvailableCb( ::base::OnceClosure cb);
+ 
+     std::optional<uint32_t> getBufferIdFromGraphicBlock(const C2Block2D& block);
+ 
+-- 
+2.43.0
+

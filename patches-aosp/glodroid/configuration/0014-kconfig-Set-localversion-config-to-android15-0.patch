@@ -1,0 +1,26 @@
+From 0a8e228dd7ebce53a45603f3b63daf8631395d5b Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Fri, 25 Oct 2024 21:40:48 +0300
+Subject: [PATCH 14/16] kconfig: Set localversion config to -android15-0
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ platform/kernel/android-extra.config | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/platform/kernel/android-extra.config b/platform/kernel/android-extra.config
+index ee9d502..db2e116 100644
+--- a/platform/kernel/android-extra.config
++++ b/platform/kernel/android-extra.config
+@@ -40,7 +40,7 @@ CONFIG_DMABUF_HEAPS_PAGE_POOL=y
+ CONFIG_DMABUF_HEAPS_SYSTEM=y
+ 
+ #  Requred by GenericBootImageTest#KernelReleaseFormat
+-CONFIG_LOCALVERSION="-android14-0-GloDroid"
++CONFIG_LOCALVERSION="-android15-0-GloDroid"
+ 
+ # Set to y, otherwise a set of essential kernel configs will be force-disabled. (like CONFIG_TRACE_GPU_MEM)
+ CONFIG_GKI_HACKS_TO_FIX=y
+-- 
+2.34.1
+

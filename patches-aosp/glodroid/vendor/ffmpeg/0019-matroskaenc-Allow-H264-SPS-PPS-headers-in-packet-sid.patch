@@ -1,3 +1,4 @@
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0019-matroskaenc-Allow-H264-SPS-PPS-headers-in-packet-sid.patch
 From ca403f22bae9c4c316f87560ba68808b2e0237a2 Mon Sep 17 00:00:00 2001
 From: John Cox <jc@kynesim.co.uk>
 Date: Wed, 14 Sep 2022 15:44:10 +0000
@@ -13,6 +14,23 @@ index 8142d9125e..f25936de93 100644
 --- a/libavformat/matroskaenc.c
 +++ b/libavformat/matroskaenc.c
 @@ -85,6 +85,10 @@
+========
+From 8facfdde8a86a51d9f2eafbbf14da0ae69124b78 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Wed, 14 Sep 2022 15:44:10 +0000
+Subject: [PATCH 20/41] matroskaenc: Allow H264 SPS/PPS headers in packet
+ sidedata
+
+---
+ libavformat/matroskaenc.c | 36 ++++++++++++++++++++++++++++++------
+ 1 file changed, 30 insertions(+), 6 deletions(-)
+
+diff --git a/libavformat/matroskaenc.c b/libavformat/matroskaenc.c
+index 60c896e964..3967be997e 100644
+--- a/libavformat/matroskaenc.c
++++ b/libavformat/matroskaenc.c
+@@ -84,6 +84,10 @@
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0020-matroskaenc-Allow-H264-SPS-PPS-headers-in-packet-sid.patch
  
  #define IS_WEBM(mkv) (CONFIG_WEBM_MUXER && CONFIG_MATROSKA_MUXER ? \
                        ((mkv)->mode == MODE_WEBM) : CONFIG_WEBM_MUXER)
@@ -23,7 +41,11 @@ index 8142d9125e..f25936de93 100644
  #define IS_SEEKABLE(pb, mkv) (((pb)->seekable & AVIO_SEEKABLE_NORMAL) && \
                                !(mkv)->is_live)
  
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0019-matroskaenc-Allow-H264-SPS-PPS-headers-in-packet-sid.patch
 @@ -1137,8 +1141,12 @@ static int mkv_assemble_native_codecprivate(AVFormatContext *s, AVIOContext *dyn
+========
+@@ -1136,8 +1140,12 @@ static int mkv_assemble_native_codecprivate(AVFormatContext *s, AVIOContext *dyn
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0020-matroskaenc-Allow-H264-SPS-PPS-headers-in-packet-sid.patch
      case AV_CODEC_ID_WAVPACK:
          return put_wv_codecpriv(dyn_cp, extradata, extradata_size);
      case AV_CODEC_ID_H264:
@@ -37,8 +59,13 @@ index 8142d9125e..f25936de93 100644
 +        break;
      case AV_CODEC_ID_HEVC:
          return ff_isom_write_hvcc(dyn_cp, extradata,
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0019-matroskaenc-Allow-H264-SPS-PPS-headers-in-packet-sid.patch
                                    extradata_size, 0, s);
 @@ -2971,8 +2979,8 @@ static int mkv_check_new_extra_data(AVFormatContext *s, const AVPacket *pkt)
+========
+                                   extradata_size, 0);
+@@ -2966,8 +2974,8 @@ static int mkv_check_new_extra_data(AVFormatContext *s, const AVPacket *pkt)
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0020-matroskaenc-Allow-H264-SPS-PPS-headers-in-packet-sid.patch
          }
          break;
  #endif
@@ -49,7 +76,11 @@ index 8142d9125e..f25936de93 100644
      case AV_CODEC_ID_AV1:
          if (side_data_size && mkv->track.bc && !par->extradata_size) {
              // If the reserved space doesn't suffice, only write
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0019-matroskaenc-Allow-H264-SPS-PPS-headers-in-packet-sid.patch
 @@ -2984,6 +2992,16 @@ static int mkv_check_new_extra_data(AVFormatContext *s, const AVPacket *pkt)
+========
+@@ -2979,6 +2987,16 @@ static int mkv_check_new_extra_data(AVFormatContext *s, const AVPacket *pkt)
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0020-matroskaenc-Allow-H264-SPS-PPS-headers-in-packet-sid.patch
          } else if (!par->extradata_size)
              return AVERROR_INVALIDDATA;
          break;
@@ -66,7 +97,11 @@ index 8142d9125e..f25936de93 100644
      default:
          if (side_data_size)
              av_log(s, AV_LOG_DEBUG, "Ignoring new extradata in a packet for stream %d.\n", pkt->stream_index);
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0019-matroskaenc-Allow-H264-SPS-PPS-headers-in-packet-sid.patch
 @@ -3445,6 +3463,13 @@ static int mkv_init(struct AVFormatContext *s)
+========
+@@ -3440,9 +3458,15 @@ static int mkv_init(struct AVFormatContext *s)
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0020-matroskaenc-Allow-H264-SPS-PPS-headers-in-packet-sid.patch
              track->reformat = mkv_reformat_wavpack;
              break;
          case AV_CODEC_ID_H264:
@@ -78,8 +113,19 @@ index 8142d9125e..f25936de93 100644
 +                track->reformat = mkv_reformat_h2645;
 +            break;
          case AV_CODEC_ID_HEVC:
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0019-matroskaenc-Allow-H264-SPS-PPS-headers-in-packet-sid.patch
          case AV_CODEC_ID_VVC:
              if (((par->codec_id == AV_CODEC_ID_H264 && par->extradata_size > 0) ||
 -- 
 2.34.1
+========
+-            if ((par->codec_id == AV_CODEC_ID_H264 && par->extradata_size > 0 ||
+-                 par->codec_id == AV_CODEC_ID_HEVC && par->extradata_size > 6) &&
++            if (par->extradata_size > 6 &&
+                 (AV_RB24(par->extradata) == 1 || AV_RB32(par->extradata) == 1))
+                 track->reformat = mkv_reformat_h2645;
+             break;
+-- 
+2.43.0
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0020-matroskaenc-Allow-H264-SPS-PPS-headers-in-packet-sid.patch
 

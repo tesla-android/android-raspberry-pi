@@ -1,0 +1,31 @@
+From ac7653bc32761c33344ed85174d3a0b6a0bdcdec Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Fri, 18 Oct 2024 23:34:39 +0300
+Subject: [PATCH 02/16] kernel: Fix compilation errors on some Linux
+ distributions
+
+Using the /etc/environment to obtain the path works on Ubuntu, but it
+does not work for some Linux distros. Use out/.path_interposer_origpath
+instead.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ platform/kernel/kernel.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/platform/kernel/kernel.mk b/platform/kernel/kernel.mk
+index 7d77a96..185400e 100644
+--- a/platform/kernel/kernel.mk
++++ b/platform/kernel/kernel.mk
+@@ -57,7 +57,7 @@ $(KERNEL_TARGET): $(KERNEL_DEFCONFIG) $(KERNEL_FRAGMENTS) $(KERNEL_SRC_FILES) $(
+ 		$(KERNEL_OUT)/project_specific.mk
+ 
+ # Disable interposer and use LLVM compiler toolchain from AOSP tree
+-	export ETC$$(cat /etc/environment) && export PATH=$(AOSP_ABSOLUTE_PATH)/$(LLVM_PREBUILTS_PATH):$(RUST_BIN_DIR_ABS):$$ETCPATH:$$PATH && make -C $(KERNEL_OUT) install
++	export PATH=$(RUST_BIN_DIR_ABS):$(AOSP_ABSOLUTE_PATH)/$(LLVM_PREBUILTS_PATH):$$(cat $(OUT_DIR)/.path_interposer_origpath) && make -C $(KERNEL_OUT) install
+ 
+ # Post processing:
+ 
+-- 
+2.34.1
+

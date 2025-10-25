@@ -1,0 +1,26 @@
+From 7c56157ea718293c8425ac81d57ece3a13d4954e Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Fri, 25 Oct 2024 13:08:33 +0300
+Subject: [PATCH 06/16] common: kconfig: Enable CONFIG_FUSE_BPF
+
+During boot, fuse BPF is loaded. Without the config below, it fails to load.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ platform/kernel/android-extra.config | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/platform/kernel/android-extra.config b/platform/kernel/android-extra.config
+index 0456463..ee9d502 100644
+--- a/platform/kernel/android-extra.config
++++ b/platform/kernel/android-extra.config
+@@ -83,3 +83,6 @@ CONFIG_LEDS_CLASS_MULTICOLOR=y
+ CONFIG_INIT_STACK_ALL_ZERO=y
+ CONFIG_NFT_FWD_NETDEV=y
+ CONFIG_NET_ACT_MIRRED=y
++
++# During boot, fuse BPF is loaded. Without the config below, it fails to load.
++CONFIG_FUSE_BPF=y
+-- 
+2.34.1
+

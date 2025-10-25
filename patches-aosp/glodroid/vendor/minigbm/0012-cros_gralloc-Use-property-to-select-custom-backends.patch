@@ -1,0 +1,161 @@
+From 03adde3ace345d63aa9ce4f5f25135b583a689ca Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Mon, 6 Nov 2023 04:27:26 +0200
+Subject: [PATCH 12/16] cros_gralloc: Use property to select custom backends
+
+property name: vendor.gralloc.minigbm.backend
+possible values:
+1. auto (default)
+2. gbm_mesa
+3. dmaheaps
+
+Change-Id: I5ab2649f98d40d139afb008ea8a804c790b81c31
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ cros_gralloc/cros_gralloc_driver.cc | 39 ++++++++++++++++++++++-------
+ drv.c                               | 32 ++++++++++++++---------
+ drv.h                               |  3 +++
+ 3 files changed, 53 insertions(+), 21 deletions(-)
+
+diff --git a/cros_gralloc/cros_gralloc_driver.cc b/cros_gralloc/cros_gralloc_driver.cc
+index 4a31ca7..fbd2b83 100644
+--- a/cros_gralloc/cros_gralloc_driver.cc
++++ b/cros_gralloc/cros_gralloc_driver.cc
+@@ -91,7 +91,6 @@ std::shared_ptr<cros_gralloc_driver> cros_gralloc_driver::get_instance()
+ 	return s_instance;
+ }
+ 
+-#ifndef DRV_EXTERNAL
+ static struct driver *init_try_node(int idx, char const *str)
+ {
+ 	int fd;
+@@ -132,6 +131,27 @@ static struct driver *init_try_nodes()
+ 	uint32_t min_card_node = DRM_CARD_NODE_START;
+ 	uint32_t max_card_node = (min_card_node + num_nodes);
+ 
++	char lib_name[PROPERTY_VALUE_MAX];
++	property_get("vendor.gralloc.minigbm.backend", lib_name, "auto");
++
++	if (strcmp(lib_name, "dmaheaps") == 0) {
++		ALOGI("Initializing dma-buf heaps backend");
++		drv = drv_create(DRV_DMAHEAPS_DRIVER);
++		if (drv)
++			return drv;
++
++		ALOGE("Failed to initialize dma-buf heap backend.");
++	}
++
++	if (strcmp(lib_name, "gbm_mesa") == 0) {
++		ALOGI("Initializing gbm_mesa backend");
++		drv = drv_create(DRV_GBM_MESA_DRIVER);
++		if (drv)
++			return drv;
++
++		ALOGE("Failed to initialize gbm_mesa backend.");
++	}
++
+ 	// Try render nodes...
+ 	for (uint32_t i = min_render_node; i < max_render_node; i++) {
+ 		drv = init_try_node(i, render_nodes_fmt);
+@@ -146,18 +166,19 @@ static struct driver *init_try_nodes()
+ 			return drv;
+ 	}
+ 
+-	return nullptr;
+-}
++	/* Fallback to gbm_mesa which is a way smarter than dumb_driver */
++	if (strcmp(lib_name, "gbm_mesa") != 0) {
++		ALOGI("Falling-back to gbm_mesa backend");
++		drv = drv_create(DRV_GBM_MESA_DRIVER);
++		if (drv)
++			return drv;
++	}
+ 
+-#else
++	ALOGE("Failed for find suitable backend");
+ 
+-static struct driver *init_try_nodes()
+-{
+-	return drv_create(-1);
++	return nullptr;
+ }
+ 
+-#endif
+-
+ static void drv_destroy_and_close(struct driver *drv)
+ {
+ 	int fd = drv_get_fd(drv);
+diff --git a/drv.c b/drv.c
+index 040a16f..d407473 100644
+--- a/drv.c
++++ b/drv.c
+@@ -28,15 +28,12 @@
+ #include "drv_priv.h"
+ #include "util.h"
+ 
+-#ifdef DRV_EXTERNAL
+-extern struct backend *init_external_backend();
+-
+-static const struct backend *drv_get_backend(int fd)
+-{
+-	return init_external_backend();
+-}
+-#else
+-
++#ifdef DRV_DMABUF_HEAP
++extern const struct backend backend_dmabuf_heap;
++#endif
++#ifdef DRV_GBM_MESA
++extern const struct backend backend_gbm_mesa;
++#endif
+ #ifdef DRV_AMDGPU
+ extern const struct backend backend_amdgpu;
+ #endif
+@@ -121,7 +118,6 @@ static const struct backend *drv_get_backend(int fd)
+ 	drmFreeVersion(drm_version);
+ 	return NULL;
+ }
+-#endif
+ 
+ struct driver *drv_create(int fd)
+ {
+@@ -139,8 +135,20 @@ struct driver *drv_create(int fd)
+ 	    (minigbm_debug == NULL) || (strstr(minigbm_debug, "nocompression") == NULL);
+ 	drv->log_bos = (minigbm_debug && strstr(minigbm_debug, "log_bos") != NULL);
+ 
+-	drv->fd = fd;
+-	drv->backend = drv_get_backend(fd);
++#ifdef DRV_GBM_MESA
++	if (fd == DRV_GBM_MESA_DRIVER) {
++		drv->backend = &backend_gbm_mesa;
++	} else
++#endif
++#ifdef DRV_DMABUF_HEAP
++	    if (fd == DRV_DMAHEAPS_DRIVER) {
++		drv->backend = &backend_dmabuf_heap;
++	} else
++#endif
++	{
++		drv->fd = fd;
++		drv->backend = drv_get_backend(fd);
++	}
+ 
+ 	if (!drv->backend)
+ 		goto free_driver;
+diff --git a/drv.h b/drv.h
+index 79e4d36..15570d8 100644
+--- a/drv.h
++++ b/drv.h
+@@ -16,6 +16,9 @@ extern "C" {
+ #include <stdint.h>
+ #include <stdlib.h>
+ 
++#define DRV_GBM_MESA_DRIVER (-2)
++#define DRV_DMAHEAPS_DRIVER (-3)
++
+ #define DRV_MAX_PLANES 4
+ 
+ // clang-format off
+-- 
+2.43.0
+

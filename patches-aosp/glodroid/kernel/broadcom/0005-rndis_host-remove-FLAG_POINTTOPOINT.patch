@@ -1,4 +1,4 @@
-From 396bb7ab5c07f8807f7ef92f10ec55efddc91c42 Mon Sep 17 00:00:00 2001
+From c73d9f6d5daf99f10042cce6def79afd52f45b66 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Tue, 8 Nov 2022 01:41:56 +0100
 Subject: [PATCH 05/10] rndis_host: remove FLAG_POINTTOPOINT

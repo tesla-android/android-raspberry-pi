@@ -1,0 +1,37 @@
+From 711bdf59ceab2f5c4453646f18b4ef880f59a387 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Thu, 12 Dec 2024 00:42:12 +0200
+Subject: [PATCH] HACK: utils: Set cache type back to DISK_CACHE_MULTI_FILE
+
+This avoids minijail issue that can be observerd when audiocodecs allocate
+the memory via gbm.
+
+Change-Id: I6a966eab3f0db092fd5d3f3cfa3a94f1595a0e60
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ src/util/disk_cache.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/util/disk_cache.c b/src/util/disk_cache.c
+index 940b0a04145..a9ee3d49cd3 100644
+--- a/src/util/disk_cache.c
++++ b/src/util/disk_cache.c
+@@ -274,12 +274,12 @@ disk_cache_create(const char *gpu_name, const char *driver_id,
+    else if (debug_get_bool_option("MESA_DISK_CACHE_MULTI_FILE", false))
+       cache_type = DISK_CACHE_MULTI_FILE;
+    else {
+-      cache_type = DISK_CACHE_DATABASE;
++      cache_type = DISK_CACHE_MULTI_FILE;
+       /* Since switching the default cache to <mesa_shader_cache_db>, remove the
+        * old cache folder if it hasn't been modified for more than 7 days.
+        */
+-      if (!getenv("MESA_SHADER_CACHE_DIR") && !getenv("MESA_GLSL_CACHE_DIR"))
+-         disk_cache_delete_old_cache();
++      //if (!getenv("MESA_SHADER_CACHE_DIR") && !getenv("MESA_GLSL_CACHE_DIR"))
++         //disk_cache_delete_old_cache();
+    }
+ 
+    /* Create main writable cache. */
+-- 
+2.43.0
+

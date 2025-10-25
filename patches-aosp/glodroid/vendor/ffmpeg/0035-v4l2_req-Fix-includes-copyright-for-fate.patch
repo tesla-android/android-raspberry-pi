@@ -1,0 +1,540 @@
+From e08b5a9d76e6627b758aa0206fc4b31a03713be5 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 28 Nov 2024 18:36:59 +0000
+Subject: [PATCH 35/41] v4l2_req: Fix includes & copyright for fate
+
+---
+ libavcodec/v4l2_req_decode_q.c  | 24 ++++++++++++++++++++++++
+ libavcodec/v4l2_req_decode_q.h  | 24 ++++++++++++++++++++++++
+ libavcodec/v4l2_req_devscan.c   | 24 ++++++++++++++++++++++++
+ libavcodec/v4l2_req_devscan.h   | 28 ++++++++++++++++++++++++++--
+ libavcodec/v4l2_req_dmabufs.c   | 24 ++++++++++++++++++++++++
+ libavcodec/v4l2_req_dmabufs.h   | 28 ++++++++++++++++++++++++++--
+ libavcodec/v4l2_req_hevc_v1.c   | 24 ++++++++++++++++++++++++
+ libavcodec/v4l2_req_hevc_v2.c   | 24 ++++++++++++++++++++++++
+ libavcodec/v4l2_req_hevc_v3.c   | 24 ++++++++++++++++++++++++
+ libavcodec/v4l2_req_hevc_v4.c   | 24 ++++++++++++++++++++++++
+ libavcodec/v4l2_req_hevc_vx.c   | 24 ++++++++++++++++++++++++
+ libavcodec/v4l2_req_media.h     |  4 ++--
+ libavcodec/v4l2_req_pollqueue.c | 24 ++++++++++++++++++++++++
+ libavcodec/v4l2_req_pollqueue.h | 30 +++++++++++++++++++++++++++---
+ libavcodec/v4l2_req_utils.h     | 24 ++++++++++++++++++++++++
+ libavcodec/v4l2_request_hevc.h  | 24 ++++++++++++++++++++++++
+ 16 files changed, 369 insertions(+), 9 deletions(-)
+
+diff --git a/libavcodec/v4l2_req_decode_q.c b/libavcodec/v4l2_req_decode_q.c
+index 5b3fb958fa..93c56ba13f 100644
+--- a/libavcodec/v4l2_req_decode_q.c
++++ b/libavcodec/v4l2_req_decode_q.c
+@@ -1,3 +1,27 @@
++/*
++    Copyright (C) 2024  John Cox john.cox@raspberrypi.com
++
++    Permission is hereby granted, free of charge, to any person
++    obtaining a copy of this software and associated documentation
++    files (the "Software"), to deal in the Software without
++    restriction, including without limitation the rights to use, copy,
++    modify, merge, publish, distribute, sublicense, and/or sell copies
++    of the Software, and to permit persons to whom the Software is
++    furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++ */
++
+ #include <memory.h>
+ #include <semaphore.h>
+ #include <pthread.h>
+diff --git a/libavcodec/v4l2_req_decode_q.h b/libavcodec/v4l2_req_decode_q.h
+index 27eafbc42b..0ff8bbe882 100644
+--- a/libavcodec/v4l2_req_decode_q.h
++++ b/libavcodec/v4l2_req_decode_q.h
+@@ -1,3 +1,27 @@
++/*
++    Copyright (C) 2024  John Cox john.cox@raspberrypi.com
++
++    Permission is hereby granted, free of charge, to any person
++    obtaining a copy of this software and associated documentation
++    files (the "Software"), to deal in the Software without
++    restriction, including without limitation the rights to use, copy,
++    modify, merge, publish, distribute, sublicense, and/or sell copies
++    of the Software, and to permit persons to whom the Software is
++    furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++ */
++
+ #ifndef AVCODEC_V4L2_REQ_DECODE_Q_H
+ #define AVCODEC_V4L2_REQ_DECODE_Q_H
+ 
+diff --git a/libavcodec/v4l2_req_devscan.c b/libavcodec/v4l2_req_devscan.c
+index ee8527ba1f..99a8c19710 100644
+--- a/libavcodec/v4l2_req_devscan.c
++++ b/libavcodec/v4l2_req_devscan.c
+@@ -1,3 +1,27 @@
++/*
++    Copyright (C) 2024  John Cox john.cox@raspberrypi.com
++
++    Permission is hereby granted, free of charge, to any person
++    obtaining a copy of this software and associated documentation
++    files (the "Software"), to deal in the Software without
++    restriction, including without limitation the rights to use, copy,
++    modify, merge, publish, distribute, sublicense, and/or sell copies
++    of the Software, and to permit persons to whom the Software is
++    furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++ */
++
+ #include <errno.h>
+ #include <fcntl.h>
+ #include <libudev.h>
+diff --git a/libavcodec/v4l2_req_devscan.h b/libavcodec/v4l2_req_devscan.h
+index 956d9234f1..49b5bb44b2 100644
+--- a/libavcodec/v4l2_req_devscan.h
++++ b/libavcodec/v4l2_req_devscan.h
+@@ -1,5 +1,29 @@
+-#ifndef _DEVSCAN_H_
+-#define _DEVSCAN_H_
++/*
++    Copyright (C) 2024  John Cox john.cox@raspberrypi.com
++
++    Permission is hereby granted, free of charge, to any person
++    obtaining a copy of this software and associated documentation
++    files (the "Software"), to deal in the Software without
++    restriction, including without limitation the rights to use, copy,
++    modify, merge, publish, distribute, sublicense, and/or sell copies
++    of the Software, and to permit persons to whom the Software is
++    furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++ */
++
++#ifndef AVCODEC_V4L2_REQ_DEVSCAN_H
++#define AVCODEC_V4L2_REQ_DEVSCAN_H
+ 
+ #include <stdint.h>
+ 
+diff --git a/libavcodec/v4l2_req_dmabufs.c b/libavcodec/v4l2_req_dmabufs.c
+index 9a4b69d3fa..e157d4d557 100644
+--- a/libavcodec/v4l2_req_dmabufs.c
++++ b/libavcodec/v4l2_req_dmabufs.c
+@@ -1,3 +1,27 @@
++/*
++    Copyright (C) 2024  John Cox john.cox@raspberrypi.com
++
++    Permission is hereby granted, free of charge, to any person
++    obtaining a copy of this software and associated documentation
++    files (the "Software"), to deal in the Software without
++    restriction, including without limitation the rights to use, copy,
++    modify, merge, publish, distribute, sublicense, and/or sell copies
++    of the Software, and to permit persons to whom the Software is
++    furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++ */
++
+ #include <stdatomic.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+diff --git a/libavcodec/v4l2_req_dmabufs.h b/libavcodec/v4l2_req_dmabufs.h
+index 8c1ab0b5df..9226ab2498 100644
+--- a/libavcodec/v4l2_req_dmabufs.h
++++ b/libavcodec/v4l2_req_dmabufs.h
+@@ -1,5 +1,29 @@
+-#ifndef DMABUFS_H
+-#define DMABUFS_H
++/*
++    Copyright (C) 2024  John Cox john.cox@raspberrypi.com
++
++    Permission is hereby granted, free of charge, to any person
++    obtaining a copy of this software and associated documentation
++    files (the "Software"), to deal in the Software without
++    restriction, including without limitation the rights to use, copy,
++    modify, merge, publish, distribute, sublicense, and/or sell copies
++    of the Software, and to permit persons to whom the Software is
++    furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++ */
++
++#ifndef AVCODEC_V4L2_REQ_DMABUFS_H
++#define AVCODEC_V4L2_REQ_DMABUFS_H
+ 
+ #include <stddef.h>
+ 
+diff --git a/libavcodec/v4l2_req_hevc_v1.c b/libavcodec/v4l2_req_hevc_v1.c
+index 169b532832..4d908dac12 100644
+--- a/libavcodec/v4l2_req_hevc_v1.c
++++ b/libavcodec/v4l2_req_hevc_v1.c
+@@ -1,3 +1,27 @@
++/*
++    Copyright (C) 2024  John Cox john.cox@raspberrypi.com
++
++    Permission is hereby granted, free of charge, to any person
++    obtaining a copy of this software and associated documentation
++    files (the "Software"), to deal in the Software without
++    restriction, including without limitation the rights to use, copy,
++    modify, merge, publish, distribute, sublicense, and/or sell copies
++    of the Software, and to permit persons to whom the Software is
++    furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++ */
++
+ #define HEVC_CTRLS_VERSION 1
+ #include "v4l2_req_hevc_vx.c"
+ 
+diff --git a/libavcodec/v4l2_req_hevc_v2.c b/libavcodec/v4l2_req_hevc_v2.c
+index 42af98e156..1874e20a5d 100644
+--- a/libavcodec/v4l2_req_hevc_v2.c
++++ b/libavcodec/v4l2_req_hevc_v2.c
+@@ -1,3 +1,27 @@
++/*
++    Copyright (C) 2024  John Cox john.cox@raspberrypi.com
++
++    Permission is hereby granted, free of charge, to any person
++    obtaining a copy of this software and associated documentation
++    files (the "Software"), to deal in the Software without
++    restriction, including without limitation the rights to use, copy,
++    modify, merge, publish, distribute, sublicense, and/or sell copies
++    of the Software, and to permit persons to whom the Software is
++    furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++ */
++
+ #define HEVC_CTRLS_VERSION 2
+ #include "v4l2_req_hevc_vx.c"
+ 
+diff --git a/libavcodec/v4l2_req_hevc_v3.c b/libavcodec/v4l2_req_hevc_v3.c
+index dcc8d95632..1c5a84bea8 100644
+--- a/libavcodec/v4l2_req_hevc_v3.c
++++ b/libavcodec/v4l2_req_hevc_v3.c
+@@ -1,3 +1,27 @@
++/*
++    Copyright (C) 2024  John Cox john.cox@raspberrypi.com
++
++    Permission is hereby granted, free of charge, to any person
++    obtaining a copy of this software and associated documentation
++    files (the "Software"), to deal in the Software without
++    restriction, including without limitation the rights to use, copy,
++    modify, merge, publish, distribute, sublicense, and/or sell copies
++    of the Software, and to permit persons to whom the Software is
++    furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++ */
++
+ #define HEVC_CTRLS_VERSION 3
+ #include "v4l2_req_hevc_vx.c"
+ 
+diff --git a/libavcodec/v4l2_req_hevc_v4.c b/libavcodec/v4l2_req_hevc_v4.c
+index c35579d8e0..472df7cb0e 100644
+--- a/libavcodec/v4l2_req_hevc_v4.c
++++ b/libavcodec/v4l2_req_hevc_v4.c
+@@ -1,3 +1,27 @@
++/*
++    Copyright (C) 2024  John Cox john.cox@raspberrypi.com
++
++    Permission is hereby granted, free of charge, to any person
++    obtaining a copy of this software and associated documentation
++    files (the "Software"), to deal in the Software without
++    restriction, including without limitation the rights to use, copy,
++    modify, merge, publish, distribute, sublicense, and/or sell copies
++    of the Software, and to permit persons to whom the Software is
++    furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++ */
++
+ #define HEVC_CTRLS_VERSION 4
+ #include "v4l2_req_hevc_vx.c"
+ 
+diff --git a/libavcodec/v4l2_req_hevc_vx.c b/libavcodec/v4l2_req_hevc_vx.c
+index 67c46b4418..bb7535a492 100644
+--- a/libavcodec/v4l2_req_hevc_vx.c
++++ b/libavcodec/v4l2_req_hevc_vx.c
+@@ -1,3 +1,27 @@
++/*
++    Copyright (C) 2024  John Cox john.cox@raspberrypi.com
++
++    Permission is hereby granted, free of charge, to any person
++    obtaining a copy of this software and associated documentation
++    files (the "Software"), to deal in the Software without
++    restriction, including without limitation the rights to use, copy,
++    modify, merge, publish, distribute, sublicense, and/or sell copies
++    of the Software, and to permit persons to whom the Software is
++    furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++ */
++
+ // File included by v4l2_req_hevc_v* - not compiled on its own
+ 
+ #include "decode.h"
+diff --git a/libavcodec/v4l2_req_media.h b/libavcodec/v4l2_req_media.h
+index 890947b2e2..0f1c79fb4e 100644
+--- a/libavcodec/v4l2_req_media.h
++++ b/libavcodec/v4l2_req_media.h
+@@ -22,8 +22,8 @@ e.h
+  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  */
+ 
+-#ifndef _MEDIA_H_
+-#define _MEDIA_H_
++#ifndef AVCODEC_V4L2_REQ_MEDIA_H
++#define AVCODEC_V4L2_REQ_MEDIA_H
+ 
+ #include <stdbool.h>
+ #include <stdint.h>
+diff --git a/libavcodec/v4l2_req_pollqueue.c b/libavcodec/v4l2_req_pollqueue.c
+index cc8a5d4001..4b4984e5b0 100644
+--- a/libavcodec/v4l2_req_pollqueue.c
++++ b/libavcodec/v4l2_req_pollqueue.c
+@@ -1,3 +1,27 @@
++/*
++    Copyright (C) 2024  John Cox john.cox@raspberrypi.com
++
++    Permission is hereby granted, free of charge, to any person
++    obtaining a copy of this software and associated documentation
++    files (the "Software"), to deal in the Software without
++    restriction, including without limitation the rights to use, copy,
++    modify, merge, publish, distribute, sublicense, and/or sell copies
++    of the Software, and to permit persons to whom the Software is
++    furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++ */
++
+ #include <errno.h>
+ #include <limits.h>
+ #include <poll.h>
+diff --git a/libavcodec/v4l2_req_pollqueue.h b/libavcodec/v4l2_req_pollqueue.h
+index e1182cb2fc..9634f33d48 100644
+--- a/libavcodec/v4l2_req_pollqueue.h
++++ b/libavcodec/v4l2_req_pollqueue.h
+@@ -1,5 +1,29 @@
+-#ifndef POLLQUEUE_H_
+-#define POLLQUEUE_H_
++/*
++    Copyright (C) 2024  John Cox john.cox@raspberrypi.com
++
++    Permission is hereby granted, free of charge, to any person
++    obtaining a copy of this software and associated documentation
++    files (the "Software"), to deal in the Software without
++    restriction, including without limitation the rights to use, copy,
++    modify, merge, publish, distribute, sublicense, and/or sell copies
++    of the Software, and to permit persons to whom the Software is
++    furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++ */
++
++#ifndef AVCODEC_V4L2_REQ_POLLQUEUE_H
++#define AVCODEC_V4L2_REQ_POLLQUEUE_H
+ 
+ struct polltask;
+ struct pollqueue;
+@@ -15,4 +39,4 @@ struct pollqueue * pollqueue_new(void);
+ void pollqueue_unref(struct pollqueue **const ppq);
+ struct pollqueue * pollqueue_ref(struct pollqueue *const pq);
+ 
+-#endif /* POLLQUEUE_H_ */
++#endif /* AVCODEC_V4L2_REQ_POLLQUEUE_H_ */
+diff --git a/libavcodec/v4l2_req_utils.h b/libavcodec/v4l2_req_utils.h
+index a31cc1f4ec..a6160c5e1c 100644
+--- a/libavcodec/v4l2_req_utils.h
++++ b/libavcodec/v4l2_req_utils.h
+@@ -1,3 +1,27 @@
++/*
++    Copyright (C) 2024  John Cox john.cox@raspberrypi.com
++
++    Permission is hereby granted, free of charge, to any person
++    obtaining a copy of this software and associated documentation
++    files (the "Software"), to deal in the Software without
++    restriction, including without limitation the rights to use, copy,
++    modify, merge, publish, distribute, sublicense, and/or sell copies
++    of the Software, and to permit persons to whom the Software is
++    furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++ */
++
+ #ifndef AVCODEC_V4L2_REQ_UTILS_H
+ #define AVCODEC_V4L2_REQ_UTILS_H
+ 
+diff --git a/libavcodec/v4l2_request_hevc.h b/libavcodec/v4l2_request_hevc.h
+index d0ce3aaa6e..9b41cbe9ce 100644
+--- a/libavcodec/v4l2_request_hevc.h
++++ b/libavcodec/v4l2_request_hevc.h
+@@ -1,3 +1,27 @@
++/*
++    Copyright (C) 2024  John Cox john.cox@raspberrypi.com
++
++    Permission is hereby granted, free of charge, to any person
++    obtaining a copy of this software and associated documentation
++    files (the "Software"), to deal in the Software without
++    restriction, including without limitation the rights to use, copy,
++    modify, merge, publish, distribute, sublicense, and/or sell copies
++    of the Software, and to permit persons to whom the Software is
++    furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++ */
++
+ #ifndef AVCODEC_V4L2_REQUEST_HEVC_H
+ #define AVCODEC_V4L2_REQUEST_HEVC_H
+ 
+-- 
+2.43.0
+

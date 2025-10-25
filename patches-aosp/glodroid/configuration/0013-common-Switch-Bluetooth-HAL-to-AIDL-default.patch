@@ -1,0 +1,62 @@
+From 8e466fc25c8a96b220bf24ece0249392eb1a5df0 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Fri, 25 Oct 2024 12:56:49 +0300
+Subject: [PATCH 13/16] common: Switch Bluetooth HAL to AIDL default
+
+Android-15 does not include a legacy one.
+
+Not tested.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ common/bluetooth/android.hardware.bluetooth@1.1.xml | 11 -----------
+ common/bluetooth/board.mk                           |  5 -----
+ common/bluetooth/device.mk                          |  2 +-
+ 3 files changed, 1 insertion(+), 17 deletions(-)
+ delete mode 100644 common/bluetooth/android.hardware.bluetooth@1.1.xml
+
+diff --git a/common/bluetooth/android.hardware.bluetooth@1.1.xml b/common/bluetooth/android.hardware.bluetooth@1.1.xml
+deleted file mode 100644
+index 6372bf5..0000000
+--- a/common/bluetooth/android.hardware.bluetooth@1.1.xml
++++ /dev/null
+@@ -1,11 +0,0 @@
+-<manifest version="1.0" type="device" target-level="8">
+-    <hal format="hidl">
+-        <name>android.hardware.bluetooth</name>
+-        <transport>hwbinder</transport>
+-        <version>1.1</version>
+-        <interface>
+-            <name>IBluetoothHci</name>
+-            <instance>default</instance>
+-        </interface>
+-    </hal>
+-</manifest>
+diff --git a/common/bluetooth/board.mk b/common/bluetooth/board.mk
+index e9d8385..bb3a945 100644
+--- a/common/bluetooth/board.mk
++++ b/common/bluetooth/board.mk
+@@ -1,8 +1,3 @@
+ # SPDX-License-Identifier: Apache-2.0
+ 
+-# Some framework code requires this to enable BT
+-
+ BCB_PATH := $(patsubst $(CURDIR)/%,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+-
+-BOARD_HAVE_BLUETOOTH := true
+-DEVICE_MANIFEST_FILE += $(BCB_PATH)/android.hardware.bluetooth@1.1.xml
+diff --git a/common/bluetooth/device.mk b/common/bluetooth/device.mk
+index f3bd3f7..462207b 100644
+--- a/common/bluetooth/device.mk
++++ b/common/bluetooth/device.mk
+@@ -1,6 +1,6 @@
+ # SPDX-License-Identifier: Apache-2.0
+ 
+-PRODUCT_PACKAGES += android.hardware.bluetooth@1.1-service.btlinux
++PRODUCT_PACKAGES += android.hardware.bluetooth-service.default
+ PRODUCT_COPY_FILES += \
+     frameworks/native/data/etc/android.hardware.bluetooth.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.bluetooth.xml \
+     frameworks/native/data/etc/android.hardware.bluetooth_le.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.bluetooth_le.xml \
+-- 
+2.34.1
+

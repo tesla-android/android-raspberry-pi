@@ -1,0 +1,165 @@
+From 02b34e4e752369daa2e0a3b6089faf66d8a4e2ed Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 27 Apr 2023 13:01:43 +0000
+Subject: [PATCH 27/41] tests/swscale: Add options for width and height on the
+ command line
+
+(cherry picked from commit eb8a09779688fc05bf204fdfcd063b04cda07271)
+---
+ libswscale/tests/swscale.c | 84 ++++++++++++++++++++++++++------------
+ 1 file changed, 59 insertions(+), 25 deletions(-)
+
+diff --git a/libswscale/tests/swscale.c b/libswscale/tests/swscale.c
+index cf8d04de89..3b89b72ce0 100644
+--- a/libswscale/tests/swscale.c
++++ b/libswscale/tests/swscale.c
+@@ -413,30 +413,31 @@ static int fileTest(const uint8_t * const ref[4], int refStride[4],
+     return 0;
+ }
+ 
+-#define W 96
+-#define H 96
+-
+ int main(int argc, char **argv)
+ {
++    unsigned int W = 96;
++    unsigned int H = 96;
++    unsigned int W2;
++    unsigned int H2;
++    unsigned int S;
+     enum AVPixelFormat srcFormat = AV_PIX_FMT_NONE;
+     enum AVPixelFormat dstFormat = AV_PIX_FMT_NONE;
+-    uint8_t *rgb_data   = av_malloc(W * H * 4);
+-    const uint8_t * const rgb_src[4] = { rgb_data, NULL, NULL, NULL };
+-    int rgb_stride[4]   = { 4 * W, 0, 0, 0 };
+-    uint8_t *data       = av_malloc(4 * W * H);
+-    const uint8_t * const src[4] = { data, data + W * H, data + W * H * 2, data + W * H * 3 };
+-    int stride[4]       = { W, W, W, W };
+     int x, y;
+     struct SwsContext *sws;
+     AVLFG rand;
+     int res = -1;
+     int i;
+     FILE *fp = NULL;
+-
+-    if (!rgb_data || !data)
+-        return -1;
++    uint8_t *rgb_data;
++    uint8_t * rgb_src[4] = { NULL };
++    int rgb_stride[4]   = { 0 };
++    uint8_t *data;
++    uint8_t * src[4] = { NULL };
++    int stride[4]       = { 0 };
+ 
+     for (i = 1; i < argc; i += 2) {
++        const char * const arg2 = argv[i+1];
++
+         if (!strcmp(argv[i], "-help") || !strcmp(argv[i], "--help")) {
+             fprintf(stderr,
+                     "swscale [options...]\n"
+@@ -459,29 +460,43 @@ int main(int argc, char **argv)
+         if (argv[i][0] != '-' || i + 1 == argc)
+             goto bad_option;
+         if (!strcmp(argv[i], "-ref")) {
+-            fp = fopen(argv[i + 1], "r");
++            fp = fopen(arg2, "r");
+             if (!fp) {
+-                fprintf(stderr, "could not open '%s'\n", argv[i + 1]);
++                fprintf(stderr, "could not open '%s'\n", arg2);
+                 goto error;
+             }
+         } else if (!strcmp(argv[i], "-cpuflags")) {
+             unsigned flags = av_get_cpu_flags();
+-            int ret = av_parse_cpu_caps(&flags, argv[i + 1]);
++            int ret = av_parse_cpu_caps(&flags, arg2);
+             if (ret < 0) {
+-                fprintf(stderr, "invalid cpu flags %s\n", argv[i + 1]);
++                fprintf(stderr, "invalid cpu flags %s\n", arg2);
+                 return ret;
+             }
+             av_force_cpu_flags(flags);
+         } else if (!strcmp(argv[i], "-src")) {
+-            srcFormat = av_get_pix_fmt(argv[i + 1]);
++            srcFormat = av_get_pix_fmt(arg2);
+             if (srcFormat == AV_PIX_FMT_NONE) {
+-                fprintf(stderr, "invalid pixel format %s\n", argv[i + 1]);
++                fprintf(stderr, "invalid pixel format %s\n", arg2);
+                 return -1;
+             }
+         } else if (!strcmp(argv[i], "-dst")) {
+-            dstFormat = av_get_pix_fmt(argv[i + 1]);
++            dstFormat = av_get_pix_fmt(arg2);
+             if (dstFormat == AV_PIX_FMT_NONE) {
+-                fprintf(stderr, "invalid pixel format %s\n", argv[i + 1]);
++                fprintf(stderr, "invalid pixel format %s\n", arg2);
++                return -1;
++            }
++        } else if (!strcmp(argv[i], "-w")) {
++            char * p = NULL;
++            W = strtoul(arg2, &p, 0);
++            if (!W || *p) {
++                fprintf(stderr, "bad width %s\n", arg2);
++                return -1;
++            }
++        } else if (!strcmp(argv[i], "-h")) {
++            char * p = NULL;
++            H = strtoul(arg2, &p, 0);
++            if (!H || *p) {
++                fprintf(stderr, "bad height '%s' (H=%d, *p=%d)\n", arg2, H, *p);
+                 return -1;
+             }
+         } else if (!strcmp(argv[i], "-p")) {
+@@ -495,15 +510,34 @@ bad_option:
+ 
+     ff_sfc64_init(&prng_state, 0, 0, 0, 12);
+ 
+-    sws = sws_getContext(W / 12, H / 12, AV_PIX_FMT_RGB32, W, H,
++    S = (W + 15) & ~15;
++    rgb_data   = av_mallocz(S * H * 4);
++    rgb_src[0] = rgb_data;
++    rgb_stride[0]   = 4 * S;
++    data       = av_mallocz(4 * S * H);
++    src[0] = data;
++    src[1] = data + S * H;
++    src[2] = data + S * H * 2;
++    src[3] = data + S * H * 3;
++    stride[0] = S;
++    stride[1] = S;
++    stride[2] = S;
++    stride[3] = S;
++    H2 = H < 96 ? 8 : H / 12;
++    W2 = W < 96 ? 8 : W / 12;
++
++    if (!rgb_data || !data)
++        return -1;
++
++    sws = sws_getContext(W2, H2, AV_PIX_FMT_RGB32, W, H,
+                          AV_PIX_FMT_YUVA420P, SWS_BILINEAR, NULL, NULL, NULL);
+ 
+     av_lfg_init(&rand, 1);
+ 
+     for (y = 0; y < H; y++)
+         for (x = 0; x < W * 4; x++)
+-            rgb_data[ x + y * 4 * W] = av_lfg_get(&rand);
+-    res = sws_scale(sws, rgb_src, rgb_stride, 0, H / 12, (uint8_t * const *) src, stride);
++            rgb_data[ x + y * 4 * S] = av_lfg_get(&rand);
++    res = sws_scale(sws, (const uint8_t * const *)rgb_src, rgb_stride, 0, H2, (uint8_t * const *) src, stride);
+     if (res < 0 || res != H) {
+         res = -1;
+         goto error;
+@@ -512,10 +546,10 @@ bad_option:
+     av_free(rgb_data);
+ 
+     if(fp) {
+-        res = fileTest(src, stride, W, H, fp, srcFormat, dstFormat);
++        res = fileTest((const uint8_t * const *)src, stride, W, H, fp, srcFormat, dstFormat);
+         fclose(fp);
+     } else {
+-        selfTest(src, stride, W, H, srcFormat, dstFormat);
++        selfTest((const uint8_t * const *)src, stride, W, H, srcFormat, dstFormat);
+         res = 0;
+     }
+ error:
+-- 
+2.43.0
+

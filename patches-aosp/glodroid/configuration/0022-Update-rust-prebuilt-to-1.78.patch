@@ -1,0 +1,25 @@
+From 46caf0d5083e89ce240e60d6a61b02b222154dbe Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
+Date: Thu, 9 Jan 2025 20:07:10 +0000
+Subject: [PATCH] Update rust prebuilt to 1.78
+
+---
+ common/base/board.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/common/base/board.mk b/common/base/board.mk
+index 06e0dc1..634c787 100644
+--- a/common/base/board.mk
++++ b/common/base/board.mk
+@@ -170,7 +170,7 @@ BOARD_USES_GLODROID_MAKE_TARGETS := true
+ 
+ BOARD_BUILD_GLODROID_KERNEL := true
+ 
+-RUST_BIN_DIR := prebuilts/rust/linux-x86/1.68.0/bin
++RUST_BIN_DIR := prebuilts/rust/linux-x86/1.78.0/bin
+ 
+ # vendor_dlkm is not yet ready for files filtering
+ BUILD_BROKEN_INCORRECT_PARTITION_IMAGES := true
+-- 
+2.34.1
+

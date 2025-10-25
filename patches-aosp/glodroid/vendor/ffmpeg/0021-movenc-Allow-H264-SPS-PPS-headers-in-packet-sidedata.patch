@@ -1,17 +1,31 @@
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0021-movenc-Allow-H264-SPS-PPS-headers-in-packet-sidedata.patch
 From e2586cb1edf8c730c32e770090452c39bca32645 Mon Sep 17 00:00:00 2001
 From: John Cox <jc@kynesim.co.uk>
 Date: Wed, 14 Sep 2022 15:55:15 +0000
 Subject: [PATCH 21/40] movenc: Allow H264 SPS/PPS headers in packet sidedata
+========
+From 78d5800eae1127550d332515510b0dacc8203ee5 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Wed, 14 Sep 2022 15:55:15 +0000
+Subject: [PATCH 22/41] movenc: Allow H264 SPS/PPS headers in packet sidedata
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0022-movenc-Allow-H264-SPS-PPS-headers-in-packet-sidedata.patch
 
 ---
  libavformat/movenc.c | 1 +
  1 file changed, 1 insertion(+)
 
 diff --git a/libavformat/movenc.c b/libavformat/movenc.c
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0021-movenc-Allow-H264-SPS-PPS-headers-in-packet-sidedata.patch
 index 585a018e35..ce170f5401 100644
 --- a/libavformat/movenc.c
 +++ b/libavformat/movenc.c
 @@ -7114,6 +7114,7 @@ static int mov_write_single_packet(AVFormatContext *s, AVPacket *pkt)
+========
+index d20e45cf81..079015da9a 100644
+--- a/libavformat/movenc.c
++++ b/libavformat/movenc.c
+@@ -6902,6 +6902,7 @@ static int mov_write_single_packet(AVFormatContext *s, AVPacket *pkt)
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0022-movenc-Allow-H264-SPS-PPS-headers-in-packet-sidedata.patch
      if (trk->par->codec_id == AV_CODEC_ID_MP4ALS ||
              trk->par->codec_id == AV_CODEC_ID_AAC ||
              trk->par->codec_id == AV_CODEC_ID_AV1 ||
@@ -20,5 +34,9 @@ index 585a018e35..ce170f5401 100644
          size_t side_size;
          uint8_t *side = av_packet_get_side_data(pkt, AV_PKT_DATA_NEW_EXTRADATA, &side_size);
 -- 
+<<<<<<<< HEAD:patches-aosp/glodroid/vendor/ffmpeg/0021-movenc-Allow-H264-SPS-PPS-headers-in-packet-sidedata.patch
 2.34.1
+========
+2.43.0
+>>>>>>>> f3985365a327057c33db52425eb63b8bdd13e6e4:patches-aosp/glodroid/vendor/ffmpeg/0022-movenc-Allow-H264-SPS-PPS-headers-in-packet-sidedata.patch
 

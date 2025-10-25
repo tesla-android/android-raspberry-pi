@@ -1,18 +1,22 @@
-From b422575c9815b86dfcb46cd65eed2c44893cdcce Mon Sep 17 00:00:00 2001
+From 1a431494570975bb2cb97b83f0c708f1be818a24 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Sat, 2 Mar 2024 21:54:06 +0000
-Subject: [PATCH] HACK: replace default test keys
+Subject: [PATCH 3/3] HACK: replace default test keys
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 
 Change-Id: I40ec405f0caf18f010a515067193e66063eaa5bc
+Signed-off-by: Michał Gapiński <mike@gapinski.eu>
 ---
- core/sysprop.mk | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ core/sysprop.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/core/sysprop.mk b/core/sysprop.mk
-index 65b436d..b42b693 100644
+index b55e153..f2ef7f1 100644
 --- a/core/sysprop.mk
 +++ b/core/sysprop.mk
-@@ -161,7 +161,7 @@ endif
+@@ -177,7 +177,7 @@ endif
  # Both of these tags will be removed and replaced with "release-keys"
  # when the target-files is signed in a post-build step.
  ifeq ($(DEFAULT_SYSTEM_DEV_CERTIFICATE),build/make/target/product/security/testkey)
@@ -21,13 +25,6 @@ index 65b436d..b42b693 100644
  else
  BUILD_KEYS := release-keys
  endif
-@@ -558,4 +558,4 @@ ALL_INSTALLED_BUILD_PROP_FILES := \
- # $1 installed file path, e.g. out/target/product/vsoc_x86_64/system/build.prop
- define is-build-prop
- $(if $(findstring $1,$(ALL_INSTALLED_BUILD_PROP_FILES)),Y)
--endef
-\ No newline at end of file
-+endef
 -- 
 2.34.1
 

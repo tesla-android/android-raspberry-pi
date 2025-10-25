@@ -1,0 +1,77 @@
+From 2b589e80edb18a8d40083d2f4015ea5698501b6d Mon Sep 17 00:00:00 2001
+From: James Le Cuirot <chewi@gentoo.org>
+Date: Tue, 20 Feb 2024 22:52:59 +0000
+Subject: [PATCH 30/41] fate: Fix tests broken by addition of sand formats
+
+---
+ tests/ref/fate/imgutils          | 6 ++++++
+ tests/ref/fate/sws-pixdesc-query | 8 ++++++++
+ 2 files changed, 14 insertions(+)
+
+diff --git a/tests/ref/fate/imgutils b/tests/ref/fate/imgutils
+index fb2ed6d158..61fd261b60 100644
+--- a/tests/ref/fate/imgutils
++++ b/tests/ref/fate/imgutils
+@@ -235,6 +235,9 @@ nv24            planes: 2, linesizes:  64 128   0   0, plane_sizes:  3072  6144
+ nv42            planes: 2, linesizes:  64 128   0   0, plane_sizes:  3072  6144     0     0, plane_offsets:  3072     0     0, total_size: 9216
+ y210be          planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
+ y210le          planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
++sand128         planes: 2, linesizes:  64  64   0   0, plane_sizes:  3072  1536     0     0, plane_offsets:  3072     0     0, total_size: 4608
++sand64_10       planes: 2, linesizes: 128 128   0   0, plane_sizes:  6144  3072     0     0, plane_offsets:  6144     0     0, total_size: 9216
++sand64_16       planes: 2, linesizes: 128 128   0   0, plane_sizes:  6144  3072     0     0, plane_offsets:  6144     0     0, total_size: 9216
+ x2rgb10le       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
+ x2rgb10be       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
+ x2bgr10le       planes: 1, linesizes: 256   0   0   0, plane_sizes: 12288     0     0     0, plane_offsets:     0     0     0, total_size: 12288
+@@ -451,6 +454,9 @@ nv24            total_size:   9216,  black_unknown_crc: 0x1c302b58,  black_tv_cr
+ nv42            total_size:   9216,  black_unknown_crc: 0x1c302b58,  black_tv_crc: 0x1c302b58,  black_pc_crc: 0xdf792ea7
+ y210be          total_size:  12288,  black_unknown_crc: 0x5483d935,  black_tv_crc: 0x5483d935,  black_pc_crc: 0x06397bf3
+ y210le          total_size:  12288,  black_unknown_crc: 0x5d8e1cf6,  black_tv_crc: 0x5d8e1cf6,  black_pc_crc: 0x8fceec45
++sand128         total_size:   4608,  black_unknown_crc: 0xd00f6cc6,  black_tv_crc: 0xd00f6cc6,  black_pc_crc: 0x234969af
++sand64_10       total_size:   9216,  black_unknown_crc: 0xee47624d,  black_tv_crc: 0xee47624d,  black_pc_crc: 0x7c6afe45
++sand64_16       total_size:   9216,  black_unknown_crc: 0xfff85b60,  black_tv_crc: 0xfff85b60,  black_pc_crc: 0xc03cff93
+ x2rgb10le       total_size:  12288,  black_unknown_crc: 0x00000000,  black_tv_crc: 0x00000000,  black_pc_crc: 0x00000000
+ x2rgb10be       total_size:  12288,  black_unknown_crc: 0x00000000,  black_tv_crc: 0x00000000,  black_pc_crc: 0x00000000
+ x2bgr10le       total_size:  12288,  black_unknown_crc: 0x00000000,  black_tv_crc: 0x00000000,  black_pc_crc: 0x00000000
+diff --git a/tests/ref/fate/sws-pixdesc-query b/tests/ref/fate/sws-pixdesc-query
+index fff93bbf0e..96fefd5b8a 100644
+--- a/tests/ref/fate/sws-pixdesc-query
++++ b/tests/ref/fate/sws-pixdesc-query
+@@ -23,6 +23,7 @@ is16BPS:
+   rgba64le
+   rgbaf16be
+   rgbaf16le
++  sand64_16
+   ya16be
+   ya16le
+   yuv420p16be
+@@ -75,6 +76,7 @@ isNBPS:
+   p410le
+   p412be
+   p412le
++  sand64_10
+   x2bgr10be
+   x2bgr10le
+   x2rgb10be
+@@ -245,6 +247,9 @@ isYUV:
+   p412le
+   p416be
+   p416le
++  sand128
++  sand64_10
++  sand64_16
+   uyvy422
+   uyyvyy411
+   vuya
+@@ -818,6 +823,9 @@ Packed:
+   rgbaf32le
+   rgbf32be
+   rgbf32le
++  sand128
++  sand64_10
++  sand64_16
+   uyvy422
+   uyyvyy411
+   vuya
+-- 
+2.43.0
+

@@ -1,4 +1,4 @@
-From 73f70b7a438c4ff6dca5fccca0d33061fdfe3a68 Mon Sep 17 00:00:00 2001
+From 1a630c1189a1eadbd0c8abc33523eca7d8d54000 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Micha=C5=82=20Gapi=C5=84ski?= <mike@gapinski.eu>
 Date: Sat, 2 Mar 2024 14:51:38 +0000
 Subject: [PATCH 09/10] Virtual Touchscreen: configurable X/Y params

@@ -1,0 +1,44 @@
+From 69b3b3981b106b5d54d33a75bbf37008dbe7a24e Mon Sep 17 00:00:00 2001
+From: Deyao Ren <deyaoren@google.com>
+Date: Tue, 21 May 2024 04:31:18 +0000
+Subject: [PATCH 5/5] Convert hostapd to soong
+
+Cuttlefish uses wpa_supplicant apex
+
+Bug: 295805441
+Test: CtsWifiTestCases
+Change-Id: Ic89e4a74e9c76b80146b614d740e381b9438b25b
+---
+ wpa_supplicant/wpa_supplicant/Android.bp | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/wpa_supplicant/wpa_supplicant/Android.bp b/wpa_supplicant/wpa_supplicant/Android.bp
+index b70e5b92..3f76ae85 100644
+--- a/wpa_supplicant/wpa_supplicant/Android.bp
++++ b/wpa_supplicant/wpa_supplicant/Android.bp
+@@ -39,8 +39,8 @@ wifi_cc_defaults {
+             conditions_default: {
+                 static_libs: ["lib_driver_cmd_fallback"],
+             },
+-        }
+-    }
++        },
++    },
+ }
+ 
+ cc_binary {
+@@ -50,3 +50,11 @@ cc_binary {
+         "lib_vendor_wpa_supplicant",
+     ],
+ }
++
++cc_binary {
++    name: "hostapd",
++    defaults: [
++        "hostapd_defaults",
++        "lib_vendor_wpa_supplicant",
++    ],
++}
+-- 
+2.43.0
+

@@ -1,0 +1,40 @@
+From 2cf2a6c076670aa5a6846109706fc309f2ffc91f Mon Sep 17 00:00:00 2001
+From: Elliott Hughes <enh@google.com>
+Date: Thu, 5 Sep 2024 15:52:58 +0000
+Subject: [PATCH] Remove Android.bp -march hacks.
+
+It looks like clang changed so that the __attribute__((__target__()))
+stuff is working again, and that's a lot safer than hard-coding -march.
+In particular, it turns out that we're still shipping ART mainline
+module updates to armv7 devices...
+
+Bug: http://b/364822746
+Test: objdump
+Change-Id: If409deff5d08559a7466b6ebcd0aa95ea63a1665
+---
+ Android.bp | 9 ---------
+ 1 file changed, 9 deletions(-)
+
+diff --git a/Android.bp b/Android.bp
+index 752a8f9..828650c 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -81,15 +81,6 @@ cc_library {
+         "C/XzIn.c",
+     ],
+ 
+-    arch: {
+-        arm: {
+-            cflags: ["-march=armv8-a+crypto"],
+-        },
+-        arm64: {
+-            cflags: ["-march=armv8-a+crypto"],
+-        },
+-    },
+-
+     target: {
+         linux_bionic: {
+             enabled: true,
+-- 
+2.43.0
+

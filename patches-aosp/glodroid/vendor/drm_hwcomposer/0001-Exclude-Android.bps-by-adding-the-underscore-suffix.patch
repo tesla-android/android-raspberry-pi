@@ -1,0 +1,27 @@
+From 80b2dcfbc427e36eae768ebd2cc98cd58d6cc5c4 Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Thu, 17 Oct 2024 12:28:01 +0300
+Subject: [PATCH] Exclude Android.bps by adding the underscore suffix
+
+We're building it using AOSPEXT and don't want both
+to interfare with each other.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ Android.bp => Android.bp_         | 0
+ tests/{Android.bp => Android.bp_} | 0
+ 2 files changed, 0 insertions(+), 0 deletions(-)
+ rename Android.bp => Android.bp_ (100%)
+ rename tests/{Android.bp => Android.bp_} (100%)
+
+diff --git a/Android.bp b/Android.bp_
+similarity index 100%
+rename from Android.bp
+rename to Android.bp_
+diff --git a/tests/Android.bp b/tests/Android.bp_
+similarity index 100%
+rename from tests/Android.bp
+rename to tests/Android.bp_
+-- 
+2.43.0
+

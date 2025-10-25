@@ -1,0 +1,24 @@
+From 7e2444a231141515e1a6c7d03f29c3ef2a7e979b Mon Sep 17 00:00:00 2001
+From: Roman Stratiienko <r.stratiienko@gmail.com>
+Date: Fri, 25 Oct 2024 12:54:42 +0300
+Subject: [PATCH 12/16] common: Add bootcrtl apex
+
+If missing, the update_verifier triggers a boot loop.
+
+Signed-off-by: Roman Stratiienko <r.stratiienko@gmail.com>
+---
+ common/base/device.mk | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/common/base/device.mk b/common/base/device.mk
+index bffa634..81504c8 100644
+--- a/common/base/device.mk
++++ b/common/base/device.mk
+@@ -77,3 +77,4 @@ PRODUCT_PACKAGES += \
+     update_engine_client \
+     update_verifier \
+     update_engine_sideload \
++    com.android.hardware.boot \
+-- 
+2.34.1
+
