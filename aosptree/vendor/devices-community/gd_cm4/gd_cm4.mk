@@ -35,7 +35,7 @@ KERNEL_DTB_FILE := broadcom/bcm2711-rpi-cm4.dtb
 
 SYSFS_MMC0_PATH := emmc2bus/fe340000.mmc
 
-RPI_CONFIG := $(LOCAL_PATH)/../gd_rpi4/boot/config.txt
+RPI_CONFIG := $(LOCAL_PATH)/boot/config.txt
 
 $(call inherit-product, $(LOCAL_PATH)/../gd_rpi4/device.mk)
 
