@@ -15,3 +15,5 @@
 /dev/video18                                                                 0660   media      media
 /dev/video19                                                                 0660   media      media
 /dev/video31                                                                 0660   media      media
+
+/dev/ttyAMA2                                                                 0660   gps        gps

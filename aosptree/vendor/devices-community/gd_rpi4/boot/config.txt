@@ -45,5 +45,8 @@ dtparam=i2c_arm=on
 # RPI 4 headless boot fix
 hdmi_force_hotplug=1 
 
+# GPS
+dtoverlay=uart2
+
 # Force performance governor during boot
 initial_turbo=60
