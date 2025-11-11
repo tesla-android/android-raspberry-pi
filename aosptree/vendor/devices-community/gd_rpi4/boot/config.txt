@@ -47,3 +47,6 @@ hdmi_force_hotplug=1
 
 # Force performance governor during boot
 initial_turbo=60
+
+# RTC
+dtoverlay=i2c-rtc,ds3231

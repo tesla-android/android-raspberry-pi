@@ -15,3 +15,6 @@
 /dev/video18                                                                 0660   media      media
 /dev/video19                                                                 0660   media      media
 /dev/video31                                                                 0660   media      media
+
+/dev/rtc0                                                                    0640   system     system
+/dev/rtc1                                                                    0640   system     system
