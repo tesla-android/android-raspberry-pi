@@ -33,7 +33,7 @@ dtoverlay=dwc2,dr_mode=host
 [all]
 
 # Fan
-dtoverlay=gpio-fan,gpiopin=18,temp=50000
+dtoverlay=gpio-fan,gpiopin=18,temp=55000
 
 # CM4 external Wi-Fi antenna
 dtparam=ant2
