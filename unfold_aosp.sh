@@ -2,6 +2,7 @@
 
 LOCAL_PATH=$(pwd)
 
+# Initialize and sync the AOSP repository
 echo Init repo tree using AOSP manifest
 pushd aosptree
 repo init --depth=2 -u https://android.googlesource.com/platform/manifest -b refs/tags/android-platform-14.0.0_r22 ${GD_REPO_INIT_ARGS}
@@ -14,11 +15,13 @@ git add *
 git commit -m "Add GloDroid Project" --no-edit
 popd
 
+# Sync the AOSP repository
 echo Sync repo tree
 pushd aosptree
 repo sync --no-clone-bundle --no-tags -j$(nproc --all) -v
 popd
 
+# Apply patches to the AOSP repository
 echo Patch AOSP tree
 patch_dir() {
     pushd aosptree/$1

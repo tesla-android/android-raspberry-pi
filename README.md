@@ -90,6 +90,30 @@ cd android-raspberry-pi
 ./unfold_aosp.sh && ./build.sh
 ```
 
+### Running `unfold_aosp.sh` script
+
+To run the `unfold_aosp.sh` script, follow these steps:
+
+* Ensure you have the necessary dependencies installed as mentioned in the `README.md` file.
+* Navigate to the root directory of the repository.
+* Run the `unfold_aosp.sh` script to initialize and sync the AOSP tree. This script is located in the root directory of the repository.
+
+The `unfold_aosp.sh` script will handle the rest of the setup process for the AOSP tree.
+
+### Running `build_cm4.sh` script
+
+To run the `build_cm4.sh` script, follow these steps:
+
+* Ensure you have the necessary dependencies installed as mentioned in the `README.md` file.
+* Navigate to the root directory of the repository.
+* Run the `unfold_aosp.sh` script to initialize and sync the AOSP tree. This script is located in the root directory of the repository.
+* Once the AOSP tree is set up, execute the `build_cm4.sh` script by running the following command:
+  ```bash
+  ./build_cm4.sh
+  ```
+
+The `build_cm4.sh` script will handle the rest of the build process for the CM4 target.
+
 ### Notes
 
 - Depending on your hardware and internet connection, downloading and building may take 8h or more.  
