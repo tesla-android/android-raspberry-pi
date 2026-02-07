@@ -5,9 +5,9 @@ Subject: [PATCH] Audioflinger: add audio capture via tesla-android-audio-relay
 
 Change-Id: I58955528b2b4b5210a7f190bf79f5201276e227a
 ---
- services/audioflinger/Threads.cpp | 75 ++++++++++++++++++++++++++++++-
+ services/audioflinger/Threads.cpp | 87 ++++++++++++++++++++++++++++++++++-
  services/audioflinger/Threads.h   |  4 ++
- 2 files changed, 78 insertions(+), 1 deletion(-)
+ 2 files changed, 90 insertions(+), 1 deletion(-)
 
 diff --git a/services/audioflinger/Threads.cpp b/services/audioflinger/Threads.cpp
 index 700bdd2..781c9cf 100644
@@ -22,12 +22,12 @@ index 700bdd2..781c9cf 100644
 +#include <unistd.h>
 +#include <arpa/inet.h>
 +#include <stdint.h>
-+#include <string.h> 
++#include <string.h>
 +
  // ----------------------------------------------------------------------------
  
  // Note: the following macro is used for extremely verbose logging message.  In
-@@ -3421,6 +3428,72 @@ void AudioFlinger::PlaybackThread::checkSilentMode_l()
+@@ -3421,6 +3428,84 @@ void AudioFlinger::PlaybackThread::checkSilentMode_l()
      }
  }
  
@@ -52,15 +52,24 @@ index 700bdd2..781c9cf 100644
 +        return;
 +    }
 +
++    const int flags = TEMP_FAILURE_RETRY(fcntl(mWsFd, F_GETFL));
++    if (flags >= 0) {
++        TEMP_FAILURE_RETRY(fcntl(mWsFd, F_SETFL, flags | O_NONBLOCK));
++    }
++
 +    ALOGI("openWsSocket: connected to /dev/socket/ws_audio (fd=%d)", mWsFd);
 +}
 +
-+static bool write_all(int fd, const void* buf, size_t count) {
++static bool wsRelayEnabled() {
++    return property_get_bool("persist.tesla-android.browser_audio.is_enabled", true);
++}
++
++static bool send_all_no_signal(int fd, const void* buf, size_t count) {
 +    const uint8_t* p = (const uint8_t*)buf;
 +    size_t left = count;
 +    while (left > 0) {
-+        ssize_t w = TEMP_FAILURE_RETRY(write(fd, p, left));
-+        if (w < 0) {
++        ssize_t w = TEMP_FAILURE_RETRY(send(fd, p, left, MSG_NOSIGNAL | MSG_DONTWAIT));
++        if (w <= 0) {
 +            return false;
 +        }
 +        p += w;
@@ -70,20 +79,23 @@ index 700bdd2..781c9cf 100644
 +}
 +
 +void AudioFlinger::PlaybackThread::sendToWsServer(const void* data, size_t bytes) {
-+    if (bytes == 0) return;
++    if (bytes == 0 || mType != MIXER) return;
++
++    if (!wsRelayEnabled()) {
++        if (mWsFd >= 0) {
++            close(mWsFd);
++            mWsFd = -1;
++        }
++        return;
++    }
++
 +    if (mWsFd < 0) openWsSocket();
 +    if (mWsFd < 0) return;
 +
 +    uint32_t len = htonl((uint32_t)bytes);
 +
-+    if (!write_all(mWsFd, &len, sizeof(len))) {
-+        ALOGW("sendToWsServer: failed to write length: %s", strerror(errno));
-+        close(mWsFd);
-+        mWsFd = -1;
-+        return;
-+    }
-+
-+    if (!write_all(mWsFd, data, bytes)) {
++    if (!send_all_no_signal(mWsFd, &len, sizeof(len))
++            || !send_all_no_signal(mWsFd, data, bytes)) {
 +        ALOGW("sendToWsServer: failed to write payload: %s", strerror(errno));
 +        close(mWsFd);
 +        mWsFd = -1;
@@ -100,7 +112,7 @@ index 700bdd2..781c9cf 100644
  // shared by MIXER and DIRECT, overridden by DUPLICATING
  ssize_t AudioFlinger::PlaybackThread::threadLoop_write()
  {
-@@ -3450,10 +3523,10 @@ ssize_t AudioFlinger::PlaybackThread::threadLoop_write()
+@@ -3450,10 +3535,10 @@ ssize_t AudioFlinger::PlaybackThread::threadLoop_write()
  
          if (framesWritten > 0) {
              bytesWritten = framesWritten * mFrameSize;
@@ -129,4 +141,3 @@ index e88134b..21c41d3 100644
  
 -- 
 2.34.1
-
